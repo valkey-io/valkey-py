@@ -34,21 +34,21 @@ if sys.version_info >= (3, 11, 3):
 else:
     from async_timeout import timeout as async_timeout
 
-from redis.asyncio.retry import Retry
-from redis.backoff import NoBackoff
-from redis.connection import DEFAULT_RESP_VERSION
-from redis.credentials import CredentialProvider, UsernamePasswordCredentialProvider
-from redis.exceptions import (
+from valkey.asyncio.retry import Retry
+from valkey.backoff import NoBackoff
+from valkey.connection import DEFAULT_RESP_VERSION
+from valkey.credentials import CredentialProvider, UsernamePasswordCredentialProvider
+from valkey.exceptions import (
     AuthenticationError,
     AuthenticationWrongNumberOfArgsError,
     ConnectionError,
     DataError,
-    RedisError,
+    ValkeyError,
     ResponseError,
     TimeoutError,
 )
-from redis.typing import EncodableT, KeysT, ResponseT
-from redis.utils import HIREDIS_AVAILABLE, get_lib_version, str_if_bytes
+from valkey.typing import EncodableT, KeysT, ResponseT
+from valkey.utils import HIREDIS_AVAILABLE, get_lib_version, str_if_bytes
 
 from .._cache import (
     DEFAULT_ALLOW_LIST,
@@ -98,7 +98,7 @@ ConnectCallbackT = Union[ConnectCallbackProtocol, AsyncConnectCallbackProtocol]
 
 
 class AbstractConnection:
-    """Manages communication to and from a Redis server"""
+    """Manages communication to and from a Valkey server"""
 
     __slots__ = (
         "db",
@@ -110,7 +110,7 @@ class AbstractConnection:
         "password",
         "socket_timeout",
         "socket_connect_timeout",
-        "redis_connect_func",
+        "valkey_connect_func",
         "retry_on_timeout",
         "retry_on_error",
         "health_check_interval",
@@ -148,11 +148,11 @@ class AbstractConnection:
         socket_read_size: int = 65536,
         health_check_interval: float = 0,
         client_name: Optional[str] = None,
-        lib_name: Optional[str] = "redis-py",
+        lib_name: Optional[str] = "valkey-py",
         lib_version: Optional[str] = get_lib_version(),
         username: Optional[str] = None,
         retry: Optional[Retry] = None,
-        redis_connect_func: Optional[ConnectCallbackT] = None,
+        valkey_connect_func: Optional[ConnectCallbackT] = None,
         encoder_class: Type[Encoder] = Encoder,
         credential_provider: Optional[CredentialProvider] = None,
         protocol: Optional[int] = 2,
@@ -203,7 +203,7 @@ class AbstractConnection:
         self.health_check_interval = health_check_interval
         self.next_health_check: float = -1
         self.encoder = encoder_class(encoding, encoding_errors, decode_responses)
-        self.redis_connect_func = redis_connect_func
+        self.valkey_connect_func = valkey_connect_func
         self._reader: Optional[asyncio.StreamReader] = None
         self._writer: Optional[asyncio.StreamWriter] = None
         self._socket_read_size = socket_read_size
@@ -227,7 +227,7 @@ class AbstractConnection:
         self.client_cache = client_cache if client_cache is not None else _cache
         if self.client_cache is not None:
             if self.protocol not in [3, "3"]:
-                raise RedisError(
+                raise ValkeyError(
                     "client caching is only supported with protocol version 3 or higher"
                 )
             self.cache_deny_list = cache_deny_list
@@ -295,7 +295,7 @@ class AbstractConnection:
         self._parser = parser_class(socket_read_size=self._socket_read_size)
 
     async def connect(self):
-        """Connects to the Redis server if not already connected"""
+        """Connects to the Valkey server if not already connected"""
         if self.is_connected:
             return
         try:
@@ -312,17 +312,17 @@ class AbstractConnection:
             raise ConnectionError(exc) from exc
 
         try:
-            if not self.redis_connect_func:
+            if not self.valkey_connect_func:
                 # Use the default on_connect function
                 await self.on_connect()
             else:
-                # Use the passed function redis_connect_func
+                # Use the passed function valkey_connect_func
                 (
-                    await self.redis_connect_func(self)
-                    if asyncio.iscoroutinefunction(self.redis_connect_func)
-                    else self.redis_connect_func(self)
+                    await self.valkey_connect_func(self)
+                    if asyncio.iscoroutinefunction(self.valkey_connect_func)
+                    else self.valkey_connect_func(self)
                 )
-        except RedisError:
+        except ValkeyError:
             # clean up after any error in on_connect
             await self.disconnect()
             raise
@@ -386,7 +386,7 @@ class AbstractConnection:
             try:
                 auth_response = await self.read_response()
             except AuthenticationWrongNumberOfArgsError:
-                # a username and password were specified but the Redis
+                # a username and password were specified but the Valkey
                 # server seems to be < 6.0.0 which expects a single password
                 # arg. retry auth with just the password.
                 # https://github.com/andymccurdy/redis-py/issues/1274
@@ -442,7 +442,7 @@ class AbstractConnection:
                 raise ConnectionError("Invalid Database")
 
     async def disconnect(self, nowait: bool = False) -> None:
-        """Disconnects from the Redis server"""
+        """Disconnects from the Valkey server"""
         try:
             async with async_timeout(self.socket_connect_timeout):
                 self._parser.on_disconnect()
@@ -531,7 +531,7 @@ class AbstractConnection:
             raise
 
     async def send_command(self, *args: Any, **kwargs: Any) -> None:
-        """Pack and send a command to the Redis server"""
+        """Pack and send a command to the Valkey server"""
         await self.send_packed_command(
             self.pack_command(*args), check_health=kwargs.get("check_health", True)
         )
@@ -608,10 +608,10 @@ class AbstractConnection:
         return response
 
     def pack_command(self, *args: EncodableT) -> List[bytes]:
-        """Pack a series of arguments into the Redis protocol"""
+        """Pack a series of arguments into the Valkey protocol"""
         output = []
         # the client might have included 1 or more literal arguments in
-        # the command name, e.g., 'CONFIG GET'. The Redis server expects these
+        # the command name, e.g., 'CONFIG GET'. The Valkey server expects these
         # arguments to be sent separately, so split the first argument
         # manually. These arguments should be bytestrings so that they are
         # not encoded.
@@ -654,7 +654,7 @@ class AbstractConnection:
         return output
 
     def pack_commands(self, commands: Iterable[Iterable[EncodableT]]) -> List[bytes]:
-        """Pack multiple commands into the Redis protocol"""
+        """Pack multiple commands into the Valkey protocol"""
         output: List[bytes] = []
         pieces: List[bytes] = []
         buffer_length = 0
@@ -691,7 +691,7 @@ class AbstractConnection:
         self, data: List[Union[str, Optional[List[str]]]]
     ) -> None:
         """
-        Invalidate (delete) all redis commands associated with a specific key.
+        Invalidate (delete) all valkey commands associated with a specific key.
         `data` is a list of strings, where the first string is the invalidation message
         and the second string is the list of keys to invalidate.
         (if the list of keys is None, then all keys are invalidated)
@@ -744,7 +744,7 @@ class AbstractConnection:
 
 
 class Connection(AbstractConnection):
-    "Manages TCP communication to and from a Redis server"
+    "Manages TCP communication to and from a Valkey server"
 
     def __init__(
         self,
@@ -822,7 +822,7 @@ class Connection(AbstractConnection):
 
 
 class SSLConnection(Connection):
-    """Manages SSL connections to and from the Redis server(s).
+    """Manages SSL connections to and from the Valkey server(s).
     This class extends the Connection class, adding SSL functionality, and making
     use of ssl.SSLContext (https://docs.python.org/3/library/ssl.html#ssl.SSLContext)
     """
@@ -839,7 +839,7 @@ class SSLConnection(Connection):
         ssl_ciphers: Optional[str] = None,
         **kwargs,
     ):
-        self.ssl_context: RedisSSLContext = RedisSSLContext(
+        self.ssl_context: ValkeySSLContext = ValkeySSLContext(
             keyfile=ssl_keyfile,
             certfile=ssl_certfile,
             cert_reqs=ssl_cert_reqs,
@@ -885,7 +885,7 @@ class SSLConnection(Connection):
         return self.ssl_context.min_version
 
 
-class RedisSSLContext:
+class ValkeySSLContext:
     __slots__ = (
         "keyfile",
         "certfile",
@@ -920,7 +920,7 @@ class RedisSSLContext:
                 "required": ssl.CERT_REQUIRED,
             }
             if cert_reqs not in CERT_REQS:
-                raise RedisError(
+                raise ValkeyError(
                     f"Invalid SSL Certificate Requirements Flag: {cert_reqs}"
                 )
             self.cert_reqs = CERT_REQS[cert_reqs]
@@ -949,7 +949,7 @@ class RedisSSLContext:
 
 
 class UnixDomainSocketConnection(AbstractConnection):
-    "Manages UDS communication to and from a Redis server"
+    "Manages UDS communication to and from a Valkey server"
 
     def __init__(self, *, path: str = "", **kwargs):
         self.path = path
@@ -1043,13 +1043,13 @@ def parse_url(url: str) -> ConnectKwargs:
     if parsed.password:
         kwargs["password"] = unquote(parsed.password)
 
-    # We only support redis://, rediss:// and unix:// schemes.
+    # We only support valkey://, valkeys:// and unix:// schemes.
     if parsed.scheme == "unix":
         if parsed.path:
             kwargs["path"] = unquote(parsed.path)
         kwargs["connection_class"] = UnixDomainSocketConnection
 
-    elif parsed.scheme in ("redis", "rediss"):
+    elif parsed.scheme in ("valkey", "valkeys"):
         if parsed.hostname:
             kwargs["host"] = unquote(parsed.hostname)
         if parsed.port:
@@ -1063,12 +1063,12 @@ def parse_url(url: str) -> ConnectKwargs:
             except (AttributeError, ValueError):
                 pass
 
-        if parsed.scheme == "rediss":
+        if parsed.scheme == "valkeys":
             kwargs["connection_class"] = SSLConnection
     else:
-        valid_schemes = "redis://, rediss://, unix://"
+        valid_schemes = "valkey://, valkeys://, unix://"
         raise ValueError(
-            f"Redis URL must specify one of the following schemes ({valid_schemes})"
+            f"Valkey URL must specify one of the following schemes ({valid_schemes})"
         )
 
     return kwargs
@@ -1080,11 +1080,11 @@ _CP = TypeVar("_CP", bound="ConnectionPool")
 class ConnectionPool:
     """
     Create a connection pool. ``If max_connections`` is set, then this
-    object raises :py:class:`~redis.ConnectionError` when the pool's
+    object raises :py:class:`~valkey.ConnectionError` when the pool's
     limit is reached.
 
     By default, TCP connections are created unless ``connection_class``
-    is specified. Use :py:class:`~redis.UnixDomainSocketConnection` for
+    is specified. Use :py:class:`~valkey.UnixDomainSocketConnection` for
     unix sockets.
 
     Any additional keyword arguments are passed to the constructor of
@@ -1098,16 +1098,14 @@ class ConnectionPool:
 
         For example::
 
-            redis://[[username]:[password]]@localhost:6379/0
-            rediss://[[username]:[password]]@localhost:6379/0
+            valkey://[[username]:[password]]@localhost:6379/0
+            valkeys://[[username]:[password]]@localhost:6379/0
             unix://[username@]/path/to/socket.sock?db=0[&password=password]
 
         Three URL schemes are supported:
 
-        - `redis://` creates a TCP socket connection. See more at:
-          <https://www.iana.org/assignments/uri-schemes/prov/redis>
-        - `rediss://` creates a SSL wrapped TCP socket connection. See more at:
-          <https://www.iana.org/assignments/uri-schemes/prov/rediss>
+        - `valkey://` creates a TCP socket connection.
+        - `valkeys://` creates a SSL wrapped TCP socket connection.
         - ``unix://``: creates a Unix Domain Socket connection.
 
         The username, password, hostname, path and all querystring values
@@ -1117,10 +1115,10 @@ class ConnectionPool:
         There are several ways to specify a database number. The first value
         found will be used:
 
-        1. A ``db`` querystring option, e.g. redis://localhost?db=0
+        1. A ``db`` querystring option, e.g. valkey://localhost?db=0
 
-        2. If using the redis:// or rediss:// schemes, the path argument
-               of the url, e.g. redis://localhost/0
+        2. If using the valkey:// or valkeys:// schemes, the path argument
+               of the url, e.g. valkey://localhost/0
 
         3. A ``db`` keyword argument to this function.
 
@@ -1289,18 +1287,18 @@ class BlockingConnectionPool(ConnectionPool):
     """
     A blocking connection pool::
 
-        >>> from redis.asyncio import Redis, BlockingConnectionPool
-        >>> client = Redis.from_pool(BlockingConnectionPool())
+        >>> from valkey.asyncio import Valkey, BlockingConnectionPool
+        >>> client = Valkey.from_pool(BlockingConnectionPool())
 
     It performs the same function as the default
-    :py:class:`~redis.asyncio.ConnectionPool` implementation, in that,
+    :py:class:`~valkey.asyncio.ConnectionPool` implementation, in that,
     it maintains a pool of reusable connections that can be shared by
-    multiple async redis clients.
+    multiple async valkey clients.
 
     The difference is that, in the event that a client tries to get a
     connection from the pool when all of connections are in use, rather than
-    raising a :py:class:`~redis.ConnectionError` (as the default
-    :py:class:`~redis.asyncio.ConnectionPool` implementation does), it
+    raising a :py:class:`~valkey.ConnectionError` (as the default
+    :py:class:`~valkey.asyncio.ConnectionPool` implementation does), it
     blocks the current `Task` for a specified number of seconds until
     a connection becomes available.
 

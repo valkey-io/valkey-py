@@ -1,15 +1,15 @@
-"Core exceptions raised by the Redis client"
+"Core exceptions raised by the Valkey client"
 
 
-class RedisError(Exception):
+class ValkeyError(Exception):
     pass
 
 
-class ConnectionError(RedisError):
+class ConnectionError(ValkeyError):
     pass
 
 
-class TimeoutError(RedisError):
+class TimeoutError(ValkeyError):
     pass
 
 
@@ -25,23 +25,23 @@ class BusyLoadingError(ConnectionError):
     pass
 
 
-class InvalidResponse(RedisError):
+class InvalidResponse(ValkeyError):
     pass
 
 
-class ResponseError(RedisError):
+class ResponseError(ValkeyError):
     pass
 
 
-class DataError(RedisError):
+class DataError(ValkeyError):
     pass
 
 
-class PubSubError(RedisError):
+class PubSubError(ValkeyError):
     pass
 
 
-class WatchError(RedisError):
+class WatchError(ValkeyError):
     pass
 
 
@@ -52,10 +52,10 @@ class NoScriptError(ResponseError):
 class OutOfMemoryError(ResponseError):
     """
     Indicates the database is full. Can only occur when either:
-      * Redis maxmemory-policy=noeviction
-      * Redis maxmemory-policy=volatile* and there are no evictable keys
+      * Valkey maxmemory-policy=noeviction
+      * Valkey maxmemory-policy=volatile* and there are no evictable keys
 
-    For more information see `Memory optimization in Redis <https://redis.io/docs/management/optimization/memory-optimization/#memory-allocation>`_. # noqa
+    For more information see `Memory optimization in Valkey <https://redis.io/docs/management/optimization/memory-optimization/#memory-allocation>`_. # noqa
     """
 
     pass
@@ -77,7 +77,7 @@ class ModuleError(ResponseError):
     pass
 
 
-class LockError(RedisError, ValueError):
+class LockError(ValkeyError, ValueError):
     "Errors acquiring or releasing a lock"
     # NOTE: For backwards compatibility, this class derives from ValueError.
     # This was originally chosen to behave like threading.Lock.
@@ -106,15 +106,15 @@ class AuthenticationWrongNumberOfArgsError(ResponseError):
     pass
 
 
-class RedisClusterException(Exception):
+class ValkeyClusterException(Exception):
     """
-    Base exception for the RedisCluster client
+    Base exception for the ValkeyCluster client
     """
 
     pass
 
 
-class ClusterError(RedisError):
+class ClusterError(ValkeyError):
     """
     Cluster errors occurred multiple times, resulting in an exhaustion of the
     command execution TTL
@@ -126,7 +126,7 @@ class ClusterError(RedisError):
 class ClusterDownError(ClusterError, ResponseError):
     """
     Error indicated CLUSTERDOWN error received from cluster.
-    By default Redis Cluster nodes stop accepting queries if they detect there
+    By default Valkey Cluster nodes stop accepting queries if they detect there
     is at least a hash slot uncovered (no available node is serving it).
     This way if the cluster is partially down (for example a range of hash
     slots are no longer covered) the entire cluster eventually becomes
@@ -205,7 +205,7 @@ class MasterDownError(ClusterDownError):
     pass
 
 
-class SlotNotCoveredError(RedisClusterException):
+class SlotNotCoveredError(ValkeyClusterException):
     """
     This error only happens in the case where the connection pool will try to
     fetch what node that is covered by a given slot.

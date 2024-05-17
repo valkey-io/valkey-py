@@ -4,15 +4,15 @@ import uuid
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Awaitable, Optional, Union
 
-from redis.exceptions import LockError, LockNotOwnedError
+from valkey.exceptions import LockError, LockNotOwnedError
 
 if TYPE_CHECKING:
-    from redis.asyncio import Redis, RedisCluster
+    from valkey.asyncio import Valkey, ValkeyCluster
 
 
 class Lock:
     """
-    A shared, distributed Lock. Using Redis for locking allows the Lock
+    A shared, distributed Lock. Using Valkey for locking allows the Lock
     to be shared across processes and/or machines.
 
     It's left to the user to resolve deadlock issues and make sure
@@ -27,11 +27,11 @@ class Lock:
     # ARGV[1] - token
     # return 1 if the lock was released, otherwise 0
     LUA_RELEASE_SCRIPT = """
-        local token = redis.call('get', KEYS[1])
+        local token = valkey.call('get', KEYS[1])
         if not token or token ~= ARGV[1] then
             return 0
         end
-        redis.call('del', KEYS[1])
+        valkey.call('del', KEYS[1])
         return 1
     """
 
@@ -42,11 +42,11 @@ class Lock:
     #           existing ttl or "1" if the existing ttl should be replaced
     # return 1 if the locks time was extended, otherwise 0
     LUA_EXTEND_SCRIPT = """
-        local token = redis.call('get', KEYS[1])
+        local token = valkey.call('get', KEYS[1])
         if not token or token ~= ARGV[1] then
             return 0
         end
-        local expiration = redis.call('pttl', KEYS[1])
+        local expiration = valkey.call('pttl', KEYS[1])
         if not expiration then
             expiration = 0
         end
@@ -58,7 +58,7 @@ class Lock:
         if ARGV[3] == "0" then
             newttl = ARGV[2] + expiration
         end
-        redis.call('pexpire', KEYS[1], newttl)
+        valkey.call('pexpire', KEYS[1], newttl)
         return 1
     """
 
@@ -67,17 +67,17 @@ class Lock:
     # ARGV[2] - milliseconds
     # return 1 if the locks time was reacquired, otherwise 0
     LUA_REACQUIRE_SCRIPT = """
-        local token = redis.call('get', KEYS[1])
+        local token = valkey.call('get', KEYS[1])
         if not token or token ~= ARGV[1] then
             return 0
         end
-        redis.call('pexpire', KEYS[1], ARGV[2])
+        valkey.call('pexpire', KEYS[1], ARGV[2])
         return 1
     """
 
     def __init__(
         self,
-        redis: Union["Redis", "RedisCluster"],
+        valkey: Union["Valkey", "ValkeyCluster"],
         name: Union[str, bytes, memoryview],
         timeout: Optional[float] = None,
         sleep: float = 0.1,
@@ -86,8 +86,8 @@ class Lock:
         thread_local: bool = True,
     ):
         """
-        Create a new Lock instance named ``name`` using the Redis client
-        supplied by ``redis``.
+        Create a new Lock instance named ``name`` using the Valkey client
+        supplied by ``valkey``.
 
         ``timeout`` indicates a maximum life for the lock in seconds.
         By default, it will remain locked until release() is called.
@@ -118,7 +118,7 @@ class Lock:
                      thread-1 sets the token to "abc"
             time: 1, thread-2 blocks trying to acquire `my-lock` using the
                      Lock instance.
-            time: 5, thread-1 has not yet completed. redis expires the lock
+            time: 5, thread-1 has not yet completed. valkey expires the lock
                      key.
             time: 5, thread-2 acquired `my-lock` now that it's available.
                      thread-2 sets the token to "xyz"
@@ -135,7 +135,7 @@ class Lock:
         is that these cases aren't common and as such default to using
         thread local storage.
         """
-        self.redis = redis
+        self.valkey = valkey
         self.name = name
         self.timeout = timeout
         self.sleep = sleep
@@ -148,7 +148,7 @@ class Lock:
 
     def register_scripts(self):
         cls = self.__class__
-        client = self.redis
+        client = self.valkey
         if cls.lua_release is None:
             cls.lua_release = client.register_script(cls.LUA_RELEASE_SCRIPT)
         if cls.lua_extend is None:
@@ -171,7 +171,7 @@ class Lock:
         token: Optional[Union[str, bytes]] = None,
     ):
         """
-        Use Redis to hold a shared, distributed lock named ``name``.
+        Use Valkey to hold a shared, distributed lock named ``name``.
         Returns True once the lock is acquired.
 
         If ``blocking`` is False, always return immediately. If the lock
@@ -190,10 +190,10 @@ class Lock:
             token = uuid.uuid1().hex.encode()
         else:
             try:
-                encoder = self.redis.connection_pool.get_encoder()
+                encoder = self.valkey.connection_pool.get_encoder()
             except AttributeError:
                 # Cluster
-                encoder = self.redis.get_encoder()
+                encoder = self.valkey.get_encoder()
             token = encoder.encode(token)
         if blocking is None:
             blocking = self.blocking
@@ -219,7 +219,7 @@ class Lock:
             timeout = int(self.timeout * 1000)
         else:
             timeout = None
-        if await self.redis.set(self.name, token, nx=True, px=timeout):
+        if await self.valkey.set(self.name, token, nx=True, px=timeout):
             return True
         return False
 
@@ -227,21 +227,21 @@ class Lock:
         """
         Returns True if this key is locked by any process, otherwise False.
         """
-        return await self.redis.get(self.name) is not None
+        return await self.valkey.get(self.name) is not None
 
     async def owned(self) -> bool:
         """
         Returns True if this key is locked by this lock, otherwise False.
         """
-        stored_token = await self.redis.get(self.name)
+        stored_token = await self.valkey.get(self.name)
         # need to always compare bytes to bytes
         # TODO: this can be simplified when the context manager is finished
         if stored_token and not isinstance(stored_token, bytes):
             try:
-                encoder = self.redis.connection_pool.get_encoder()
+                encoder = self.valkey.connection_pool.get_encoder()
             except AttributeError:
                 # Cluster
-                encoder = self.redis.get_encoder()
+                encoder = self.valkey.get_encoder()
             stored_token = encoder.encode(stored_token)
         return self.local.token is not None and stored_token == self.local.token
 
@@ -256,7 +256,7 @@ class Lock:
     async def do_release(self, expected_token: bytes) -> None:
         if not bool(
             await self.lua_release(
-                keys=[self.name], args=[expected_token], client=self.redis
+                keys=[self.name], args=[expected_token], client=self.valkey
             )
         ):
             raise LockNotOwnedError("Cannot release a lock that's no longer owned")
@@ -286,7 +286,7 @@ class Lock:
             await self.lua_extend(
                 keys=[self.name],
                 args=[self.local.token, additional_time, replace_ttl and "1" or "0"],
-                client=self.redis,
+                client=self.valkey,
             )
         ):
             raise LockNotOwnedError("Cannot extend a lock that's no longer owned")
@@ -306,7 +306,7 @@ class Lock:
         timeout = int(self.timeout * 1000)
         if not bool(
             await self.lua_reacquire(
-                keys=[self.name], args=[self.local.token, timeout], client=self.redis
+                keys=[self.name], args=[self.local.token, timeout], client=self.valkey
             )
         ):
             raise LockNotOwnedError("Cannot reacquire a lock that's no longer owned")

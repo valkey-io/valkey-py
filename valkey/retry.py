@@ -1,7 +1,7 @@
 import socket
 from time import sleep
 
-from redis.exceptions import ConnectionError, TimeoutError
+from valkey.exceptions import ConnectionError, TimeoutError
 
 
 class Retry:

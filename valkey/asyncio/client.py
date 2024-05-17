@@ -134,10 +134,8 @@ class Valkey(
 
         Three URL schemes are supported:
 
-        - `valkey://` creates a TCP socket connection. See more at:
-          <https://www.iana.org/assignments/uri-schemes/prov/valkey>
-        - `valkeys://` creates a SSL wrapped TCP socket connection. See more at:
-          <https://www.iana.org/assignments/uri-schemes/prov/valkeys>
+        - `valkey://` creates a TCP socket connection.
+        - `valkeys://` creates a SSL wrapped TCP socket connection.
         - ``unix://``: creates a Unix Domain Socket connection.
 
         The username, password, hostname, path and all querystring values
@@ -348,16 +346,16 @@ class Valkey(
         self.single_connection_client = single_connection_client
         self.connection: Optional[Connection] = None
 
-        self.response_callbacks = CaseInsensitiveDict(_RedisCallbacks)
+        self.response_callbacks = CaseInsensitiveDict(_ValkeyCallbacks)
 
         if self.connection_pool.connection_kwargs.get("protocol") in ["3", 3]:
-            self.response_callbacks.update(_RedisCallbacksRESP3)
+            self.response_callbacks.update(_ValkeyCallbacksRESP3)
         else:
-            self.response_callbacks.update(_RedisCallbacksRESP2)
+            self.response_callbacks.update(_ValkeyCallbacksRESP2)
 
         # If using a single connection client, we need to lock creation-of and use-of
         # the client in order to avoid race conditions such as using asyncio.gather
-        # on a set of redis commands
+        # on a set of valkey commands
         self._single_conn_lock = asyncio.Lock()
 
     def __repr__(self):
@@ -369,7 +367,7 @@ class Valkey(
     def __await__(self):
         return self.initialize().__await__()
 
-    async def initialize(self: _RedisT) -> _RedisT:
+    async def initialize(self: _ValkeyT) -> _ValkeyT:
         if self.single_connection_client:
             async with self._single_conn_lock:
                 if self.connection is None:
@@ -397,19 +395,19 @@ class Valkey(
 
     def load_external_module(self, funcname, func):
         """
-        This function can be used to add externally defined redis modules,
-        and their namespaces to the redis client.
+        This function can be used to add externally defined valkey modules,
+        and their namespaces to the valkey client.
 
         funcname - A string containing the name of the function to create
         func - The function, being added to this class.
 
-        ex: Assume that one has a custom redis module named foomod that
-        creates command named 'foo.dothing' and 'foo.anotherthing' in redis.
+        ex: Assume that one has a custom valkey module named foomod that
+        creates command named 'foo.dothing' and 'foo.anotherthing' in valkey.
         To load function functions into this namespace:
 
-        from redis import Redis
+        from valkey import Valkey
         from foomodule import F
-        r = Redis()
+        r = Valkey()
         r.load_external_module("foo", F)
         r.foo().dothing('your', 'arguments')
 
@@ -494,7 +492,7 @@ class Valkey(
         float or integer, both representing the number of seconds to wait.
 
         ``lock_class`` forces the specified lock implementation. Note that as
-        of redis-py 3.0, the only lock class we implement is ``Lock`` (which is
+        of valkey-py 3.0, the only lock class we implement is ``Lock`` (which is
         a Lua-based lock). So, it's unlikely you'll need this parameter, unless
         you have created your own custom lock class.
 
@@ -507,7 +505,7 @@ class Valkey(
                      thread-1 sets the token to "abc"
             time: 1, thread-2 blocks trying to acquire `my-lock` using the
                      Lock instance.
-            time: 5, thread-1 has not yet completed. redis expires the lock
+            time: 5, thread-1 has not yet completed. valkey expires the lock
                      key.
             time: 5, thread-2 acquired `my-lock` now that it's available.
                      thread-2 sets the token to "xyz"
@@ -546,18 +544,18 @@ class Valkey(
     def monitor(self) -> "Monitor":
         return Monitor(self.connection_pool)
 
-    def client(self) -> "Redis":
+    def client(self) -> "Valkey":
         return self.__class__(
             connection_pool=self.connection_pool, single_connection_client=True
         )
 
-    async def __aenter__(self: _RedisT) -> _RedisT:
+    async def __aenter__(self: _ValkeyT) -> _ValkeyT:
         return await self.initialize()
 
     async def __aexit__(self, exc_type, exc_value, traceback):
         await self.aclose()
 
-    _DEL_MESSAGE = "Unclosed Redis client"
+    _DEL_MESSAGE = "Unclosed Valkey client"
 
     # passing _warnings and _grl as argument default since they may be gone
     # by the time __del__ is called at shutdown
@@ -577,11 +575,11 @@ class Valkey(
 
     async def aclose(self, close_connection_pool: Optional[bool] = None) -> None:
         """
-        Closes Redis client connection
+        Closes Valkey client connection
 
         :param close_connection_pool: decides whether to close the connection pool used
-        by this Redis client, overriding Redis.auto_close_connection_pool. By default,
-        let Redis.auto_close_connection_pool decide whether to close the connection
+        by this Valkey client, overriding Valkey.auto_close_connection_pool. By default,
+        let Valkey.auto_close_connection_pool decide whether to close the connection
         pool.
         """
         conn = self.connection
@@ -655,7 +653,7 @@ class Valkey(
     async def parse_response(
         self, connection: Connection, command_name: Union[str, bytes], **options
     ):
-        """Parses a response from the Redis server"""
+        """Parses a response from the Valkey server"""
         try:
             if NEVER_DECODE in options:
                 response = await connection.read_response(disable_decoding=True)
@@ -696,7 +694,7 @@ class Valkey(
             self.connection_pool.invalidate_key_from_cache(key)
 
 
-StrictRedis = Redis
+StrictValkey = Valkey
 
 
 class MonitorCommandInfo(TypedDict):
@@ -710,7 +708,7 @@ class MonitorCommandInfo(TypedDict):
 
 class Monitor:
     """
-    Monitor is useful for handling the MONITOR command to the redis server.
+    Monitor is useful for handling the MONITOR command to the valkey server.
     next_command() method returns one command from monitor
     listen() method yields commands from monitor.
     """
@@ -732,7 +730,7 @@ class Monitor:
         # check that monitor returns 'OK', but don't return it to user
         response = await self.connection.read_response()
         if not bool_ok(response):
-            raise RedisError(f"MONITOR failed: {response}")
+            raise ValkeyError(f"MONITOR failed: {response}")
         return self
 
     async def __aexit__(self, *args):
@@ -749,7 +747,7 @@ class Monitor:
         m = self.monitor_re.match(command_data)
         db_id, client_info, command = m.groups()
         command = " ".join(self.command_re.findall(command))
-        # Redis escapes double quotes because each piece of the command
+        # Valkey escapes double quotes because each piece of the command
         # string is surrounded by double quotes. We don't have that
         # requirement so remove the escaping and leave the quote.
         command = command.replace('\\"', '"')
@@ -783,7 +781,7 @@ class Monitor:
 
 class PubSub:
     """
-    PubSub provides publish, subscribe and listen support to Redis channels.
+    PubSub provides publish, subscribe and listen support to Valkey channels.
 
     After subscribing to one or more channels, the listen() method will block
     until a message arrives on one of the subscribed channels. That message
@@ -792,7 +790,7 @@ class PubSub:
 
     PUBLISH_MESSAGE_TYPES = ("message", "pmessage")
     UNSUBSCRIBE_MESSAGE_TYPES = ("unsubscribe", "punsubscribe")
-    HEALTH_CHECK_MESSAGE = "redis-py-health-check"
+    HEALTH_CHECK_MESSAGE = "valkey-py-health-check"
 
     def __init__(
         self,
@@ -842,7 +840,7 @@ class PubSub:
 
     async def aclose(self):
         # In case a connection property does not yet exist
-        # (due to a crash earlier in the Redis() constructor), return
+        # (due to a crash earlier in the Valkey() constructor), return
         # immediately as there is nothing to clean-up.
         if not hasattr(self, "connection"):
             return
@@ -935,7 +933,7 @@ class PubSub:
 
     async def _execute(self, conn, command, *args, **kwargs):
         """
-        Connect manually upon disconnection. If the Redis server is down,
+        Connect manually upon disconnection. If the Valkey server is down,
         this will fail and raise a ConnectionError as desired.
         After reconnection, the ``on_connect`` callback should have been
         called by the # connection to resubscribe us to any channels and
@@ -1095,7 +1093,7 @@ class PubSub:
 
     def ping(self, message=None) -> Awaitable:
         """
-        Ping the Redis server
+        Ping the Valkey server
         """
         args = ["PING", message] if message is not None else ["PING"]
         return self.execute_command(*args)
@@ -1174,8 +1172,8 @@ class PubSub:
     ) -> None:
         """Process pub/sub messages using registered callbacks.
 
-        This is the equivalent of :py:meth:`redis.PubSub.run_in_thread` in
-        redis-py, but it is a coroutine. To launch it as a separate task, use
+        This is the equivalent of :py:meth:`valkey.PubSub.run_in_thread` in
+        valkey-py, but it is a coroutine. To launch it as a separate task, use
         ``asyncio.create_task``:
 
             >>> task = asyncio.create_task(pubsub.run())
@@ -1228,11 +1226,11 @@ CommandT = Tuple[Tuple[Union[str, bytes], ...], Mapping[str, Any]]
 CommandStackT = List[CommandT]
 
 
-class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
+class Pipeline(Valkey):  # lgtm [py/init-calls-subclass]
     """
-    Pipelines provide a way to transmit multiple commands to the Redis server
+    Pipelines provide a way to transmit multiple commands to the Valkey server
     in one transmission.  This is convenient for batch processing, such as
-    saving all the values in a list to Redis.
+    saving all the values in a list to Valkey.
 
     All commands executed within a pipeline are wrapped with MULTI and EXEC
     calls. This guarantees all commands executed in the pipeline will be
@@ -1266,7 +1264,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         self.scripts: Set["Script"] = set()
         self.explicit_transaction = False
 
-    async def __aenter__(self: _RedisT) -> _RedisT:
+    async def __aenter__(self: _ValkeyT) -> _ValkeyT:
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):
@@ -1321,9 +1319,9 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         are issued. End the transactional block with `execute`.
         """
         if self.explicit_transaction:
-            raise RedisError("Cannot issue nested calls to MULTI")
+            raise ValkeyError("Cannot issue nested calls to MULTI")
         if self.command_stack:
-            raise RedisError(
+            raise ValkeyError(
                 "Commands without an initial WATCH have already been issued"
             )
         self.explicit_transaction = True
@@ -1582,14 +1580,14 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
 
     async def discard(self):
         """Flushes all previously queued commands
-        See: https://redis.io/commands/DISCARD
+        See: https://valkey.io/commands/discard
         """
         await self.execute_command("DISCARD")
 
     async def watch(self, *names: KeyT):
         """Watches the values at keys ``names``"""
         if self.explicit_transaction:
-            raise RedisError("Cannot issue a WATCH after a MULTI")
+            raise ValkeyError("Cannot issue a WATCH after a MULTI")
         return await self.execute_command("WATCH", *names)
 
     async def unwatch(self):

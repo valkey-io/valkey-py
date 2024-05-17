@@ -36,19 +36,19 @@ else:
 
 def from_url(url, **kwargs):
     """
-    Returns an active Redis client generated from the given database URL.
+    Returns an active Valkey client generated from the given database URL.
 
     Will attempt to extract the database id from the path url fragment, if
     none is provided.
     """
-    from redis.client import Redis
+    from valkey.client import Valkey
 
-    return Redis.from_url(url, **kwargs)
+    return Valkey.from_url(url, **kwargs)
 
 
 @contextmanager
-def pipeline(redis_obj):
-    p = redis_obj.pipeline()
+def pipeline(valkey_obj):
+    p = valkey_obj.pipeline()
     yield p
     p.execute()
 
@@ -141,7 +141,7 @@ def _set_info_logger():
 
 def get_lib_version():
     try:
-        libver = metadata.version("redis")
+        libver = metadata.version("valkey")
     except metadata.PackageNotFoundError:
         libver = "99.99.99"
     return libver

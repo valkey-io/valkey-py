@@ -28,7 +28,7 @@ from .exceptions import (
     ChildDeadlockedError,
     ConnectionError,
     DataError,
-    RedisError,
+    ValkeyError,
     ResponseError,
     TimeoutError,
 )
@@ -64,7 +64,7 @@ else:
 
 class HiredisRespSerializer:
     def pack(self, *args: List):
-        """Pack a series of arguments into the Redis protocol"""
+        """Pack a series of arguments into the Valkey protocol"""
         output = []
 
         if isinstance(args[0], str):
@@ -86,10 +86,10 @@ class PythonRespSerializer:
         self.encode = encode
 
     def pack(self, *args):
-        """Pack a series of arguments into the Redis protocol"""
+        """Pack a series of arguments into the Valkey protocol"""
         output = []
         # the client might have included 1 or more literal arguments in
-        # the command name, e.g., 'CONFIG GET'. The Redis server expects these
+        # the command name, e.g., 'CONFIG GET'. The Valkey server expects these
         # arguments to be sent separately, so split the first argument
         # manually. These arguments should be bytestrings so that they are
         # not encoded.
@@ -132,7 +132,7 @@ class PythonRespSerializer:
 
 
 class AbstractConnection:
-    "Manages communication to and from a Redis server"
+    "Manages communication to and from a Valkey server"
 
     def __init__(
         self,
@@ -149,11 +149,11 @@ class AbstractConnection:
         socket_read_size: int = 65536,
         health_check_interval: int = 0,
         client_name: Optional[str] = None,
-        lib_name: Optional[str] = "redis-py",
+        lib_name: Optional[str] = "valkey-py",
         lib_version: Optional[str] = get_lib_version(),
         username: Optional[str] = None,
         retry: Union[Any, None] = None,
-        redis_connect_func: Optional[Callable[[], None]] = None,
+        valkey_connect_func: Optional[Callable[[], None]] = None,
         credential_provider: Optional[CredentialProvider] = None,
         protocol: Optional[int] = 2,
         command_packer: Optional[Callable[[], None]] = None,
@@ -210,7 +210,7 @@ class AbstractConnection:
             self.retry = Retry(NoBackoff(), 0)
         self.health_check_interval = health_check_interval
         self.next_health_check = 0
-        self.redis_connect_func = redis_connect_func
+        self.valkey_connect_func = valkey_connect_func
         self.encoder = Encoder(encoding, encoding_errors, decode_responses)
         self._sock = None
         self._socket_read_size = socket_read_size
@@ -236,7 +236,7 @@ class AbstractConnection:
         self.client_cache = client_cache if client_cache is not None else _cache
         if self.client_cache is not None:
             if self.protocol not in [3, "3"]:
-                raise RedisError(
+                raise ValkeyError(
                     "client caching is only supported with protocol version 3 or higher"
                 )
             self.cache_deny_list = cache_deny_list
@@ -296,7 +296,7 @@ class AbstractConnection:
         self._parser = parser_class(socket_read_size=self._socket_read_size)
 
     def connect(self):
-        "Connects to the Redis server if not already connected"
+        "Connects to the Valkey server if not already connected"
         if self._sock:
             return
         try:
@@ -310,13 +310,13 @@ class AbstractConnection:
 
         self._sock = sock
         try:
-            if self.redis_connect_func is None:
+            if self.valkey_connect_func is None:
                 # Use the default on_connect function
                 self.on_connect()
             else:
-                # Use the passed function redis_connect_func
-                self.redis_connect_func(self)
-        except RedisError:
+                # Use the passed function valkey_connect_func
+                self.valkey_connect_func(self)
+        except ValkeyError:
             # clean up after any error in on_connect
             self.disconnect()
             raise
@@ -380,7 +380,7 @@ class AbstractConnection:
             try:
                 auth_response = self.read_response()
             except AuthenticationWrongNumberOfArgsError:
-                # a username and password were specified but the Redis
+                # a username and password were specified but the Valkey
                 # server seems to be < 6.0.0 which expects a single password
                 # arg. retry auth with just the password.
                 # https://github.com/andymccurdy/redis-py/issues/1274
@@ -439,7 +439,7 @@ class AbstractConnection:
             self._parser.set_invalidation_push_handler(self._cache_invalidation_process)
 
     def disconnect(self, *args):
-        "Disconnects from the Redis server"
+        "Disconnects from the Valkey server"
         self._parser.on_disconnect()
 
         conn_sock = self._sock
@@ -477,7 +477,7 @@ class AbstractConnection:
             self.retry.call_with_retry(self._send_ping, self._ping_failed)
 
     def send_packed_command(self, command, check_health=True):
-        """Send an already packed command to the Redis server"""
+        """Send an already packed command to the Valkey server"""
         if not self._sock:
             self.connect()
         # guard against health check recursion
@@ -508,7 +508,7 @@ class AbstractConnection:
             raise
 
     def send_command(self, *args, **kwargs):
-        """Pack and send a command to the Redis server"""
+        """Pack and send a command to the Valkey server"""
         self.send_packed_command(
             self._command_packer.pack(*args),
             check_health=kwargs.get("check_health", True),
@@ -575,11 +575,11 @@ class AbstractConnection:
         return response
 
     def pack_command(self, *args):
-        """Pack a series of arguments into the Redis protocol"""
+        """Pack a series of arguments into the Valkey protocol"""
         return self._command_packer.pack(*args)
 
     def pack_commands(self, commands):
-        """Pack multiple commands into the Redis protocol"""
+        """Pack multiple commands into the Valkey protocol"""
         output = []
         pieces = []
         buffer_length = 0
@@ -612,7 +612,7 @@ class AbstractConnection:
         self, data: List[Union[str, Optional[List[str]]]]
     ) -> None:
         """
-        Invalidate (delete) all redis commands associated with a specific key.
+        Invalidate (delete) all valkey commands associated with a specific key.
         `data` is a list of strings, where the first string is the invalidation message
         and the second string is the list of keys to invalidate.
         (if the list of keys is None, then all keys are invalidated)
@@ -665,7 +665,7 @@ class AbstractConnection:
 
 
 class Connection(AbstractConnection):
-    "Manages TCP communication to and from a Redis server"
+    "Manages TCP communication to and from a Valkey server"
 
     def __init__(
         self,
@@ -756,7 +756,7 @@ class Connection(AbstractConnection):
 
 
 class SSLConnection(Connection):
-    """Manages SSL connections to and from the Redis server(s).
+    """Manages SSL connections to and from the Valkey server(s).
     This class extends the Connection class, adding SSL functionality, and making
     use of ssl.SSLContext (https://docs.python.org/3/library/ssl.html#ssl.SSLContext)
     """  # noqa
@@ -799,10 +799,10 @@ class SSLConnection(Connection):
             ssl_ciphers: A string listing the ciphers that are allowed to be used. Defaults to None, which means that the default ciphers are used. See https://docs.python.org/3/library/ssl.html#ssl.SSLContext.set_ciphers for more information.
 
         Raises:
-            RedisError
+            ValkeyError
         """  # noqa
         if not SSL_AVAILABLE:
-            raise RedisError("Python wasn't built with SSL support")
+            raise ValkeyError("Python wasn't built with SSL support")
 
         self.keyfile = ssl_keyfile
         self.certfile = ssl_certfile
@@ -815,7 +815,7 @@ class SSLConnection(Connection):
                 "required": ssl.CERT_REQUIRED,
             }
             if ssl_cert_reqs not in CERT_REQS:
-                raise RedisError(
+                raise ValkeyError(
                     f"Invalid SSL Certificate Requirements Flag: {ssl_cert_reqs}"
                 )
             ssl_cert_reqs = CERT_REQS[ssl_cert_reqs]
@@ -859,10 +859,10 @@ class SSLConnection(Connection):
             context.set_ciphers(self.ssl_ciphers)
         sslsock = context.wrap_socket(sock, server_hostname=self.host)
         if self.ssl_validate_ocsp is True and CRYPTOGRAPHY_AVAILABLE is False:
-            raise RedisError("cryptography is not installed.")
+            raise ValkeyError("cryptography is not installed.")
 
         if self.ssl_validate_ocsp_stapled and self.ssl_validate_ocsp:
-            raise RedisError(
+            raise ValkeyError(
                 "Either an OCSP staple or pure OCSP connection must be validated "
                 "- not both."
             )
@@ -906,7 +906,7 @@ class SSLConnection(Connection):
 
 
 class UnixDomainSocketConnection(AbstractConnection):
-    "Manages UDS communication to and from a Redis server"
+    "Manages UDS communication to and from a Valkey server"
 
     def __init__(self, path="", socket_timeout=None, **kwargs):
         self.path = path
@@ -972,13 +972,13 @@ URL_QUERY_ARGUMENT_PARSERS = {
 
 def parse_url(url):
     if not (
-        url.startswith("redis://")
-        or url.startswith("rediss://")
+        url.startswith("valkey://")
+        or url.startswith("valkeys://")
         or url.startswith("unix://")
     ):
         raise ValueError(
-            "Redis URL must specify one of the following "
-            "schemes (redis://, rediss://, unix://)"
+            "Valkey URL must specify one of the following "
+            "schemes (valkey://, valkeys://, unix://)"
         )
 
     url = urlparse(url)
@@ -1001,13 +1001,13 @@ def parse_url(url):
     if url.password:
         kwargs["password"] = unquote(url.password)
 
-    # We only support redis://, rediss:// and unix:// schemes.
+    # We only support valkey://, valkeys:// and unix:// schemes.
     if url.scheme == "unix":
         if url.path:
             kwargs["path"] = unquote(url.path)
         kwargs["connection_class"] = UnixDomainSocketConnection
 
-    else:  # implied:  url.scheme in ("redis", "rediss"):
+    else:  # implied:  url.scheme in ("valkey", "valkeys"):
         if url.hostname:
             kwargs["host"] = unquote(url.hostname)
         if url.port:
@@ -1021,7 +1021,7 @@ def parse_url(url):
             except (AttributeError, ValueError):
                 pass
 
-        if url.scheme == "rediss":
+        if url.scheme == "valkeys":
             kwargs["connection_class"] = SSLConnection
 
     return kwargs
@@ -1030,7 +1030,7 @@ def parse_url(url):
 class ConnectionPool:
     """
     Create a connection pool. ``If max_connections`` is set, then this
-    object raises :py:class:`~redis.exceptions.ConnectionError` when the pool's
+    object raises :py:class:`~valkey.exceptions.ConnectionError` when the pool's
     limit is reached.
 
     By default, TCP connections are created unless ``connection_class``
@@ -1048,16 +1048,14 @@ class ConnectionPool:
 
         For example::
 
-            redis://[[username]:[password]]@localhost:6379/0
-            rediss://[[username]:[password]]@localhost:6379/0
+            valkey://[[username]:[password]]@localhost:6379/0
+            valkeys://[[username]:[password]]@localhost:6379/0
             unix://[username@]/path/to/socket.sock?db=0[&password=password]
 
         Three URL schemes are supported:
 
-        - `redis://` creates a TCP socket connection. See more at:
-          <https://www.iana.org/assignments/uri-schemes/prov/redis>
-        - `rediss://` creates a SSL wrapped TCP socket connection. See more at:
-          <https://www.iana.org/assignments/uri-schemes/prov/rediss>
+        - `valkey://` creates a TCP socket connection.
+        - `valkeys://` creates a SSL wrapped TCP socket connection.
         - ``unix://``: creates a Unix Domain Socket connection.
 
         The username, password, hostname, path and all querystring values
@@ -1067,9 +1065,9 @@ class ConnectionPool:
         There are several ways to specify a database number. The first value
         found will be used:
 
-            1. A ``db`` querystring option, e.g. redis://localhost?db=0
-            2. If using the redis:// or rediss:// schemes, the path argument
-               of the url, e.g. redis://localhost/0
+            1. A ``db`` querystring option, e.g. valkey://localhost?db=0
+            2. If using the valkey:// or valkeys:// schemes, the path argument
+               of the url, e.g. valkey://localhost/0
             3. A ``db`` keyword argument to this function.
 
         If none of these options are specified, the default db=0 is used.
@@ -1172,7 +1170,7 @@ class ConnectionPool:
         # to mitigate this possible deadlock, _checkpid() will only wait 5
         # seconds to acquire _fork_lock. if _fork_lock cannot be acquired in
         # that time it is assumed that the child is deadlocked and a
-        # redis.ChildDeadlockedError error is raised.
+        # valkey.ChildDeadlockedError error is raised.
         if self.pid != os.getpid():
             acquired = self._fork_lock.acquire(timeout=5)
             if not acquired:
@@ -1196,7 +1194,7 @@ class ConnectionPool:
             self._in_use_connections.add(connection)
 
         try:
-            # ensure this connection is connected to Redis
+            # ensure this connection is connected to Valkey
             connection.connect()
             # if client caching is not enabled connections that the pool
             # provides should be ready to send a command.
@@ -1318,18 +1316,18 @@ class BlockingConnectionPool(ConnectionPool):
     """
     Thread-safe blocking connection pool::
 
-        >>> from redis.client import Redis
-        >>> client = Redis(connection_pool=BlockingConnectionPool())
+        >>> from valkey.client import Valkey
+        >>> client = Valkey(connection_pool=BlockingConnectionPool())
 
     It performs the same function as the default
-    :py:class:`~redis.ConnectionPool` implementation, in that,
+    :py:class:`~valkey.ConnectionPool` implementation, in that,
     it maintains a pool of reusable connections that can be shared by
-    multiple redis clients (safely across threads if required).
+    multiple valkey clients (safely across threads if required).
 
     The difference is that, in the event that a client tries to get a
     connection from the pool when all of connections are in use, rather than
-    raising a :py:class:`~redis.ConnectionError` (as the default
-    :py:class:`~redis.ConnectionPool` implementation does), it
+    raising a :py:class:`~valkey.ConnectionError` (as the default
+    :py:class:`~valkey.ConnectionPool` implementation does), it
     makes the client wait ("blocks") for a specified number of seconds until
     a connection becomes available.
 
@@ -1415,7 +1413,7 @@ class BlockingConnectionPool(ConnectionPool):
         try:
             connection = self.pool.get(block=True, timeout=self.timeout)
         except Empty:
-            # Note that this is not caught by the redis client and will be
+            # Note that this is not caught by the valkey client and will be
             # raised unless handled by application code. If you want never to
             raise ConnectionError("No connection available.")
 
@@ -1425,7 +1423,7 @@ class BlockingConnectionPool(ConnectionPool):
             connection = self.make_connection()
 
         try:
-            # ensure this connection is connected to Redis
+            # ensure this connection is connected to Valkey
             connection.connect()
             # connections that the pool provides should be ready to send
             # a command. if not, the connection was either returned to the
