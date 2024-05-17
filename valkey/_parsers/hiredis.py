@@ -8,7 +8,7 @@ if sys.version_info.major >= 3 and sys.version_info.minor >= 11:
 else:
     from async_timeout import timeout as async_timeout
 
-from ..exceptions import ConnectionError, InvalidResponse, RedisError
+from ..exceptions import ConnectionError, InvalidResponse, ValkeyError
 from ..typing import EncodableT
 from ..utils import HIREDIS_AVAILABLE
 from .base import AsyncBaseParser, BaseParser

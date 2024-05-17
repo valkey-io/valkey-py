@@ -1,18 +1,18 @@
 import sys
 
-from redis import asyncio  # noqa
-from redis.backoff import default_backoff
-from redis.client import Redis, StrictRedis
-from redis.cluster import RedisCluster
-from redis.connection import (
+from valkey import asyncio  # noqa
+from valkey.backoff import default_backoff
+from valkey.client import Valkey, StrictValkey
+from valkey.cluster import ValkeyCluster
+from valkey.connection import (
     BlockingConnectionPool,
     Connection,
     ConnectionPool,
     SSLConnection,
     UnixDomainSocketConnection,
 )
-from redis.credentials import CredentialProvider, UsernamePasswordCredentialProvider
-from redis.exceptions import (
+from valkey.credentials import CredentialProvider, UsernamePasswordCredentialProvider
+from valkey.exceptions import (
     AuthenticationError,
     AuthenticationWrongNumberOfArgsError,
     BusyLoadingError,
@@ -23,18 +23,18 @@ from redis.exceptions import (
     OutOfMemoryError,
     PubSubError,
     ReadOnlyError,
-    RedisError,
+    ValkeyError,
     ResponseError,
     TimeoutError,
     WatchError,
 )
-from redis.sentinel import (
+from valkey.sentinel import (
     Sentinel,
     SentinelConnectionPool,
     SentinelManagedConnection,
     SentinelManagedSSLConnection,
 )
-from redis.utils import from_url
+from valkey.utils import from_url
 
 if sys.version_info >= (3, 8):
     from importlib import metadata
@@ -50,7 +50,7 @@ def int_or_str(value):
 
 
 try:
-    __version__ = metadata.version("redis")
+    __version__ = metadata.version("valkey")
 except metadata.PackageNotFoundError:
     __version__ = "99.99.99"
 
@@ -77,9 +77,9 @@ __all__ = [
     "OutOfMemoryError",
     "PubSubError",
     "ReadOnlyError",
-    "Redis",
-    "RedisCluster",
-    "RedisError",
+    "Valkey",
+    "ValkeyCluster",
+    "ValkeyError",
     "ResponseError",
     "Sentinel",
     "SentinelConnectionPool",
@@ -87,7 +87,7 @@ __all__ = [
     "SentinelManagedSSLConnection",
     "SSLConnection",
     "UsernamePasswordCredentialProvider",
-    "StrictRedis",
+    "StrictValkey",
     "TimeoutError",
     "UnixDomainSocketConnection",
     "WatchError",

@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 
-from redis.exceptions import RedisError, ResponseError
-from redis.utils import str_if_bytes
+from valkey.exceptions import ValkeyError, ResponseError
+from valkey.utils import str_if_bytes
 
 if TYPE_CHECKING:
-    from redis.asyncio.cluster import ClusterNode
+    from valkey.asyncio.cluster import ClusterNode
 
 
 class AbstractCommandsParser:
@@ -55,16 +55,16 @@ class AbstractCommandsParser:
 
 class CommandsParser(AbstractCommandsParser):
     """
-    Parses Redis commands to get command keys.
+    Parses Valkey commands to get command keys.
     COMMAND output is used to determine key locations.
     Commands that do not have a predefined key location are flagged with
     'movablekeys', and these commands' keys are determined by the command
     'COMMAND GETKEYS'.
     """
 
-    def __init__(self, redis_connection):
+    def __init__(self, valkey_connection):
         self.commands = {}
-        self.initialize(redis_connection)
+        self.initialize(valkey_connection)
 
     def initialize(self, r):
         commands = r.command()
@@ -79,7 +79,7 @@ class CommandsParser(AbstractCommandsParser):
     # As soon as this PR is merged into Redis, we should reimplement
     # our logic to use COMMAND INFO changes to determine the key positions
     # https://github.com/redis/redis/pull/8324
-    def get_keys(self, redis_conn, *args):
+    def get_keys(self, valkey_conn, *args):
         """
         Get the keys from the passed command.
 
@@ -106,15 +106,15 @@ class CommandsParser(AbstractCommandsParser):
             else:
                 # We'll try to reinitialize the commands cache, if the engine
                 # version has changed, the commands may not be current
-                self.initialize(redis_conn)
+                self.initialize(valkey_conn)
                 if cmd_name not in self.commands:
-                    raise RedisError(
-                        f"{cmd_name.upper()} command doesn't exist in Redis commands"
+                    raise ValkeyError(
+                        f"{cmd_name.upper()} command doesn't exist in Valkey commands"
                     )
 
         command = self.commands.get(cmd_name)
         if "movablekeys" in command["flags"]:
-            keys = self._get_moveable_keys(redis_conn, *args)
+            keys = self._get_moveable_keys(valkey_conn, *args)
         elif "pubsub" in command["flags"] or command["name"] == "pubsub":
             keys = self._get_pubsub_keys(*args)
         else:
@@ -144,7 +144,7 @@ class CommandsParser(AbstractCommandsParser):
 
         return keys
 
-    def _get_moveable_keys(self, redis_conn, *args):
+    def _get_moveable_keys(self, valkey_conn, *args):
         """
         NOTE: Due to a bug in redis<7.0, this function does not work properly
         for EVAL or EVALSHA when the `numkeys` arg is 0.
@@ -157,7 +157,7 @@ class CommandsParser(AbstractCommandsParser):
         # e.g. 'MEMORY USAGE' will be splitted into ['MEMORY', 'USAGE']
         pieces = args[0].split() + list(args[1:])
         try:
-            keys = redis_conn.execute_command("COMMAND GETKEYS", *pieces)
+            keys = valkey_conn.execute_command("COMMAND GETKEYS", *pieces)
         except ResponseError as e:
             message = e.__str__()
             if (
@@ -172,7 +172,7 @@ class CommandsParser(AbstractCommandsParser):
 
 class AsyncCommandsParser(AbstractCommandsParser):
     """
-    Parses Redis commands to get command keys.
+    Parses Valkey commands to get command keys.
 
     COMMAND output is used to determine key locations.
     Commands that do not have a predefined key location are flagged with 'movablekeys',
@@ -230,8 +230,8 @@ class AsyncCommandsParser(AbstractCommandsParser):
                 # version has changed, the commands may not be current
                 await self.initialize()
                 if cmd_name not in self.commands:
-                    raise RedisError(
-                        f"{cmd_name.upper()} command doesn't exist in Redis commands"
+                    raise ValkeyError(
+                        f"{cmd_name.upper()} command doesn't exist in Valkey commands"
                     )
 
         command = self.commands.get(cmd_name)

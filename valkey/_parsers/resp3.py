@@ -87,7 +87,7 @@ class _RESP3Parser(_RESPBase):
             ]
         # set response
         elif byte == b"~":
-            # redis can return unhashable types (like dict) in a set,
+            # valkey can return unhashable types (like dict) in a set,
             # so we need to first convert to a list, and then try to convert it to a set
             response = [
                 self._read_response(disable_decoding=disable_decoding)
@@ -229,7 +229,7 @@ class _AsyncRESP3Parser(_AsyncRESPBase):
             ]
         # set response
         elif byte == b"~":
-            # redis can return unhashable types (like dict) in a set,
+            # valkey can return unhashable types (like dict) in a set,
             # so we need to first convert to a list, and then try to convert it to a set
             response = [
                 (await self._read_response(disable_decoding=disable_decoding))

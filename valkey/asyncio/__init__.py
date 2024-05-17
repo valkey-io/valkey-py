@@ -1,21 +1,21 @@
-from redis.asyncio.client import Redis, StrictRedis
-from redis.asyncio.cluster import RedisCluster
-from redis.asyncio.connection import (
+from valkey.asyncio.client import Valkey, StrictValkey
+from valkey.asyncio.cluster import ValkeyCluster
+from valkey.asyncio.connection import (
     BlockingConnectionPool,
     Connection,
     ConnectionPool,
     SSLConnection,
     UnixDomainSocketConnection,
 )
-from redis.asyncio.sentinel import (
+from valkey.asyncio.sentinel import (
     Sentinel,
     SentinelConnectionPool,
     SentinelManagedConnection,
     SentinelManagedSSLConnection,
 )
-from redis.asyncio.utils import from_url
-from redis.backoff import default_backoff
-from redis.exceptions import (
+from valkey.asyncio.utils import from_url
+from valkey.backoff import default_backoff
+from valkey.exceptions import (
     AuthenticationError,
     AuthenticationWrongNumberOfArgsError,
     BusyLoadingError,
@@ -26,7 +26,7 @@ from redis.exceptions import (
     OutOfMemoryError,
     PubSubError,
     ReadOnlyError,
-    RedisError,
+    ValkeyError,
     ResponseError,
     TimeoutError,
     WatchError,
@@ -48,16 +48,16 @@ __all__ = [
     "PubSubError",
     "OutOfMemoryError",
     "ReadOnlyError",
-    "Redis",
-    "RedisCluster",
-    "RedisError",
+    "Valkey",
+    "ValkeyCluster",
+    "ValkeyError",
     "ResponseError",
     "Sentinel",
     "SentinelConnectionPool",
     "SentinelManagedConnection",
     "SentinelManagedSSLConnection",
     "SSLConnection",
-    "StrictRedis",
+    "StrictValkey",
     "TimeoutError",
     "UnixDomainSocketConnection",
     "WatchError",

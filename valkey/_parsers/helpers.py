@@ -1,6 +1,6 @@
 import datetime
 
-from redis.utils import str_if_bytes
+from valkey.utils import str_if_bytes
 
 
 def timestamp_to_datetime(response):
@@ -15,7 +15,7 @@ def timestamp_to_datetime(response):
 
 
 def parse_debug_object(response):
-    "Parse the results of Redis's DEBUG OBJECT command into a Python dict"
+    "Parse the results of Valkey's DEBUG OBJECT command into a Python dict"
     # The 'type' of the object is the first item in the response, but isn't
     # prefixed with a name
     response = str_if_bytes(response)
@@ -23,7 +23,7 @@ def parse_debug_object(response):
     response = dict(kv.split(":") for kv in response.split())
 
     # parse some expected int values from the string response
-    # note: this cmd isn't spec'd so these may not appear in all redis versions
+    # note: this cmd isn't spec'd so these may not appear in all valkey versions
     int_fields = ("refcount", "serializedlength", "lru", "lru_seconds_idle")
     for field in int_fields:
         if field in response:
@@ -33,7 +33,7 @@ def parse_debug_object(response):
 
 
 def parse_info(response):
-    """Parse the result of Redis's INFO command into a Python dict"""
+    """Parse the result of Valkey's INFO command into a Python dict"""
     info = {}
     response = str_if_bytes(response)
 
@@ -379,7 +379,7 @@ def parse_slowlog_get(response, **options):
 
     def parse_item(item):
         result = {"id": item[0], "start_time": int(item[1]), "duration": int(item[2])}
-        # Redis Enterprise injects another entry at index [3], which has
+        # Valkey Enterprise injects another entry at index [3], which has
         # the complexity info (i.e. the value N in case the command has
         # an O(N) complexity) instead of the command.
         if isinstance(item[3], list):
@@ -473,8 +473,8 @@ def _parse_slots(slot_ranges):
 
 def parse_cluster_nodes(response, **options):
     """
-    @see: https://redis.io/commands/cluster-nodes  # string / bytes
-    @see: https://redis.io/commands/cluster-replicas # list of string / bytes
+    @see: https://valkey.io/commands/cluster-nodes  # string / bytes
+    @see: https://valkey.io/commands/cluster-replicas # list of string / bytes
     """
     if isinstance(response, (str, bytes)):
         response = response.splitlines()
@@ -661,13 +661,13 @@ def parse_client_info(value):
 
 def parse_set_result(response, **options):
     """
-    Handle SET result since GET argument is available since Redis 6.2.
+    Handle SET result since GET argument is available since Valkey 6.2.
     Parsing SET result into:
     - BOOL
     - String when GET argument is used
     """
     if options.get("get"):
-        # Redis will return a getCommand result.
+        # Valkey will return a getCommand result.
         # See `setGenericCommand` in t_string.c
         return response
     return response and str_if_bytes(response) == "OK"
@@ -677,7 +677,7 @@ def string_keys_to_dict(key_string, callback):
     return dict.fromkeys(key_string.split(), callback)
 
 
-_RedisCallbacks = {
+_ValkeyCallbacks = {
     **string_keys_to_dict(
         "AUTH COPY EXPIRE EXPIREAT HEXISTS HMSET MOVE MSETNX PERSIST PSETEX "
         "PEXPIRE PEXPIREAT RENAMENX SETEX SETNX SMOVE",
@@ -770,7 +770,7 @@ _RedisCallbacks = {
 }
 
 
-_RedisCallbacksRESP2 = {
+_ValkeyCallbacksRESP2 = {
     **string_keys_to_dict(
         "SDIFF SINTER SMEMBERS SUNION", lambda r: r and set(r) or set()
     ),
@@ -817,7 +817,7 @@ _RedisCallbacksRESP2 = {
 }
 
 
-_RedisCallbacksRESP3 = {
+_ValkeyCallbacksRESP3 = {
     **string_keys_to_dict(
         "ZRANGE ZINTER ZPOPMAX ZPOPMIN ZRANGEBYSCORE ZREVRANGE ZREVRANGEBYSCORE "
         "ZUNION HGETALL XREADGROUP",

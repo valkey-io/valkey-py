@@ -26,50 +26,50 @@ from typing import (
     cast,
 )
 
-from redis._cache import (
+from valkey._cache import (
     DEFAULT_ALLOW_LIST,
     DEFAULT_DENY_LIST,
     DEFAULT_EVICTION_POLICY,
     AbstractCache,
 )
-from redis._parsers.helpers import (
-    _RedisCallbacks,
-    _RedisCallbacksRESP2,
-    _RedisCallbacksRESP3,
+from valkey._parsers.helpers import (
+    _ValkeyCallbacks,
+    _ValkeyCallbacksRESP2,
+    _ValkeyCallbacksRESP3,
     bool_ok,
 )
-from redis.asyncio.connection import (
+from valkey.asyncio.connection import (
     Connection,
     ConnectionPool,
     SSLConnection,
     UnixDomainSocketConnection,
 )
-from redis.asyncio.lock import Lock
-from redis.asyncio.retry import Retry
-from redis.client import (
+from valkey.asyncio.lock import Lock
+from valkey.asyncio.retry import Retry
+from valkey.client import (
     EMPTY_RESPONSE,
     NEVER_DECODE,
-    AbstractRedis,
+    AbstractValkey,
     CaseInsensitiveDict,
 )
-from redis.commands import (
+from valkey.commands import (
     AsyncCoreCommands,
-    AsyncRedisModuleCommands,
+    AsyncValkeyModuleCommands,
     AsyncSentinelCommands,
     list_or_args,
 )
-from redis.credentials import CredentialProvider
-from redis.exceptions import (
+from valkey.credentials import CredentialProvider
+from valkey.exceptions import (
     ConnectionError,
     ExecAbortError,
     PubSubError,
-    RedisError,
+    ValkeyError,
     ResponseError,
     TimeoutError,
     WatchError,
 )
-from redis.typing import ChannelT, EncodableT, KeyT
-from redis.utils import (
+from valkey.typing import ChannelT, EncodableT, KeyT
+from valkey.utils import (
     HIREDIS_AVAILABLE,
     _set_info_logger,
     deprecated_function,
@@ -81,10 +81,10 @@ from redis.utils import (
 PubSubHandler = Callable[[Dict[str, str]], Awaitable[None]]
 _KeyT = TypeVar("_KeyT", bound=KeyT)
 _ArgT = TypeVar("_ArgT", KeyT, EncodableT)
-_RedisT = TypeVar("_RedisT", bound="Redis")
+_ValkeyT = TypeVar("_ValkeyT", bound="Valkey")
 _NormalizeKeysT = TypeVar("_NormalizeKeysT", bound=Mapping[ChannelT, object])
 if TYPE_CHECKING:
-    from redis.commands.core import Script
+    from valkey.commands.core import Script
 
 
 class ResponseCallbackProtocol(Protocol):
@@ -98,19 +98,19 @@ class AsyncResponseCallbackProtocol(Protocol):
 ResponseCallbackT = Union[ResponseCallbackProtocol, AsyncResponseCallbackProtocol]
 
 
-class Redis(
-    AbstractRedis, AsyncRedisModuleCommands, AsyncCoreCommands, AsyncSentinelCommands
+class Valkey(
+    AbstractValkey, AsyncValkeyModuleCommands, AsyncCoreCommands, AsyncSentinelCommands
 ):
     """
-    Implementation of the Redis protocol.
+    Implementation of the Valkey protocol.
 
-    This abstract class provides a Python interface to all Redis commands
-    and an implementation of the Redis protocol.
+    This abstract class provides a Python interface to all Valkey commands
+    and an implementation of the Valkey protocol.
 
     Pipelines derive from this, implementing how
-    the commands are sent and received to the Redis server. Based on
+    the commands are sent and received to the Valkey server. Based on
     configuration, an instance will either use a ConnectionPool, or
-    Connection object to talk to redis.
+    Connection object to talk to valkey.
     """
 
     response_callbacks: MutableMapping[Union[str, bytes], ResponseCallbackT]
@@ -124,20 +124,20 @@ class Redis(
         **kwargs,
     ):
         """
-        Return a Redis client object configured from the given URL
+        Return a Valkey client object configured from the given URL
 
         For example::
 
-            redis://[[username]:[password]]@localhost:6379/0
-            rediss://[[username]:[password]]@localhost:6379/0
+            valkey://[[username]:[password]]@localhost:6379/0
+            valkeys://[[username]:[password]]@localhost:6379/0
             unix://[username@]/path/to/socket.sock?db=0[&password=password]
 
         Three URL schemes are supported:
 
-        - `redis://` creates a TCP socket connection. See more at:
-          <https://www.iana.org/assignments/uri-schemes/prov/redis>
-        - `rediss://` creates a SSL wrapped TCP socket connection. See more at:
-          <https://www.iana.org/assignments/uri-schemes/prov/rediss>
+        - `valkey://` creates a TCP socket connection. See more at:
+          <https://www.iana.org/assignments/uri-schemes/prov/valkey>
+        - `valkeys://` creates a SSL wrapped TCP socket connection. See more at:
+          <https://www.iana.org/assignments/uri-schemes/prov/valkeys>
         - ``unix://``: creates a Unix Domain Socket connection.
 
         The username, password, hostname, path and all querystring values
@@ -147,10 +147,10 @@ class Redis(
         There are several ways to specify a database number. The first value
         found will be used:
 
-        1. A ``db`` querystring option, e.g. redis://localhost?db=0
+        1. A ``db`` querystring option, e.g. valkey://localhost?db=0
 
-        2. If using the redis:// or rediss:// schemes, the path argument
-               of the url, e.g. redis://localhost/0
+        2. If using the valkey:// or valkeys:// schemes, the path argument
+               of the url, e.g. valkey://localhost/0
 
         3. A ``db`` keyword argument to this function.
 
@@ -176,7 +176,7 @@ class Redis(
                     '"auto_close_connection_pool" is deprecated '
                     "since version 5.0.1. "
                     "Please create a ConnectionPool explicitly and "
-                    "provide to the Redis() constructor instead."
+                    "provide to the Valkey() constructor instead."
                 )
             )
         else:
@@ -186,13 +186,13 @@ class Redis(
 
     @classmethod
     def from_pool(
-        cls: Type["Redis"],
+        cls: Type["Valkey"],
         connection_pool: ConnectionPool,
-    ) -> "Redis":
+    ) -> "Valkey":
         """
-        Return a Redis client from the given connection pool.
-        The Redis client will take ownership of the connection pool and
-        close it when the Redis client is closed.
+        Return a Valkey client from the given connection pool.
+        The Valkey client will take ownership of the connection pool and
+        close it when the Valkey client is closed.
         """
         client = cls(
             connection_pool=connection_pool,
@@ -231,12 +231,12 @@ class Redis(
         single_connection_client: bool = False,
         health_check_interval: int = 0,
         client_name: Optional[str] = None,
-        lib_name: Optional[str] = "redis-py",
+        lib_name: Optional[str] = "valkey-py",
         lib_version: Optional[str] = get_lib_version(),
         username: Optional[str] = None,
         retry: Optional[Retry] = None,
         auto_close_connection_pool: Optional[bool] = None,
-        redis_connect_func=None,
+        valkey_connect_func=None,
         credential_provider: Optional[CredentialProvider] = None,
         protocol: Optional[int] = 2,
         cache_enabled: bool = False,
@@ -248,7 +248,7 @@ class Redis(
         cache_allow_list: List[str] = DEFAULT_ALLOW_LIST,
     ):
         """
-        Initialize a new Redis client.
+        Initialize a new Valkey client.
         To specify a retry policy for specific errors, first set
         `retry_on_error` to a list of the error/s to retry on, then set
         `retry` to a valid `Retry` object.
@@ -264,14 +264,14 @@ class Redis(
                     '"auto_close_connection_pool" is deprecated '
                     "since version 5.0.1. "
                     "Please create a ConnectionPool explicitly and "
-                    "provide to the Redis() constructor instead."
+                    "provide to the Valkey() constructor instead."
                 )
             )
         else:
             auto_close_connection_pool = True
 
         if not connection_pool:
-            # Create internal connection pool, expected to be closed by Redis instance
+            # Create internal connection pool, expected to be closed by Valkey instance
             if not retry_on_error:
                 retry_on_error = []
             if retry_on_timeout is True:
@@ -293,7 +293,7 @@ class Redis(
                 "client_name": client_name,
                 "lib_name": lib_name,
                 "lib_version": lib_version,
-                "redis_connect_func": redis_connect_func,
+                "valkey_connect_func": valkey_connect_func,
                 "protocol": protocol,
                 "cache_enabled": cache_enabled,
                 "client_cache": client_cache,

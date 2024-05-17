@@ -6,7 +6,7 @@ from collections import OrderedDict, defaultdict
 from enum import Enum
 from typing import List, Sequence, Union
 
-from redis.typing import KeyT, ResponseT
+from valkey.typing import KeyT, ResponseT
 
 
 class EvictionPolicy(Enum):
@@ -198,7 +198,7 @@ class AbstractCache(ABC):
 
 class _LocalCache(AbstractCache):
     """
-    A caching mechanism for storing redis commands and their responses.
+    A caching mechanism for storing valkey commands and their responses.
 
     Args:
         max_size (int): The maximum number of commands to be stored in the cache.
@@ -234,10 +234,10 @@ class _LocalCache(AbstractCache):
         keys_in_command: List[KeyT],
     ):
         """
-        Set a redis command and its response in the cache.
+        Set a valkey command and its response in the cache.
 
         Args:
-            command (Union[str, Sequence[str]]): The redis command.
+            command (Union[str, Sequence[str]]): The valkey command.
             response (ResponseT): The response associated with the command.
             keys_in_command (List[KeyT]): The list of keys used in the command.
         """
@@ -254,10 +254,10 @@ class _LocalCache(AbstractCache):
 
     def get(self, command: Union[str, Sequence[str]]) -> ResponseT:
         """
-        Get the response for a redis command from the cache.
+        Get the response for a valkey command from the cache.
 
         Args:
-            command (Union[str, Sequence[str]]): The redis command.
+            command (Union[str, Sequence[str]]): The valkey command.
 
         Returns:
             ResponseT: The response associated with the command, or None if the command is not in the cache.  # noqa
@@ -271,10 +271,10 @@ class _LocalCache(AbstractCache):
 
     def delete_command(self, command: Union[str, Sequence[str]]):
         """
-        Delete a redis command and its metadata from the cache.
+        Delete a valkey command and its metadata from the cache.
 
         Args:
-            command (Union[str, Sequence[str]]): The redis command to be deleted.
+            command (Union[str, Sequence[str]]): The valkey command to be deleted.
         """
         if command in self.cache:
             keys_in_command = self.cache[command].get("keys")
@@ -294,17 +294,17 @@ class _LocalCache(AbstractCache):
             self.delete_command(command)
 
     def flush(self):
-        """Clear the entire cache, removing all redis commands and metadata."""
+        """Clear the entire cache, removing all valkey commands and metadata."""
         self.cache.clear()
         self.key_commands_map.clear()
         self.commands_ttl_list = []
 
     def _is_expired(self, command: Union[str, Sequence[str]]) -> bool:
         """
-        Check if a redis command has expired based on its time-to-live.
+        Check if a valkey command has expired based on its time-to-live.
 
         Args:
-            command (Union[str, Sequence[str]]): The redis command.
+            command (Union[str, Sequence[str]]): The valkey command.
 
         Returns:
             bool: True if the command has expired, False otherwise.
@@ -315,10 +315,10 @@ class _LocalCache(AbstractCache):
 
     def _update_access(self, command: Union[str, Sequence[str]]):
         """
-        Update the access information for a redis command based on the eviction policy.
+        Update the access information for a valkey command based on the eviction policy.
 
         Args:
-            command (Union[str, Sequence[str]]): The redis command.
+            command (Union[str, Sequence[str]]): The valkey command.
         """
         if self.eviction_policy == EvictionPolicy.LRU:
             self.cache.move_to_end(command)
@@ -331,7 +331,7 @@ class _LocalCache(AbstractCache):
             pass  # Random eviction doesn't require updates
 
     def _evict(self):
-        """Evict a redis command from the cache based on the eviction policy."""
+        """Evict a valkey command from the cache based on the eviction policy."""
         if self._is_expired(self.commands_ttl_list[0]):
             self.delete_command(self.commands_ttl_list[0])
         elif self.eviction_policy == EvictionPolicy.LRU:
@@ -353,7 +353,7 @@ class _LocalCache(AbstractCache):
 
         Args:
             keys (List[KeyT]): The list of keys used in the command.
-            command (Union[str, Sequence[str]]): The redis command.
+            command (Union[str, Sequence[str]]): The valkey command.
         """
         for key in keys:
             self.key_commands_map[key].add(command)
@@ -362,18 +362,18 @@ class _LocalCache(AbstractCache):
         self, keys: List[KeyT], command: Union[str, Sequence[str]]
     ):
         """
-        Remove a redis command from the key_commands_map.
+        Remove a valkey command from the key_commands_map.
 
         Args:
-            keys (List[KeyT]): The list of keys used in the redis command.
-            command (Union[str, Sequence[str]]): The redis command.
+            keys (List[KeyT]): The list of keys used in the valkey command.
+            command (Union[str, Sequence[str]]): The valkey command.
         """
         for key in keys:
             self.key_commands_map[key].remove(command)
 
     def invalidate_key(self, key: KeyT):
         """
-        Invalidate (delete) all redis commands associated with a specific key.
+        Invalidate (delete) all valkey commands associated with a specific key.
 
         Args:
             key (KeyT): The key to be invalidated.

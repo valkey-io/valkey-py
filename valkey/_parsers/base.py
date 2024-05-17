@@ -19,7 +19,7 @@ from ..exceptions import (
     NoScriptError,
     OutOfMemoryError,
     ReadOnlyError,
-    RedisError,
+    ValkeyError,
     ResponseError,
 )
 from ..typing import EncodableT
@@ -36,11 +36,11 @@ MODULE_EXPORTS_DATA_TYPES_ERROR = (
 )
 # user send an AUTH cmd to a server without authorization configured
 NO_AUTH_SET_ERROR = {
-    # Redis >= 6.0
+    # Valkey >= 6.0
     "AUTH <password> called without any password "
     "configured for the default user. Are you sure "
     "your configuration is correct?": AuthenticationError,
-    # Redis < 6.0
+    # Valkey < 6.0
     "Client sent AUTH, but no password is set": AuthenticationError,
 }
 
@@ -50,11 +50,11 @@ class BaseParser(ABC):
         "ERR": {
             "max number of clients reached": ConnectionError,
             "invalid password": AuthenticationError,
-            # some Redis server versions report invalid command syntax
+            # some Valkey server versions report invalid command syntax
             # in lowercase
             "wrong number of arguments "
             "for 'auth' command": AuthenticationWrongNumberOfArgsError,
-            # some Redis server versions report invalid command syntax
+            # some Valkey server versions report invalid command syntax
             # in uppercase
             "wrong number of arguments "
             "for 'AUTH' command": AuthenticationWrongNumberOfArgsError,
@@ -166,7 +166,7 @@ class _AsyncRESPBase(AsyncBaseParser):
         """Called when the stream connects"""
         self._stream = connection._reader
         if self._stream is None:
-            raise RedisError("Buffer is closed.")
+            raise ValkeyError("Buffer is closed.")
         self.encoder = connection.encoder
         self._clear()
         self._connected = True
@@ -177,7 +177,7 @@ class _AsyncRESPBase(AsyncBaseParser):
 
     async def can_read_destructive(self) -> bool:
         if not self._connected:
-            raise RedisError("Buffer is closed.")
+            raise ValkeyError("Buffer is closed.")
         if self._buffer:
             return True
         try:
