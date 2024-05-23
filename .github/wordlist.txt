@@ -21,6 +21,7 @@ Jaeger
 Ludovico
 Magnocavallo
 McCurdy
+Mesoraca
 NOSCRIPT
 NUMPAT
 NUMPT
@@ -50,6 +51,7 @@ TCP
 TOPKCommands
 TimeSeriesCommands
 Uptrace
+Valkey's
 ValkeyCluster
 ValkeyClusterCommands
 ValkeyClusterException
@@ -58,6 +60,7 @@ ValkeyInstrumentor
 ValueError
 WATCHed
 WatchError
+aiven
 api
 args
 async
@@ -78,15 +81,19 @@ docstring
 docstrings
 eg
 exc
+faq
 firsttimersonly
 fo
 genindex
 gmail
 hiredis
+html
 http
+https
 idx
 iff
 ini
+io
 json
 keyslot
 keyspace
@@ -96,6 +103,7 @@ localhost
 lua
 makeapullrequest
 maxdepth
+mesoraca
 mget
 microservice
 microservices
@@ -107,6 +115,7 @@ observability
 opentelemetry
 oss
 performant
+placeholderkv
 pmessage
 png
 pre
@@ -124,8 +133,11 @@ reinitialization
 replicaof
 repo
 runtime
+salvatore
 sedrik
+sexualized
 sharded
+socio
 ssl
 str
 stunnel

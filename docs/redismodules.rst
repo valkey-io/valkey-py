@@ -4,10 +4,10 @@ Valkey Modules Commands
 Accessing valkey module commands requires the installation of the supported `Valkey module <https://docs.valkey.com/latest/modules/>`_. For a quick start with valkey modules, try the `Valkeymod docker <https://hub.docker.com/r/valkeylabs/valkeymod>`_.
 
 
-ValkeyBloom Commands
+RedisBloom Commands
 *******************
 
-These are the commands for interacting with the `ValkeyBloom module <https://valkeybloom.io>`_. Below is a brief example, as well as documentation on the commands themselves.
+These are the commands for interacting with the `RedisBloom module <https://valkeybloom.io>`_. Below is a brief example, as well as documentation on the commands themselves.
 
 **Create and add to a bloom filter**
 
@@ -51,10 +51,10 @@ These are the commands for interacting with the `ValkeyBloom module <https://val
 
 ------
 
-ValkeyGraph Commands
+RedisGraph Commands
 *******************
 
-These are the commands for interacting with the `ValkeyGraph module <https://valkeygraph.io>`_. Below is a brief example, as well as documentation on the commands themselves.
+These are the commands for interacting with the `RedisGraph module <https://valkeygraph.io>`_. Below is a brief example, as well as documentation on the commands themselves.
 
 **Create a graph, adding two nodes**
 
@@ -132,10 +132,10 @@ below, an index named *my_index* is being created. When an index name is not spe
 
 -----
 
-ValkeyTimeSeries Commands
+RedisTimeSeries Commands
 ************************
 
-These are the commands for interacting with the `ValkeyTimeSeries module <https://valkeytimeseries.io>`_. Below is a brief example, as well as documentation on the commands themselves.
+These are the commands for interacting with the `RedisTimeSeries module <https://valkeytimeseries.io>`_. Below is a brief example, as well as documentation on the commands themselves.
 
 
 **Create a timeseries object with 5 second retention**
