@@ -34,12 +34,7 @@ PubSub
 READONLY
 RediSearch
 RedisBloom
-RedisCluster
-RedisClusterCommands
-RedisClusterException
-RedisClusters
 RedisGraph
-RedisInstrumentor
 RedisJSON
 RedisTimeSeries
 SHA
@@ -55,6 +50,11 @@ TCP
 TOPKCommands
 TimeSeriesCommands
 Uptrace
+ValkeyCluster
+ValkeyClusterCommands
+ValkeyClusterException
+ValkeyClusters
+ValkeyInstrumentor
 ValueError
 WATCHed
 WatchError
@@ -140,5 +140,6 @@ un
 unicode
 url
 valkey
+valkeymodules
 virtualenv
 www
