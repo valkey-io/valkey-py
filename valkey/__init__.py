@@ -1,4 +1,4 @@
-import sys
+from importlib import metadata
 
 from valkey import asyncio  # noqa
 from valkey.backoff import default_backoff
@@ -35,11 +35,6 @@ from valkey.sentinel import (
     SentinelManagedSSLConnection,
 )
 from valkey.utils import from_url
-
-if sys.version_info >= (3, 8):
-    from importlib import metadata
-else:
-    import importlib_metadata as metadata
 
 
 def int_or_str(value):
