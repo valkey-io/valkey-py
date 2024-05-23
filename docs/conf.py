@@ -1,4 +1,4 @@
-# redis-py documentation build configuration file, created by
+# valkey-py documentation build configuration file, created by
 # sphinx-quickstart on Fri Feb  8 00:47:08 2013.
 #
 # This file is execfile()d with the current directory set to its containing
@@ -64,18 +64,18 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = "redis-py"
+project = "valkey-py"
 current_year = datetime.datetime.now().year
-copyright = f"{current_year}, Redis Inc"
+copyright = f"{current_year}, Valkey Inc"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
 # The short X.Y version.
-import redis
+import valkey
 
-version = ".".join(redis.__version__.split(".")[0:3])
+version = ".".join(valkey.__version__.split(".")[0:3])
 release = version
 if version == "99.99.99":
     release = "dev"
@@ -132,7 +132,7 @@ html_theme_options = {
     "footer_icons": [
         {
             "name": "GitHub",
-            "url": "https://github.com/redis/redis-py",
+            "url": "https://github.com/valkey/valkey-py",
             "html": """
             <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 16 16">
                 <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path>
@@ -141,7 +141,7 @@ html_theme_options = {
             "class": "",
         },
     ],
-    "source_repository": "https://github.com/redis/redis-py/",
+    "source_repository": "https://github.com/valkey/valkey-py/",
     "source_branch": "master",
     "source_directory": "docs/",
 }
@@ -158,7 +158,7 @@ html_theme_options = {
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "_static/redis-cube-red-white-rgb.svg"
+html_logo = "_static/valkey-cube-red-white-rgb.svg"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -212,7 +212,7 @@ html_static_path = ["_static", "images"]
 # html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = "redis-pydoc"
+htmlhelp_basename = "valkey-pydoc"
 
 
 # -- Options for LaTeX output -------------------------------------------------
@@ -230,7 +230,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass
 # [howto/manual]).
 latex_documents = [
-    ("index", "redis-py.tex", "redis-py Documentation", "Redis Inc", "manual")
+    ("index", "valkey-py.tex", "valkey-py Documentation", "Valkey Inc", "manual")
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -258,7 +258,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [("index", "redis-py", "redis-py Documentation", ["Andy McCurdy"], 1)]
+man_pages = [("index", "valkey-py", "valkey-py Documentation", ["Andy McCurdy"], 1)]
 
 # If true, show URL addresses after external links.
 # man_show_urls = False
@@ -272,10 +272,10 @@ man_pages = [("index", "redis-py", "redis-py Documentation", ["Andy McCurdy"], 1
 texinfo_documents = [
     (
         "index",
-        "redis-py",
-        "redis-py Documentation",
-        "Redis Inc",
-        "redis-py",
+        "valkey-py",
+        "valkey-py Documentation",
+        "Valkey Inc",
+        "valkey-py",
         "One line description of project.",
         "Miscellaneous",
     )
@@ -290,7 +290,7 @@ texinfo_documents = [
 # How to display URL addresses: 'footnote', 'no', or 'inline'.
 # texinfo_show_urls = 'footnote'
 
-epub_title = "redis-py"
-epub_author = "Redis Inc"
-epub_publisher = "Redis Inc"
-epub_copyright = "2023, Redis Inc"
+epub_title = "valkey-py"
+epub_author = "Valkey Inc"
+epub_publisher = "Valkey Inc"
+epub_copyright = "2023, Valkey Inc"

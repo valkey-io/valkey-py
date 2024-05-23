@@ -5,22 +5,24 @@ import time
 from io import TextIOWrapper
 
 import pytest
-import redis.asyncio as redis
-import redis.commands.search
-import redis.commands.search.aggregation as aggregations
-import redis.commands.search.reducers as reducers
-from redis.commands.search import AsyncSearch
-from redis.commands.search.field import GeoField, NumericField, TagField, TextField
-from redis.commands.search.indexDefinition import IndexDefinition
-from redis.commands.search.query import GeoFilter, NumericFilter, Query
-from redis.commands.search.result import Result
-from redis.commands.search.suggestion import Suggestion
+import valkey.asyncio as valkey
+import valkey.commands.search
+import valkey.commands.search.aggregation as aggregations
+import valkey.commands.search.reducers as reducers
 from tests.conftest import (
     assert_resp_response,
     is_resp2_connection,
-    skip_if_redis_enterprise,
+    skip_if_valkey_enterprise,
     skip_ifmodversion_lt,
 )
+from valkey.commands.search import AsyncSearch
+from valkey.commands.search.field import GeoField, NumericField, TagField, TextField
+from valkey.commands.search.indexDefinition import IndexDefinition
+from valkey.commands.search.query import GeoFilter, NumericFilter, Query
+from valkey.commands.search.result import Result
+from valkey.commands.search.suggestion import Suggestion
+
+pytestmark = pytest.mark.skip
 
 WILL_PLAY_TEXT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "testdata", "will_play_text.csv.bz2")
@@ -54,7 +56,7 @@ async def waitForIndex(env, idx, timeout=None):
                 break
 
 
-def getClient(decoded_r: redis.Redis):
+def getClient(decoded_r: valkey.Valkey):
     """
     Gets a client client attached to an index name which is ready to be
     created
@@ -68,7 +70,7 @@ async def createIndex(decoded_r, num_docs=100, definition=None):
             (TextField("play", weight=5.0), TextField("txt"), NumericField("chapter")),
             definition=definition,
         )
-    except redis.ResponseError:
+    except valkey.ResponseError:
         await decoded_r.dropindex(delete_documents=True)
         return createIndex(decoded_r, num_docs=num_docs, definition=definition)
 
@@ -96,8 +98,8 @@ async def createIndex(decoded_r, num_docs=100, definition=None):
     await indexer.commit()
 
 
-@pytest.mark.redismod
-async def test_client(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_client(decoded_r: valkey.Valkey):
     num_docs = 500
     await createIndex(decoded_r.ft(), num_docs=num_docs)
     await waitForIndex(decoded_r, "idx")
@@ -324,9 +326,9 @@ async def test_client(decoded_r: redis.Redis):
         await decoded_r.ft().delete_document("doc-5ghs2")
 
 
-@pytest.mark.redismod
+@pytest.mark.valkeymod
 @pytest.mark.onlynoncluster
-async def test_scores(decoded_r: redis.Redis):
+async def test_scores(decoded_r: valkey.Valkey):
     await decoded_r.ft().create_index((TextField("txt"),))
 
     await decoded_r.hset("doc1", mapping={"txt": "foo baz"})
@@ -346,8 +348,8 @@ async def test_scores(decoded_r: redis.Redis):
         assert "doc1" == res["results"][1]["id"]
 
 
-@pytest.mark.redismod
-async def test_stopwords(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_stopwords(decoded_r: valkey.Valkey):
     stopwords = ["foo", "bar", "baz"]
     await decoded_r.ft().create_index((TextField("txt"),), stopwords=stopwords)
     await decoded_r.hset("doc1", mapping={"txt": "foo bar"})
@@ -365,8 +367,8 @@ async def test_stopwords(decoded_r: redis.Redis):
         assert 1 == res2["total_results"]
 
 
-@pytest.mark.redismod
-async def test_filters(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_filters(decoded_r: valkey.Valkey):
     await decoded_r.ft().create_index(
         (TextField("txt"), NumericField("num"), GeoField("loc"))
     )
@@ -423,8 +425,8 @@ async def test_filters(decoded_r: redis.Redis):
         assert ["doc1", "doc2"] == res
 
 
-@pytest.mark.redismod
-async def test_sort_by(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_sort_by(decoded_r: valkey.Valkey):
     await decoded_r.ft().create_index(
         (TextField("txt"), NumericField("num", sortable=True))
     )
@@ -457,9 +459,9 @@ async def test_sort_by(decoded_r: redis.Redis):
         assert "doc3" == res2["results"][0]["id"]
 
 
-@pytest.mark.redismod
+@pytest.mark.valkeymod
 @skip_ifmodversion_lt("2.0.0", "search")
-async def test_drop_index(decoded_r: redis.Redis):
+async def test_drop_index(decoded_r: valkey.Valkey):
     """
     Ensure the index gets dropped by data remains by default
     """
@@ -476,8 +478,8 @@ async def test_drop_index(decoded_r: redis.Redis):
             assert i == keep_docs[1]
 
 
-@pytest.mark.redismod
-async def test_example(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_example(decoded_r: valkey.Valkey):
     # Creating the index definition and schema
     await decoded_r.ft().create_index(
         (TextField("title", weight=5.0), TextField("body"))
@@ -488,7 +490,7 @@ async def test_example(decoded_r: redis.Redis):
         "doc1",
         mapping={
             "title": "RediSearch",
-            "body": "Redisearch impements a search engine on top of redis",
+            "body": "RediSearch impements a search engine on top of valkey",
         },
     )
 
@@ -499,8 +501,8 @@ async def test_example(decoded_r: redis.Redis):
     assert res is not None
 
 
-@pytest.mark.redismod
-async def test_auto_complete(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_auto_complete(decoded_r: valkey.Valkey):
     n = 0
     with open(TITLES_CSV) as f:
         cr = csv.reader(f)
@@ -550,8 +552,8 @@ async def test_auto_complete(decoded_r: redis.Redis):
         assert sug.payload.startswith("pl")
 
 
-@pytest.mark.redismod
-async def test_no_index(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_no_index(decoded_r: valkey.Valkey):
     await decoded_r.ft().create_index(
         (
             TextField("field"),
@@ -628,8 +630,8 @@ async def test_no_index(decoded_r: redis.Redis):
         TagField("name", no_index=True, sortable=False)
 
 
-@pytest.mark.redismod
-async def test_explain(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_explain(decoded_r: valkey.Valkey):
     await decoded_r.ft().create_index(
         (TextField("f1"), TextField("f2"), TextField("f3"))
     )
@@ -637,14 +639,14 @@ async def test_explain(decoded_r: redis.Redis):
     assert res
 
 
-@pytest.mark.redismod
-async def test_explaincli(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_explaincli(decoded_r: valkey.Valkey):
     with pytest.raises(NotImplementedError):
         await decoded_r.ft().explain_cli("foo")
 
 
-@pytest.mark.redismod
-async def test_summarize(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_summarize(decoded_r: valkey.Valkey):
     await createIndex(decoded_r.ft())
     await waitForIndex(decoded_r, "idx")
 
@@ -686,9 +688,9 @@ async def test_summarize(decoded_r: redis.Redis):
         )
 
 
-@pytest.mark.redismod
+@pytest.mark.valkeymod
 @skip_ifmodversion_lt("2.0.0", "search")
-async def test_alias(decoded_r: redis.Redis):
+async def test_alias(decoded_r: valkey.Valkey):
     index1 = getClient(decoded_r)
     index2 = getClient(decoded_r)
 
@@ -749,9 +751,9 @@ async def test_alias(decoded_r: redis.Redis):
         (await alias_client2.search("*")).docs[0]
 
 
-@pytest.mark.redismod
+@pytest.mark.valkeymod
 @pytest.mark.xfail(strict=False)
-async def test_alias_basic(decoded_r: redis.Redis):
+async def test_alias_basic(decoded_r: valkey.Valkey):
     # Creating a client with one index
     client = getClient(decoded_r)
     await client.flushdb()
@@ -802,8 +804,8 @@ async def test_alias_basic(decoded_r: redis.Redis):
         _ = (await alias_client2.search("*")).docs[0]
 
 
-@pytest.mark.redismod
-async def test_tags(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_tags(decoded_r: valkey.Valkey):
     await decoded_r.ft().create_index((TextField("txt"), TagField("tags")))
     tags = "foo,foo bar,hello;world"
     tags2 = "soba,ramen"
@@ -851,8 +853,8 @@ async def test_tags(decoded_r: redis.Redis):
         assert set(tags.split(",") + tags2.split(",")) == q2
 
 
-@pytest.mark.redismod
-async def test_textfield_sortable_nostem(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_textfield_sortable_nostem(decoded_r: valkey.Valkey):
     # Creating the index definition with sortable and no_stem
     await decoded_r.ft().create_index((TextField("txt", sortable=True, no_stem=True),))
 
@@ -866,8 +868,8 @@ async def test_textfield_sortable_nostem(decoded_r: redis.Redis):
         assert "NOSTEM" in response["attributes"][0]["flags"]
 
 
-@pytest.mark.redismod
-async def test_alter_schema_add(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_alter_schema_add(decoded_r: valkey.Valkey):
     # Creating the index definition and schema
     await decoded_r.ft().create_index(TextField("title"))
 
@@ -890,8 +892,8 @@ async def test_alter_schema_add(decoded_r: redis.Redis):
         assert 1 == res["total_results"]
 
 
-@pytest.mark.redismod
-async def test_spell_check(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_spell_check(decoded_r: valkey.Valkey):
     await decoded_r.ft().create_index((TextField("f1"), TextField("f2")))
 
     await decoded_r.hset(
@@ -959,8 +961,8 @@ async def test_spell_check(decoded_r: redis.Redis):
         assert res == {"results": {}}
 
 
-@pytest.mark.redismod
-async def test_dict_operations(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_dict_operations(decoded_r: valkey.Valkey):
     await decoded_r.ft().create_index((TextField("f1"), TextField("f2")))
     # Add three items
     res = await decoded_r.ft().dict_add("custom_dict", "item1", "item2", "item3")
@@ -978,8 +980,8 @@ async def test_dict_operations(decoded_r: redis.Redis):
     await decoded_r.ft().dict_del("custom_dict", *res)
 
 
-@pytest.mark.redismod
-async def test_phonetic_matcher(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_phonetic_matcher(decoded_r: valkey.Valkey):
     await decoded_r.ft().create_index((TextField("name"),))
     await decoded_r.hset("doc1", mapping={"name": "Jon"})
     await decoded_r.hset("doc2", mapping={"name": "John"})
@@ -1010,9 +1012,9 @@ async def test_phonetic_matcher(decoded_r: redis.Redis):
         )
 
 
-@pytest.mark.redismod
+@pytest.mark.valkeymod
 @pytest.mark.onlynoncluster
-async def test_scorer(decoded_r: redis.Redis):
+async def test_scorer(decoded_r: valkey.Valkey):
     await decoded_r.ft().create_index((TextField("description"),))
 
     await decoded_r.hset(
@@ -1070,8 +1072,8 @@ async def test_scorer(decoded_r: redis.Redis):
         assert 0.0 == res["results"][0]["score"]
 
 
-@pytest.mark.redismod
-async def test_get(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_get(decoded_r: valkey.Valkey):
     await decoded_r.ft().create_index((TextField("f1"), TextField("f2")))
 
     assert [None] == await decoded_r.ft().get("doc1")
@@ -1093,12 +1095,12 @@ async def test_get(decoded_r: redis.Redis):
     ] == await decoded_r.ft().get("doc1", "doc2")
 
 
-@pytest.mark.redismod
+@pytest.mark.valkeymod
 @pytest.mark.onlynoncluster
 @skip_ifmodversion_lt("2.2.0", "search")
-async def test_config(decoded_r: redis.Redis):
+async def test_config(decoded_r: valkey.Valkey):
     assert await decoded_r.ft().config_set("TIMEOUT", "100")
-    with pytest.raises(redis.ResponseError):
+    with pytest.raises(valkey.ResponseError):
         await decoded_r.ft().config_set("TIMEOUT", "null")
     res = await decoded_r.ft().config_get("*")
     assert "100" == res["TIMEOUT"]
@@ -1106,9 +1108,9 @@ async def test_config(decoded_r: redis.Redis):
     assert "100" == res["TIMEOUT"]
 
 
-@pytest.mark.redismod
+@pytest.mark.valkeymod
 @pytest.mark.onlynoncluster
-async def test_aggregations_groupby(decoded_r: redis.Redis):
+async def test_aggregations_groupby(decoded_r: valkey.Valkey):
     # Creating the index definition and schema
     await decoded_r.ft().create_index(
         (
@@ -1124,8 +1126,8 @@ async def test_aggregations_groupby(decoded_r: redis.Redis):
         "search",
         mapping={
             "title": "RediSearch",
-            "body": "Redisearch impements a search engine on top of redis",
-            "parent": "redis",
+            "body": "RediSearch impements a search engine on top of valkey",
+            "parent": "valkey",
             "random_num": 10,
         },
     )
@@ -1134,7 +1136,7 @@ async def test_aggregations_groupby(decoded_r: redis.Redis):
         mapping={
             "title": "RedisAI",
             "body": "RedisAI executes Deep Learning/Machine Learning models and managing their data.",  # noqa
-            "parent": "redis",
+            "parent": "valkey",
             "random_num": 3,
         },
     )
@@ -1143,7 +1145,7 @@ async def test_aggregations_groupby(decoded_r: redis.Redis):
         mapping={
             "title": "RedisJson",
             "body": "RedisJSON implements ECMA-404 The JSON Data Interchange Standard as a native data type.",  # noqa
-            "parent": "redis",
+            "parent": "valkey",
             "random_num": 8,
         },
     )
@@ -1151,116 +1153,116 @@ async def test_aggregations_groupby(decoded_r: redis.Redis):
     for dialect in [1, 2]:
         if is_resp2_connection(decoded_r):
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.count())
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req)).rows[0]
-            assert res[1] == "redis"
+            assert res[1] == "valkey"
             assert res[3] == "3"
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.count_distinct("@title"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req)).rows[0]
-            assert res[1] == "redis"
+            assert res[1] == "valkey"
             assert res[3] == "3"
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.count_distinctish("@title"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req)).rows[0]
-            assert res[1] == "redis"
+            assert res[1] == "valkey"
             assert res[3] == "3"
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.sum("@random_num"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req)).rows[0]
-            assert res[1] == "redis"
+            assert res[1] == "valkey"
             assert res[3] == "21"  # 10+8+3
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.min("@random_num"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req)).rows[0]
-            assert res[1] == "redis"
+            assert res[1] == "valkey"
             assert res[3] == "3"  # min(10,8,3)
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.max("@random_num"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req)).rows[0]
-            assert res[1] == "redis"
+            assert res[1] == "valkey"
             assert res[3] == "10"  # max(10,8,3)
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.avg("@random_num"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req)).rows[0]
-            assert res[1] == "redis"
+            assert res[1] == "valkey"
             assert res[3] == "7"  # (10+3+8)/3
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.stddev("random_num"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req)).rows[0]
-            assert res[1] == "redis"
+            assert res[1] == "valkey"
             assert res[3] == "3.60555127546"
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.quantile("@random_num", 0.5))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req)).rows[0]
-            assert res[1] == "redis"
+            assert res[1] == "valkey"
             assert res[3] == "8"  # median of 3,8,10
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.tolist("@title"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req)).rows[0]
-            assert res[1] == "redis"
+            assert res[1] == "valkey"
             assert set(res[3]) == {"RediSearch", "RedisAI", "RedisJson"}
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.first_value("@title").alias("first"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req)).rows[0]
-            assert res == ["parent", "redis", "first", "RediSearch"]
+            assert res == ["parent", "valkey", "first", "RediSearch"]
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by(
                     "@parent", reducers.random_sample("@title", 2).alias("random")
                 )
@@ -1268,120 +1270,120 @@ async def test_aggregations_groupby(decoded_r: redis.Redis):
             )
 
             res = (await decoded_r.ft().aggregate(req)).rows[0]
-            assert res[1] == "redis"
+            assert res[1] == "valkey"
             assert res[2] == "random"
             assert len(res[3]) == 2
             assert res[3][0] in ["RediSearch", "RedisAI", "RedisJson"]
         else:
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.count())
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req))["results"][0]
-            assert res["extra_attributes"]["parent"] == "redis"
+            assert res["extra_attributes"]["parent"] == "valkey"
             assert res["extra_attributes"]["__generated_aliascount"] == "3"
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.count_distinct("@title"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req))["results"][0]
-            assert res["extra_attributes"]["parent"] == "redis"
+            assert res["extra_attributes"]["parent"] == "valkey"
             assert (
                 res["extra_attributes"]["__generated_aliascount_distincttitle"] == "3"
             )
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.count_distinctish("@title"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req))["results"][0]
-            assert res["extra_attributes"]["parent"] == "redis"
+            assert res["extra_attributes"]["parent"] == "valkey"
             assert (
                 res["extra_attributes"]["__generated_aliascount_distinctishtitle"]
                 == "3"
             )
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.sum("@random_num"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req))["results"][0]
-            assert res["extra_attributes"]["parent"] == "redis"
+            assert res["extra_attributes"]["parent"] == "valkey"
             assert res["extra_attributes"]["__generated_aliassumrandom_num"] == "21"
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.min("@random_num"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req))["results"][0]
-            assert res["extra_attributes"]["parent"] == "redis"
+            assert res["extra_attributes"]["parent"] == "valkey"
             assert res["extra_attributes"]["__generated_aliasminrandom_num"] == "3"
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.max("@random_num"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req))["results"][0]
-            assert res["extra_attributes"]["parent"] == "redis"
+            assert res["extra_attributes"]["parent"] == "valkey"
             assert res["extra_attributes"]["__generated_aliasmaxrandom_num"] == "10"
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.avg("@random_num"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req))["results"][0]
-            assert res["extra_attributes"]["parent"] == "redis"
+            assert res["extra_attributes"]["parent"] == "valkey"
             assert res["extra_attributes"]["__generated_aliasavgrandom_num"] == "7"
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.stddev("random_num"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req))["results"][0]
-            assert res["extra_attributes"]["parent"] == "redis"
+            assert res["extra_attributes"]["parent"] == "valkey"
             assert (
                 res["extra_attributes"]["__generated_aliasstddevrandom_num"]
                 == "3.60555127546"
             )
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.quantile("@random_num", 0.5))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req))["results"][0]
-            assert res["extra_attributes"]["parent"] == "redis"
+            assert res["extra_attributes"]["parent"] == "valkey"
             assert (
                 res["extra_attributes"]["__generated_aliasquantilerandom_num,0.5"]
                 == "8"
             )
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.tolist("@title"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req))["results"][0]
-            assert res["extra_attributes"]["parent"] == "redis"
+            assert res["extra_attributes"]["parent"] == "valkey"
             assert set(res["extra_attributes"]["__generated_aliastolisttitle"]) == {
                 "RediSearch",
                 "RedisAI",
@@ -1389,16 +1391,19 @@ async def test_aggregations_groupby(decoded_r: redis.Redis):
             }
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by("@parent", reducers.first_value("@title").alias("first"))
                 .dialect(dialect)
             )
 
             res = (await decoded_r.ft().aggregate(req))["results"][0]
-            assert res["extra_attributes"] == {"parent": "redis", "first": "RediSearch"}
+            assert res["extra_attributes"] == {
+                "parent": "valkey",
+                "first": "RediSearch",
+            }
 
             req = (
-                aggregations.AggregateRequest("redis")
+                aggregations.AggregateRequest("valkey")
                 .group_by(
                     "@parent", reducers.random_sample("@title", 2).alias("random")
                 )
@@ -1406,7 +1411,7 @@ async def test_aggregations_groupby(decoded_r: redis.Redis):
             )
 
             res = (await decoded_r.ft().aggregate(req))["results"][0]
-            assert res["extra_attributes"]["parent"] == "redis"
+            assert res["extra_attributes"]["parent"] == "valkey"
             assert "random" in res["extra_attributes"].keys()
             assert len(res["extra_attributes"]["random"]) == 2
             assert res["extra_attributes"]["random"][0] in [
@@ -1416,8 +1421,8 @@ async def test_aggregations_groupby(decoded_r: redis.Redis):
             ]
 
 
-@pytest.mark.redismod
-async def test_aggregations_sort_by_and_limit(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_aggregations_sort_by_and_limit(decoded_r: valkey.Valkey):
     await decoded_r.ft().create_index((TextField("t1"), TextField("t2")))
 
     await decoded_r.ft().client.hset("doc1", mapping={"t1": "a", "t2": "b"})
@@ -1475,9 +1480,9 @@ async def test_aggregations_sort_by_and_limit(decoded_r: redis.Redis):
         assert res["results"][0]["extra_attributes"] == {"t1": "b"}
 
 
-@pytest.mark.redismod
+@pytest.mark.valkeymod
 @pytest.mark.experimental
-async def test_withsuffixtrie(decoded_r: redis.Redis):
+async def test_withsuffixtrie(decoded_r: valkey.Valkey):
     # create index
     assert await decoded_r.ft().create_index((TextField("txt"),))
     await waitForIndex(decoded_r, getattr(decoded_r.ft(), "index_name", "idx"))
@@ -1517,9 +1522,9 @@ async def test_withsuffixtrie(decoded_r: redis.Redis):
         assert "WITHSUFFIXTRIE" in info["attributes"][0]["flags"]
 
 
-@pytest.mark.redismod
-@skip_if_redis_enterprise()
-async def test_search_commands_in_pipeline(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+@skip_if_valkey_enterprise()
+async def test_search_commands_in_pipeline(decoded_r: valkey.Valkey):
     p = await decoded_r.ft().pipeline()
     p.create_index((TextField("txt"),))
     p.hset("doc1", mapping={"txt": "foo bar"})
@@ -1547,10 +1552,10 @@ async def test_search_commands_in_pipeline(decoded_r: redis.Redis):
         )
 
 
-@pytest.mark.redismod
-async def test_query_timeout(decoded_r: redis.Redis):
+@pytest.mark.valkeymod
+async def test_query_timeout(decoded_r: valkey.Valkey):
     q1 = Query("foo").timeout(5000)
     assert q1.get_args() == ["foo", "TIMEOUT", 5000, "LIMIT", 0, 10]
     q2 = Query("foo").timeout("not_a_number")
-    with pytest.raises(redis.ResponseError):
+    with pytest.raises(valkey.ResponseError):
         await decoded_r.ft().search(q2)

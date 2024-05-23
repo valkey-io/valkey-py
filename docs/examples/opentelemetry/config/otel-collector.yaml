@@ -20,8 +20,8 @@ receivers:
       memory:
       network:
       paging:
-  redis:
-    endpoint: "redis-server:6379"
+  valkey:
+    endpoint: "valkey-server:6379"
     collection_interval: 10s
   jaeger:
     protocols:
@@ -57,7 +57,7 @@ service:
       processors: [batch]
       exporters: [otlp]
     metrics/hostmetrics:
-      receivers: [hostmetrics, redis]
+      receivers: [hostmetrics, valkey]
       processors: [batch, resourcedetection]
       exporters: [otlp]
     logs:

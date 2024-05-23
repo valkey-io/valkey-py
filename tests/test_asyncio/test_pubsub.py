@@ -6,7 +6,7 @@ from typing import Optional
 from unittest.mock import patch
 
 # the functionality is available in 3.11.x but has a major issue before
-# 3.11.3. See https://github.com/redis/redis-py/issues/2633
+# 3.11.3. See https://github.com/valkey/valkey-py/issues/2633
 if sys.version_info >= (3, 11, 3):
     from asyncio import timeout as async_timeout
 else:
@@ -14,11 +14,11 @@ else:
 
 import pytest
 import pytest_asyncio
-import redis.asyncio as redis
-from redis.exceptions import ConnectionError
-from redis.typing import EncodableT
-from redis.utils import HIREDIS_AVAILABLE
+import valkey.asyncio as valkey
 from tests.conftest import get_protocol_version, skip_if_server_version_lt
+from valkey.exceptions import ConnectionError
+from valkey.typing import EncodableT
+from valkey.utils import HIREDIS_AVAILABLE
 
 from .compat import aclosing, create_task, mock
 
@@ -83,7 +83,7 @@ def make_subscribe_test_data(pubsub, type):
 
 
 @pytest_asyncio.fixture()
-async def pubsub(r: redis.Redis):
+async def pubsub(r: valkey.Valkey):
     async with r.pubsub() as p:
         yield p
 
@@ -214,7 +214,7 @@ class TestPubSubSubscribeUnsubscribe:
         kwargs = make_subscribe_test_data(pubsub, "pattern")
         await self._test_subscribed_property(**kwargs)
 
-    async def test_aclosing(self, r: redis.Redis):
+    async def test_aclosing(self, r: valkey.Valkey):
         p = r.pubsub()
         async with aclosing(p):
             assert p.subscribed is False
@@ -222,7 +222,7 @@ class TestPubSubSubscribeUnsubscribe:
             assert p.subscribed is True
         assert p.subscribed is False
 
-    async def test_context_manager(self, r: redis.Redis):
+    async def test_context_manager(self, r: valkey.Valkey):
         p = r.pubsub()
         async with p:
             assert p.subscribed is False
@@ -230,7 +230,7 @@ class TestPubSubSubscribeUnsubscribe:
             assert p.subscribed is True
         assert p.subscribed is False
 
-    async def test_close_is_aclose(self, r: redis.Redis):
+    async def test_close_is_aclose(self, r: valkey.Valkey):
         """
         Test backwards compatible close method
         """
@@ -242,7 +242,7 @@ class TestPubSubSubscribeUnsubscribe:
             await p.close()
         assert p.subscribed is False
 
-    async def test_reset_is_aclose(self, r: redis.Redis):
+    async def test_reset_is_aclose(self, r: valkey.Valkey):
         """
         Test backwards compatible reset method
         """
@@ -254,7 +254,7 @@ class TestPubSubSubscribeUnsubscribe:
             await p.reset()
         assert p.subscribed is False
 
-    async def test_ignore_all_subscribe_messages(self, r: redis.Redis):
+    async def test_ignore_all_subscribe_messages(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
 
         checks = (
@@ -302,7 +302,7 @@ class TestPubSubSubscribeUnsubscribe:
     async def _test_sub_unsub_resub(
         self, p, sub_type, unsub_type, sub_func, unsub_func, keys
     ):
-        # https://github.com/andymccurdy/redis-py/issues/764
+        # https://github.com/andymccurdy/valkey-py/issues/764
         key = keys[0]
         await sub_func(key)
         await unsub_func(key)
@@ -324,7 +324,7 @@ class TestPubSubSubscribeUnsubscribe:
     async def _test_sub_unsub_all_resub(
         self, p, sub_type, unsub_type, sub_func, unsub_func, keys
     ):
-        # https://github.com/andymccurdy/redis-py/issues/764
+        # https://github.com/andymccurdy/valkey-py/issues/764
         key = keys[0]
         await sub_func(key)
         await unsub_func()
@@ -347,7 +347,7 @@ class TestPubSubMessages:
     async def async_message_handler(self, message):
         self.async_message = message
 
-    async def test_published_message_to_channel(self, r: redis.Redis, pubsub):
+    async def test_published_message_to_channel(self, r: valkey.Valkey, pubsub):
         p = pubsub
         await p.subscribe("foo")
         assert await wait_for_message(p) == make_message("subscribe", "foo", 1)
@@ -357,7 +357,7 @@ class TestPubSubMessages:
         assert isinstance(message, dict)
         assert message == make_message("message", "foo", "test message")
 
-    async def test_published_message_to_pattern(self, r: redis.Redis, pubsub):
+    async def test_published_message_to_pattern(self, r: valkey.Valkey, pubsub):
         p = pubsub
         await p.subscribe("foo")
         await p.psubscribe("f*")
@@ -380,7 +380,7 @@ class TestPubSubMessages:
         assert message2 in expected
         assert message1 != message2
 
-    async def test_channel_message_handler(self, r: redis.Redis):
+    async def test_channel_message_handler(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe(foo=self.message_handler)
         assert await wait_for_message(p) is None
@@ -411,7 +411,7 @@ class TestPubSubMessages:
         await p.aclose()
 
     @pytest.mark.onlynoncluster
-    async def test_pattern_message_handler(self, r: redis.Redis):
+    async def test_pattern_message_handler(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.psubscribe(**{"f*": self.message_handler})
         assert await wait_for_message(p) is None
@@ -422,7 +422,7 @@ class TestPubSubMessages:
         )
         await p.aclose()
 
-    async def test_unicode_channel_message_handler(self, r: redis.Redis):
+    async def test_unicode_channel_message_handler(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
         channel = "uni" + chr(4456) + "code"
         channels = {channel: self.message_handler}
@@ -434,9 +434,9 @@ class TestPubSubMessages:
         await p.aclose()
 
     @pytest.mark.onlynoncluster
-    # see: https://redis-py-cluster.readthedocs.io/en/stable/pubsub.html
+    # see: https://valkey-py-cluster.readthedocs.io/en/stable/pubsub.html
     # #known-limitations-with-pubsub
-    async def test_unicode_pattern_message_handler(self, r: redis.Redis):
+    async def test_unicode_pattern_message_handler(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
         pattern = "uni" + chr(4456) + "*"
         channel = "uni" + chr(4456) + "code"
@@ -449,7 +449,7 @@ class TestPubSubMessages:
         )
         await p.aclose()
 
-    async def test_get_message_without_subscribe(self, r: redis.Redis, pubsub):
+    async def test_get_message_without_subscribe(self, r: valkey.Valkey, pubsub):
         p = pubsub
         with pytest.raises(RuntimeError) as info:
             await p.get_message()
@@ -495,8 +495,8 @@ class TestPubSubAutoDecoding:
         self.message = message
 
     @pytest_asyncio.fixture()
-    async def r(self, create_redis):
-        return await create_redis(decode_responses=True)
+    async def r(self, create_valkey):
+        return await create_valkey(decode_responses=True)
 
     async def test_channel_subscribe_unsubscribe(self, pubsub):
         p = pubsub
@@ -522,7 +522,7 @@ class TestPubSubAutoDecoding:
             "punsubscribe", self.pattern, 0
         )
 
-    async def test_channel_publish(self, r: redis.Redis, pubsub):
+    async def test_channel_publish(self, r: valkey.Valkey, pubsub):
         p = pubsub
         await p.subscribe(self.channel)
         assert await wait_for_message(p) == self.make_message(
@@ -534,7 +534,7 @@ class TestPubSubAutoDecoding:
         )
 
     @pytest.mark.onlynoncluster
-    async def test_pattern_publish(self, r: redis.Redis, pubsub):
+    async def test_pattern_publish(self, r: valkey.Valkey, pubsub):
         p = pubsub
         await p.psubscribe(self.pattern)
         assert await wait_for_message(p) == self.make_message(
@@ -545,7 +545,7 @@ class TestPubSubAutoDecoding:
             "pmessage", self.channel, self.data, pattern=self.pattern
         )
 
-    async def test_channel_message_handler(self, r: redis.Redis):
+    async def test_channel_message_handler(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe(**{self.channel: self.message_handler})
         assert await wait_for_message(p) is None
@@ -563,7 +563,7 @@ class TestPubSubAutoDecoding:
         assert self.message == self.make_message("message", self.channel, new_data)
         await p.aclose()
 
-    async def test_pattern_message_handler(self, r: redis.Redis):
+    async def test_pattern_message_handler(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.psubscribe(**{self.pattern: self.message_handler})
         assert await wait_for_message(p) is None
@@ -585,7 +585,7 @@ class TestPubSubAutoDecoding:
         )
         await p.aclose()
 
-    async def test_context_manager(self, r: redis.Redis):
+    async def test_context_manager(self, r: valkey.Valkey):
         async with r.pubsub() as pubsub:
             await pubsub.subscribe("foo")
             assert pubsub.connection is not None
@@ -597,9 +597,9 @@ class TestPubSubAutoDecoding:
 
 
 @pytest.mark.onlynoncluster
-class TestPubSubRedisDown:
-    async def test_channel_subscribe(self, r: redis.Redis):
-        r = redis.Redis(host="localhost", port=6390)
+class TestPubSubValkeyDown:
+    async def test_channel_subscribe(self, r: valkey.Valkey):
+        r = valkey.Valkey(host="localhost", port=6390)
         p = r.pubsub()
         with pytest.raises(ConnectionError):
             await p.subscribe("foo")
@@ -609,7 +609,7 @@ class TestPubSubRedisDown:
 class TestPubSubSubcommands:
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.0")
-    async def test_pubsub_channels(self, r: redis.Redis, pubsub):
+    async def test_pubsub_channels(self, r: valkey.Valkey, pubsub):
         p = pubsub
         await p.subscribe("foo", "bar", "baz", "quux")
         for i in range(4):
@@ -619,7 +619,7 @@ class TestPubSubSubcommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.0")
-    async def test_pubsub_numsub(self, r: redis.Redis):
+    async def test_pubsub_numsub(self, r: valkey.Valkey):
         p1 = r.pubsub()
         await p1.subscribe("foo", "bar", "baz")
         for i in range(3):
@@ -639,7 +639,7 @@ class TestPubSubSubcommands:
         await p3.aclose()
 
     @skip_if_server_version_lt("2.8.0")
-    async def test_pubsub_numpat(self, r: redis.Redis):
+    async def test_pubsub_numpat(self, r: valkey.Valkey):
         p = r.pubsub()
         await p.psubscribe("*oo", "*ar", "b*z")
         for i in range(3):
@@ -651,7 +651,7 @@ class TestPubSubSubcommands:
 @pytest.mark.onlynoncluster
 class TestPubSubPings:
     @skip_if_server_version_lt("3.0.0")
-    async def test_send_pubsub_ping(self, r: redis.Redis):
+    async def test_send_pubsub_ping(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe("foo")
         await p.ping()
@@ -661,7 +661,7 @@ class TestPubSubPings:
         await p.aclose()
 
     @skip_if_server_version_lt("3.0.0")
-    async def test_send_pubsub_ping_message(self, r: redis.Redis):
+    async def test_send_pubsub_ping_message(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe("foo")
         await p.ping(message="hello world")
@@ -675,7 +675,7 @@ class TestPubSubPings:
 class TestPubSubConnectionKilled:
     @skip_if_server_version_lt("3.0.0")
     async def test_connection_error_raised_when_connection_dies(
-        self, r: redis.Redis, pubsub
+        self, r: valkey.Valkey, pubsub
     ):
         p = pubsub
         await p.subscribe("foo")
@@ -699,7 +699,7 @@ class TestPubSubTimeouts:
 @pytest.mark.onlynoncluster
 class TestPubSubReconnect:
     @with_timeout(2)
-    async def test_reconnect_listen(self, r: redis.Redis, pubsub):
+    async def test_reconnect_listen(self, r: valkey.Valkey, pubsub):
         """
         Test that a loop processing PubSub messages can survive
         a disconnect, by issuing a connect() call.
@@ -717,7 +717,7 @@ class TestPubSubReconnect:
                         try:
                             await pubsub.connect()
                             await loop_step()
-                        except redis.ConnectionError:
+                        except valkey.ConnectionError:
                             await asyncio.sleep(0.1)
                     except asyncio.CancelledError:
                         # we use a cancel to interrupt the "listen"
@@ -775,7 +775,7 @@ class TestPubSubRun:
             ):
                 return
 
-    async def test_callbacks(self, r: redis.Redis, pubsub):
+    async def test_callbacks(self, r: valkey.Valkey, pubsub):
         def callback(message):
             messages.put_nowait(message)
 
@@ -797,7 +797,7 @@ class TestPubSubRun:
             "type": "message",
         }
 
-    async def test_exception_handler(self, r: redis.Redis, pubsub):
+    async def test_exception_handler(self, r: valkey.Valkey, pubsub):
         def exception_handler_callback(e, pubsub) -> None:
             assert pubsub == p
             exceptions.put_nowait(e)
@@ -817,7 +817,7 @@ class TestPubSubRun:
                 pass
         assert str(e) == "error"
 
-    async def test_late_subscribe(self, r: redis.Redis, pubsub):
+    async def test_late_subscribe(self, r: valkey.Valkey, pubsub):
         def callback(message):
             messages.put_nowait(message)
 
@@ -892,7 +892,7 @@ class TestPubSubAutoReconnect:
             self.state = 4  # quit
         await self.task
 
-    async def test_reconnect_socket_error(self, r: redis.Redis, method):
+    async def test_reconnect_socket_error(self, r: valkey.Valkey, method):
         """
         Test that a socket error will cause reconnect
         """
@@ -921,7 +921,7 @@ class TestPubSubAutoReconnect:
         finally:
             await self.mykill()
 
-    async def test_reconnect_disconnect(self, r: redis.Redis, method):
+    async def test_reconnect_disconnect(self, r: valkey.Valkey, method):
         """
         Test that a manual disconnect() will cause reconnect
         """
@@ -958,7 +958,7 @@ class TestPubSubAutoReconnect:
                     assert got_msg
                     if self.state in (1, 2):
                         self.state = 3  # successful reconnect
-                except redis.ConnectionError:
+                except valkey.ConnectionError:
                     assert self.state in (1, 2)
                     self.state = 2  # signal that we noticed the disconnect
                 finally:
@@ -992,7 +992,7 @@ class TestBaseException:
     @pytest.mark.skipif(
         sys.version_info < (3, 8), reason="requires python 3.8 or higher"
     )
-    async def test_outer_timeout(self, r: redis.Redis):
+    async def test_outer_timeout(self, r: valkey.Valkey):
         """
         Using asyncio_timeout manually outside the inner method timeouts works.
         This works on Python versions 3.8 and greater, at which time asyncio.
@@ -1026,7 +1026,7 @@ class TestBaseException:
     @pytest.mark.skipif(
         sys.version_info < (3, 8), reason="requires python 3.8 or higher"
     )
-    async def test_base_exception(self, r: redis.Redis):
+    async def test_base_exception(self, r: valkey.Valkey):
         """
         Manually trigger a BaseException inside the parser's .read_response method
         and verify that it isn't caught
@@ -1050,9 +1050,9 @@ class TestBaseException:
         assert msg is not None
         # timeout waiting for another message which never arrives
         assert pubsub.connection.is_connected
-        with patch("redis._parsers._AsyncRESP2Parser.read_response") as mock1, patch(
-            "redis._parsers._AsyncHiredisParser.read_response"
-        ) as mock2, patch("redis._parsers._AsyncRESP3Parser.read_response") as mock3:
+        with patch("valkey._parsers._AsyncRESP2Parser.read_response") as mock1, patch(
+            "valkey._parsers._AsyncHiredisParser.read_response"
+        ) as mock2, patch("valkey._parsers._AsyncRESP3Parser.read_response") as mock3:
             mock1.side_effect = BaseException("boom")
             mock2.side_effect = BaseException("boom")
             mock3.side_effect = BaseException("boom")

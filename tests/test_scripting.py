@@ -1,8 +1,8 @@
 import pytest
-import redis
-from redis import exceptions
-from redis.commands.core import Script
-from tests.conftest import skip_if_redis_enterprise, skip_if_server_version_lt
+import valkey
+from tests.conftest import skip_if_server_version_lt, skip_if_valkey_enterprise
+from valkey import exceptions
+from valkey.commands.core import Script
 
 multiply_script = """
 local value = redis.call('GET', KEYS[1])
@@ -65,11 +65,11 @@ class TestScripting:
         assert r.eval(multiply_script, 1, "a", 3) == 6
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_redis_enterprise()
+    @skip_if_valkey_enterprise()
     def test_eval_ro(self, r):
         r.set("a", "b")
         assert r.eval_ro("return redis.call('GET', KEYS[1])", 1, "a") == b"b"
-        with pytest.raises(redis.ResponseError):
+        with pytest.raises(valkey.ResponseError):
             r.eval_ro("return redis.call('DEL', KEYS[1])", 1, "a")
 
     def test_eval_msgpack(self, r):
@@ -79,9 +79,9 @@ class TestScripting:
 
     def test_eval_same_slot(self, r):
         """
-        In a clustered redis, the script keys must be in the same slot.
+        In a clustered valkey, the script keys must be in the same slot.
 
-        This test isn't very interesting for standalone redis, but it doesn't
+        This test isn't very interesting for standalone valkey, but it doesn't
         hurt anything.
         """
         r.set("A{foo}", 2)
@@ -99,7 +99,7 @@ class TestScripting:
     @pytest.mark.onlycluster
     def test_eval_crossslot(self, r):
         """
-        In a clustered redis, the script keys must be in the same slot.
+        In a clustered valkey, the script keys must be in the same slot.
 
         This test should fail, because the two keys we send are in different
         slots. This test assumes that {foo} and {bar} will not go to the same
@@ -115,7 +115,7 @@ class TestScripting:
         local value2 = redis.call('GET', KEYS[2])
         return value * value2
         """
-        with pytest.raises(exceptions.RedisClusterException):
+        with pytest.raises(exceptions.ValkeyClusterException):
             r.eval(script, 2, "A{foo}", "B{bar}")
 
     @skip_if_server_version_lt("6.2.0")
@@ -154,19 +154,19 @@ class TestScripting:
         assert r.evalsha(sha, 1, "a", 3) == 6
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_redis_enterprise()
+    @skip_if_valkey_enterprise()
     def test_evalsha_ro(self, r):
         r.set("a", "b")
         get_sha = r.script_load("return redis.call('GET', KEYS[1])")
         del_sha = r.script_load("return redis.call('DEL', KEYS[1])")
         assert r.evalsha_ro(get_sha, 1, "a") == b"b"
-        with pytest.raises(redis.ResponseError):
+        with pytest.raises(valkey.ResponseError):
             r.evalsha_ro(del_sha, 1, "a")
 
     def test_evalsha_script_not_loaded(self, r):
         r.set("a", 2)
         sha = r.script_load(multiply_script)
-        # remove the script from Redis's cache
+        # remove the script from Valkey's cache
         r.script_flush()
         with pytest.raises(exceptions.NoScriptError):
             r.evalsha(sha, 1, "a", 3)
@@ -194,7 +194,7 @@ class TestScripting:
         assert multiply(keys=["a"], args=[3]) == 6
         # At this point, the script should be loaded
         assert r.script_exists(multiply.sha) == [True]
-        # Test that the precalculated sha matches the one from redis
+        # Test that the precalculated sha matches the one from valkey
         assert multiply.sha == precalculated_sha
         # Test first evalsha block
         assert multiply(keys=["a"], args=[3]) == 6
@@ -217,7 +217,7 @@ class TestScripting:
         # The precalculated sha should have been the correct one
         assert multiply.sha == precalculated_sha
 
-        # purge the script from redis's cache and re-run the pipeline
+        # purge the script from valkey's cache and re-run the pipeline
         # the multiply script should be reloaded by pipe.execute()
         r.script_flush()
         pipe = r.pipeline()

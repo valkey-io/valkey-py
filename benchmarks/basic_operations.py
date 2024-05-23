@@ -2,7 +2,7 @@ import time
 from argparse import ArgumentParser
 from functools import wraps
 
-import redis
+import valkey
 
 
 def parse_args():
@@ -29,7 +29,7 @@ def parse_args():
 
 def run():
     args = parse_args()
-    r = redis.Redis()
+    r = valkey.Valkey()
     r.flushall()
     set_str(conn=r, num=args.n, pipeline_size=args.P, data_size=args.s)
     set_int(conn=r, num=args.n, pipeline_size=args.P, data_size=args.s)

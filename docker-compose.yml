@@ -4,13 +4,12 @@ version: "3.8"
 
 services:
 
-  redis:
-    image: redis/redis-stack-server:edge
-    container_name: redis-standalone
+  valkey:
+    image: valkey/valkey:latest
+    container_name: valkey-standalone
     ports:
       - 6379:6379
-    environment:
-      - "REDIS_ARGS=--enable-debug-command yes --enable-module-command yes"
+    entrypoint: "/usr/local/bin/docker-entrypoint.sh --enable-debug-command yes --enable-module-command yes"
     profiles:
       - standalone
       - sentinel
@@ -18,12 +17,11 @@ services:
       - all
 
   replica:
-    image: redis/redis-stack-server:edge
-    container_name: redis-replica
+    image: valkey/valkey:latest
+    container_name: valkey-replica
     depends_on:
-      - redis
-    environment:
-      - "REDIS_ARGS=--replicaof redis 6379"
+      - valkey
+    entrypoint: "/usr/local/bin/docker-entrypoint.sh --replicaof valkey 6379"
     ports:
       - 6380:6379
     profiles:
@@ -31,7 +29,7 @@ services:
       - all
 
   cluster:
-    container_name: redis-cluster
+    container_name: valkey-cluster
     build:
       context: .
       dockerfile: dockers/Dockerfile.cluster
@@ -43,7 +41,7 @@ services:
       - 16383:16383
       - 16384:16384
     volumes:
-      - "./dockers/cluster.redis.conf:/redis.conf:ro"
+      - "./dockers/cluster.valkey.conf:/valkey.conf:ro"
     profiles:
       - cluster
       - all
@@ -51,7 +49,7 @@ services:
   stunnel:
     image: redisfab/stunnel:latest
     depends_on:
-      - redis
+      - valkey
     ports:
       - 6666:6666
     profiles:
@@ -63,47 +61,43 @@ services:
       - "./dockers/stunnel/keys:/etc/stunnel/keys:ro"
 
   sentinel:
-    image: redis/redis-stack-server:edge
-    container_name: redis-sentinel
+    image: valkey/valkey:latest
+    container_name: valkey-sentinel
     depends_on:
-      - redis
-    environment:
-      - "REDIS_ARGS=--port 26379"
-    entrypoint: "/opt/redis-stack/bin/redis-sentinel /redis.conf --port 26379"
+      - valkey
+    entrypoint: "/usr/local/bin/valkey-sentinel /valkey.conf --port 26379"
     ports:
       - 26379:26379
     volumes:
-      - "./dockers/sentinel.conf:/redis.conf"
+      - "./dockers/sentinel.conf:/valkey.conf"
     profiles:
       - sentinel
       - all
 
   sentinel2:
-    image: redis/redis-stack-server:edge
-    container_name: redis-sentinel2
+    image: valkey/valkey:latest
+    container_name: valkey-sentinel2
     depends_on:
-      - redis
-    environment:
-      - "REDIS_ARGS=--port 26380"
-    entrypoint: "/opt/redis-stack/bin/redis-sentinel /redis.conf --port 26380"
+      - valkey
+    entrypoint: "/usr/local/bin/valkey-sentinel /valkey.conf --port 26380"
     ports:
       - 26380:26380
     volumes:
-      - "./dockers/sentinel.conf:/redis.conf"
+      - "./dockers/sentinel.conf:/valkey.conf"
     profiles:
       - sentinel
       - all
 
   sentinel3:
-    image: redis/redis-stack-server:edge
-    container_name: redis-sentinel3
+    image: valkey/valkey:latest
+    container_name: valkey-sentinel3
     depends_on:
-      - redis
-    entrypoint: "/opt/redis-stack/bin/redis-sentinel /redis.conf --port 26381"
+      - valkey
+    entrypoint: "/usr/local/bin/valkey-sentinel /valkey.conf --port 26381"
     ports:
       - 26381:26381
     volumes:
-      - "./dockers/sentinel.conf:/redis.conf"
+      - "./dockers/sentinel.conf:/valkey.conf"
     profiles:
       - sentinel
       - all

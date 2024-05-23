@@ -2,7 +2,7 @@ from contextlib import closing
 from unittest import mock
 
 import pytest
-import redis
+import valkey
 
 from .conftest import skip_if_server_version_lt, wait_for_command
 
@@ -81,7 +81,7 @@ class TestPipeline:
             pipe.multi()
             pipe.set("a", int(a) + 1)
 
-            with pytest.raises(redis.WatchError):
+            with pytest.raises(valkey.WatchError):
                 pipe.execute()
 
             assert r["a"] == b"bad"
@@ -103,7 +103,7 @@ class TestPipeline:
 
             # we can't lpush to a key that's a string value, so this should
             # be a ResponseError exception
-            assert isinstance(result[2], redis.ResponseError)
+            assert isinstance(result[2], valkey.ResponseError)
             assert r["c"] == b"a"
 
             # since this isn't a transaction, the other commands after the
@@ -119,7 +119,7 @@ class TestPipeline:
         r["c"] = "a"
         with r.pipeline() as pipe:
             pipe.set("a", 1).set("b", 2).lpush("c", 3).set("d", 4)
-            with pytest.raises(redis.ResponseError) as ex:
+            with pytest.raises(valkey.ResponseError) as ex:
                 pipe.execute()
             assert str(ex.value).startswith(
                 "Command # 3 (LPUSH c 3) of pipeline caused error: "
@@ -163,7 +163,7 @@ class TestPipeline:
         with r.pipeline() as pipe:
             # the zrem is invalid because we don't pass any keys to it
             pipe.set("a", 1).zrem("b").set("b", 2)
-            with pytest.raises(redis.ResponseError) as ex:
+            with pytest.raises(valkey.ResponseError) as ex:
                 pipe.execute()
 
             assert str(ex.value).startswith(
@@ -180,7 +180,7 @@ class TestPipeline:
             pipe.multi()
             # the zrem is invalid because we don't pass any keys to it
             pipe.set("a", 1).zrem("b").set("b", 2)
-            with pytest.raises(redis.ResponseError) as ex:
+            with pytest.raises(valkey.ResponseError) as ex:
                 pipe.execute()
 
             assert str(ex.value).startswith(
@@ -219,7 +219,7 @@ class TestPipeline:
             r["b"] = 3
             pipe.multi()
             pipe.get("a")
-            with pytest.raises(redis.WatchError):
+            with pytest.raises(valkey.WatchError):
                 pipe.execute()
 
             assert not pipe.watching
@@ -233,7 +233,7 @@ class TestPipeline:
             pipe.watch("a", "b")
             r["b"] = 3
             pipe.multi()
-            with pytest.raises(redis.WatchError):
+            with pytest.raises(valkey.WatchError):
                 pipe.execute()
 
             assert not pipe.watching
@@ -345,7 +345,7 @@ class TestPipeline:
             pipe.llen("a")
             pipe.expire("a", 100)
 
-            with pytest.raises(redis.ResponseError) as ex:
+            with pytest.raises(valkey.ResponseError) as ex:
                 pipe.execute()
 
             assert str(ex.value).startswith(
@@ -361,7 +361,7 @@ class TestPipeline:
             pipe.llen(key)
             pipe.expire(key, 100)
 
-            with pytest.raises(redis.ResponseError) as ex:
+            with pytest.raises(valkey.ResponseError) as ex:
                 pipe.execute()
 
             expected = f"Command # 1 (LLEN {key}) of pipeline caused error: "
@@ -394,7 +394,7 @@ class TestPipeline:
         with r.pipeline() as pipe:
             pipe.set("key", "someval")
             pipe.discard()
-            with pytest.raises(redis.exceptions.ResponseError):
+            with pytest.raises(valkey.exceptions.ResponseError):
                 pipe.execute()
 
         # setting a pipeline and discarding should do the same
@@ -405,7 +405,7 @@ class TestPipeline:
             pipe.set("key", "another value!")
             pipe.discard()
             pipe.set("key", "another vae!")
-            with pytest.raises(redis.exceptions.ResponseError):
+            with pytest.raises(valkey.exceptions.ResponseError):
                 pipe.execute()
 
             pipe.set("foo", "bar")

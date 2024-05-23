@@ -1,115 +1,86 @@
-# redis-py
+# valkey-py
 
-The Python interface to the Redis key-value store.
+The Python interface to the Valkey key-value store.
 
-[![CI](https://github.com/redis/redis-py/workflows/CI/badge.svg?branch=master)](https://github.com/redis/redis-py/actions?query=workflow%3ACI+branch%3Amaster)
-[![docs](https://readthedocs.org/projects/redis/badge/?version=stable&style=flat)](https://redis-py.readthedocs.io/en/stable/)
+[![CI](https://github.com/aiven-sal/valkey-py/workflows/CI/badge.svg?branch=master)](https://github.com/aiven-sal/valkey-py/actions?query=workflow%3ACI+branch%3Amaster)
+[![docs](https://readthedocs.org/projects/valkey-py/badge/?version=stable&style=flat)](https://valkey-py.readthedocs.io/en/stable/)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![pypi](https://badge.fury.io/py/redis.svg)](https://pypi.org/project/redis/)
-[![pre-release](https://img.shields.io/github/v/release/redis/redis-py?include_prereleases&label=latest-prerelease)](https://github.com/redis/redis-py/releases)
-[![codecov](https://codecov.io/gh/redis/redis-py/branch/master/graph/badge.svg?token=yenl5fzxxr)](https://codecov.io/gh/redis/redis-py)
+[![pypi](https://badge.fury.io/py/valkey.svg)](https://pypi.org/project/valkey/)
+[![pre-release](https://img.shields.io/github/v/release/aiven-sal/valkey-py?include_prereleases&label=latest-prerelease)](https://github.com/aiven-sal/valkey-py/releases)
+[![codecov](https://codecov.io/gh/aiven-sal/valkey-py/branch/master/graph/badge.svg?token=yenl5fzxxr)](https://codecov.io/gh/aiven-sal/valkey-py)
 
-[Installation](#installation) |  [Usage](#usage) | [Advanced Topics](#advanced-topics) | [Contributing](https://github.com/redis/redis-py/blob/master/CONTRIBUTING.md)
-
----------------------------------------------
-
-**Note: ** redis-py 5.0 will be the last version of redis-py to support Python 3.7, as it has reached [end of life](https://devguide.python.org/versions/). redis-py 5.1 will support Python 3.8+.
+[Installation](#installation) |  [Usage](#usage) | [Advanced Topics](#advanced-topics) | [Contributing](https://github.com/aiven-sal/valkey-py/blob/master/CONTRIBUTING.md)
 
 ---------------------------------------------
 
-## How do I Redis?
+**Note: ** valkey-py 5.0 will be the last version of valkey-py to support Python 3.7, as it has reached [end of life](https://devguide.python.org/versions/). valkey-py 5.1 will support Python 3.8+.
 
-[Learn for free at Redis University](https://university.redis.com/)
-
-[Build faster with the Redis Launchpad](https://launchpad.redis.com/)
-
-[Try the Redis Cloud](https://redis.com/try-free/)
-
-[Dive in developer tutorials](https://developer.redis.com/)
-
-[Join the Redis community](https://redis.com/community/)
-
-[Work at Redis](https://redis.com/company/careers/jobs/)
+---------------------------------------------
 
 ## Installation
 
-Start a redis via docker:
+Start a valkey via docker:
 
 ``` bash
-docker run -p 6379:6379 -it redis/redis-stack:latest
+docker run -p 6379:6379 -it valkey/valkey:latest
 ```
 
-To install redis-py, simply:
+To install valkey-py, simply:
 
 ``` bash
-$ pip install redis
+$ pip install valkey
 ```
 
-For faster performance, install redis with hiredis support, this provides a compiled response parser, and *for most cases* requires zero code changes.
-By default, if hiredis >= 1.0 is available, redis-py will attempt to use it for response parsing.
+For faster performance, install valkey with hiredis support, this provides a compiled response parser, and *for most cases* requires zero code changes.
+By default, if hiredis >= 1.0 is available, valkey-py will attempt to use it for response parsing.
 
 ``` bash
-$ pip install "redis[hiredis]"
+$ pip install "valkey[hiredis]"
 ```
-
-Looking for a high-level library to handle object mapping? See [redis-om-python](https://github.com/redis/redis-om-python)!
-
-## Supported Redis Versions
-
-The most recent version of this library supports redis version [5.0](https://github.com/redis/redis/blob/5.0/00-RELEASENOTES), [6.0](https://github.com/redis/redis/blob/6.0/00-RELEASENOTES), [6.2](https://github.com/redis/redis/blob/6.2/00-RELEASENOTES), [7.0](https://github.com/redis/redis/blob/7.0/00-RELEASENOTES) and [7.2](https://github.com/redis/redis/blob/7.2/00-RELEASENOTES).
-
-The table below highlights version compatibility of the most-recent library versions and redis versions.
-
-| Library version | Supported redis versions |
-|-----------------|-------------------|
-| 3.5.3 | <= 6.2 Family of releases |
-| >= 4.5.0 | Version 5.0 to 7.0 |
-| >= 5.0.0 | Version 5.0 to current |
-
 
 ## Usage
 
 ### Basic Example
 
 ``` python
->>> import redis
->>> r = redis.Redis(host='localhost', port=6379, db=0)
+>>> import valkey
+>>> r = valkey.Valkey(host='localhost', port=6379, db=0)
 >>> r.set('foo', 'bar')
 True
 >>> r.get('foo')
 b'bar'
 ```
 
-The above code connects to localhost on port 6379, sets a value in Redis, and retrieves it. All responses are returned as bytes in Python, to receive decoded strings, set *decode_responses=True*.  For this, and more connection options, see [these examples](https://redis.readthedocs.io/en/stable/examples.html).
+The above code connects to localhost on port 6379, sets a value in Redis, and retrieves it. All responses are returned as bytes in Python, to receive decoded strings, set *decode_responses=True*.  For this, and more connection options, see [these examples](https://valkey-py.readthedocs.io/en/stable/examples.html).
 
 
 #### RESP3 Support
 To enable support for RESP3, ensure you have at least version 5.0 of the client, and change your connection object to include *protocol=3*
 
 ``` python
->>> import redis
->>> r = redis.Redis(host='localhost', port=6379, db=0, protocol=3)
+>>> import valkey
+>>> r = valkey.Valkey(host='localhost', port=6379, db=0, protocol=3)
 ```
 
 ### Connection Pools
 
-By default, redis-py uses a connection pool to manage connections. Each instance of a Redis class receives its own connection pool. You can however define your own [redis.ConnectionPool](https://redis.readthedocs.io/en/stable/connections.html#connection-pools).
+By default, valkey-py uses a connection pool to manage connections. Each instance of a Valkey class receives its own connection pool. You can however define your own [valkey.ConnectionPool](https://valkey-py.readthedocs.io/en/stable/connections.html#connection-pools).
 
 ``` python
->>> pool = redis.ConnectionPool(host='localhost', port=6379, db=0)
->>> r = redis.Redis(connection_pool=pool)
+>>> pool = valkey.ConnectionPool(host='localhost', port=6379, db=0)
+>>> r = valkey.Valkey(connection_pool=pool)
 ```
 
-Alternatively, you might want to look at [Async connections](https://redis.readthedocs.io/en/stable/examples/asyncio_examples.html), or [Cluster connections](https://redis.readthedocs.io/en/stable/connections.html#cluster-client), or even [Async Cluster connections](https://redis.readthedocs.io/en/stable/connections.html#async-cluster-client).
+Alternatively, you might want to look at [Async connections](https://valkey-py.readthedocs.io/en/stable/examples/asyncio_examples.html), or [Cluster connections](https://valkey-py.readthedocs.io/en/stable/connections.html#cluster-client), or even [Async Cluster connections](https://valkey-py.readthedocs.io/en/stable/connections.html#async-cluster-client).
 
-### Redis Commands
+### Valkey Commands
 
-There is built-in support for all of the [out-of-the-box Redis commands](https://redis.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) except where a word (i.e. del) is reserved by the language. The complete set of commands can be found [here](https://github.com/redis/redis-py/tree/master/redis/commands), or [the documentation](https://redis.readthedocs.io/en/stable/commands.html).
+There is built-in support for all of the [out-of-the-box Valkey commands](https://valkey.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) except where a word (i.e. del) is reserved by the language. The complete set of commands can be found [here](https://github.com/valkey/valkey-py/tree/master/redis/commands), or [the documentation](https://valkey-py.readthedocs.io/en/stable/commands.html).
 
 ## Advanced Topics
 
-The [official Redis command documentation](https://redis.io/commands)
-does a great job of explaining each command in detail. redis-py attempts
+The [official Redis command documentation](https://valkey.io/commands)
+does a great job of explaining each command in detail. valkey-py attempts
 to adhere to the official command syntax. There are a few exceptions:
 
 -   **MULTI/EXEC**: These are implemented as part of the Pipeline class.
@@ -126,11 +97,11 @@ to adhere to the official command syntax. There are a few exceptions:
     #151](https://github.com/redis/redis-py/issues/151#issuecomment-1545015)
     for details).
 
-For more details, please see the documentation on [advanced topics page](https://redis.readthedocs.io/en/stable/advanced_features.html).
+For more details, please see the documentation on [advanced topics page](https://valkey-py.readthedocs.io/en/stable/advanced_features.html).
 
 ### Pipelines
 
-The following is a basic example of a [Redis pipeline](https://redis.io/docs/manual/pipelining/), a method to optimize round-trip calls, by batching Redis commands, and receiving their results as a list.
+The following is a basic example of a [Redis pipeline](https://valkey.io/docs/manual/pipelining/), a method to optimize round-trip calls, by batching Redis commands, and receiving their results as a list.
 
 
 ``` python
@@ -144,10 +115,10 @@ The following is a basic example of a [Redis pipeline](https://redis.io/docs/man
 
 ### PubSub
 
-The following example shows how to utilize [Redis Pub/Sub](https://redis.io/docs/manual/pubsub/) to subscribe to specific channels.
+The following example shows how to utilize [Redis Pub/Sub](https://valkey.io/docs/manual/pubsub/) to subscribe to specific channels.
 
 ``` python
->>> r = redis.Redis(...)
+>>> r = valkey.Valkey(...)
 >>> p = r.pubsub()
 >>> p.subscribe('my-first-channel', 'my-second-channel', ...)
 >>> p.get_message()
@@ -159,8 +130,9 @@ The following example shows how to utilize [Redis Pub/Sub](https://redis.io/docs
 
 ### Author
 
-redis-py is developed and maintained by [Redis Inc](https://redis.com). It can be found [here](
-https://github.com/redis/redis-py), or downloaded from [pypi](https://pypi.org/project/redis/).
+valkey-py can be found [here](
+https://github.com/aiven-sal/valkey-py), or downloaded from [pypi](https://pypi.org/project/valkey/).
+It was created as a fork of [redis-py](https://github.com/redis/redis-py)
 
 Special thanks to:
 
@@ -169,6 +141,6 @@ Special thanks to:
     from which some of the socket code is still used.
 -   Alexander Solovyov for ideas on the generic response callback
     system.
--   Paul Hubbard for initial packaging support.
+-   Paul Hubbard for initial packaging support in redis-py.
 
-[![Redis](./docs/logo-redis.png)](https://www.redis.com)
+[![Redis](./docs/logo-valkey.png)](https://valkey.io/)

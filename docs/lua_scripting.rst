@@ -9,10 +9,10 @@ Lua Scripting
 Lua Scripting in default connections
 ------------------------------------
 
-redis-py supports the EVAL, EVALSHA, and SCRIPT commands. However, there
+valkey-py supports the EVAL, EVALSHA, and SCRIPT commands. However, there
 are a number of edge cases that make these commands tedious to use in
-real world scenarios. Therefore, redis-py exposes a Script object that
-makes scripting much easier to use. (RedisClusters have limited support
+real world scenarios. Therefore, valkey-py exposes a Script object that
+makes scripting much easier to use. (ValkeyClusters have limited support
 for scripting.)
 
 To create a Script instance, use the register_script function on a
@@ -40,7 +40,7 @@ function. Script instances accept the following optional arguments:
    becomes the KEYS list in Lua.
 -  **args**: A list of argument values. This becomes the ARGV list in
    Lua.
--  **client**: A redis-py Client or Pipeline instance that will invoke
+-  **client**: A valkey-py Client or Pipeline instance that will invoke
    the script. If client isn't specified, the client that initially
    created the Script instance (the one that register_script was invoked
    from) will be used.
@@ -58,16 +58,16 @@ key is passed to the script along with the multiplier value of 5. Lua
 executes the script and returns the result, 10.
 
 Script instances can be executed using a different client instance, even
-one that points to a completely different Redis server.
+one that points to a completely different Valkey server.
 
 .. code:: python
 
-   >>> r2 = redis.Redis('redis2.example.com')
+   >>> r2 = redis.Redis('valkey2.example.com')
    >>> r2.set('foo', 3)
    >>> multiply(keys=['foo'], args=[5], client=r2)
    15
 
-The Script object ensures that the Lua script is loaded into Redis's
+The Script object ensures that the Lua script is loaded into Valkey's
 script cache. In the event of a NOSCRIPT error, it will load the script
 and retry executing it.
 
@@ -76,7 +76,7 @@ Pipelines
 
 Script objects can also be used in pipelines. The pipeline instance
 should be passed as the client argument when calling the script. Care is
-taken to ensure that the script is registered in Redis's script cache
+taken to ensure that the script is registered in Valkey's script cache
 just prior to pipeline execution.
 
 .. code:: python

@@ -1,5 +1,5 @@
 Lock
 #########
 
-.. automodule:: redis.lock
+.. automodule:: valkey.lock
     :members: 

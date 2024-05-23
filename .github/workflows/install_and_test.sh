@@ -38,8 +38,8 @@ cd ${TESTDIR}
 
 # install, run tests
 pip install ${PKG}
-# Redis tests
+# Valkey tests
 pytest -m 'not onlycluster'
-# RedisCluster tests
-CLUSTER_URL="redis://localhost:16379/0"
-pytest -m 'not onlynoncluster and not redismod and not ssl' --redis-url=${CLUSTER_URL}
+# ValkeyCluster tests
+CLUSTER_URL="valkey://localhost:16379/0"
+pytest -m 'not onlynoncluster and not valkeymod and not ssl' --valkey-url=${CLUSTER_URL}

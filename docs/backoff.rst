@@ -3,5 +3,5 @@
 Backoff
 #############
 
-.. automodule:: redis.backoff
+.. automodule:: valkey.backoff
     :members: 

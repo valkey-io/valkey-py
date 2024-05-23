@@ -1,7 +1,7 @@
 import pytest
 import pytest_asyncio
-from redis import exceptions
 from tests.conftest import skip_if_server_version_lt
+from valkey import exceptions
 
 multiply_script = """
 local value = redis.call('GET', KEYS[1])
@@ -23,10 +23,10 @@ return "hello " .. name
 @pytest.mark.onlynoncluster
 class TestScripting:
     @pytest_asyncio.fixture
-    async def r(self, create_redis):
-        redis = await create_redis()
-        yield redis
-        await redis.script_flush()
+    async def r(self, create_valkey):
+        valkey = await create_valkey()
+        yield valkey
+        await valkey.script_flush()
 
     @pytest.mark.asyncio(forbid_global_loop=True)
     async def test_eval(self, r):
@@ -66,7 +66,7 @@ class TestScripting:
     async def test_evalsha_script_not_loaded(self, r):
         await r.set("a", 2)
         sha = await r.script_load(multiply_script)
-        # remove the script from Redis's cache
+        # remove the script from Valkey's cache
         await r.script_flush()
         with pytest.raises(exceptions.NoScriptError):
             await r.evalsha(sha, 1, "a", 3)
@@ -92,7 +92,7 @@ class TestScripting:
         assert await multiply(keys=["a"], args=[3]) == 6
         # At this point, the script should be loaded
         assert await r.script_exists(multiply.sha) == [True]
-        # Test that the precalculated sha matches the one from redis
+        # Test that the precalculated sha matches the one from valkey
         assert multiply.sha == precalculated_sha
         # Test first evalsha block
         assert await multiply(keys=["a"], args=[3]) == 6
@@ -115,7 +115,7 @@ class TestScripting:
         # The precalculated sha should have been the correct one
         assert multiply.sha == precalculated_sha
 
-        # purge the script from redis's cache and re-run the pipeline
+        # purge the script from valkey's cache and re-run the pipeline
         # the multiply script should be reloaded by pipe.execute()
         await r.script_flush()
         pipe = r.pipeline()

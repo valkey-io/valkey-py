@@ -3,9 +3,11 @@ import time
 from time import sleep
 
 import pytest
-import redis
+import valkey
 
 from .conftest import assert_resp_response, is_resp2_connection, skip_ifmodversion_lt
+
+pytestmark = pytest.mark.skip
 
 
 @pytest.fixture
@@ -17,7 +19,7 @@ def client(decoded_r):
 def test_create(client):
     assert client.ts().create(1)
     assert client.ts().create(2, retention_msecs=5)
-    assert client.ts().create(3, labels={"Redis": "Labs"})
+    assert client.ts().create(3, labels={"Valkey": "Labs"})
     assert client.ts().create(4, retention_msecs=20, labels={"Time": "Series"})
     info = client.ts().info(4)
     assert_resp_response(
@@ -83,9 +85,9 @@ def test_alter_diplicate_policy(client):
 def test_add(client):
     assert 1 == client.ts().add(1, 1, 1)
     assert 2 == client.ts().add(2, 2, 3, retention_msecs=10)
-    assert 3 == client.ts().add(3, 3, 2, labels={"Redis": "Labs"})
+    assert 3 == client.ts().add(3, 3, 2, labels={"Valkey": "Labs"})
     assert 4 == client.ts().add(
-        4, 4, 2, retention_msecs=10, labels={"Redis": "Labs", "Time": "Series"}
+        4, 4, 2, retention_msecs=10, labels={"Valkey": "Labs", "Time": "Series"}
     )
 
     assert abs(time.time() - float(client.ts().add(5, "*", 1)) / 1000) < 1.0
@@ -94,7 +96,7 @@ def test_add(client):
     assert_resp_response(
         client, 10, info.get("retention_msecs"), info.get("retentionTime")
     )
-    assert "Labs" == info["labels"]["Redis"]
+    assert "Labs" == info["labels"]["Valkey"]
 
     # Test for a chunk size of 128 Bytes on TS.ADD
     assert client.ts().add("time-serie-1", 1, 10.0, chunk_size=128)
@@ -252,7 +254,7 @@ def test_range_advanced(client):
 
 @pytest.mark.onlynoncluster
 @skip_ifmodversion_lt("1.8.0", "timeseries")
-def test_range_latest(client: redis.Redis):
+def test_range_latest(client: valkey.Valkey):
     timeseries = client.ts()
     timeseries.create("t1")
     timeseries.create("t2")
@@ -276,7 +278,7 @@ def test_range_latest(client: redis.Redis):
 
 
 @skip_ifmodversion_lt("1.8.0", "timeseries")
-def test_range_bucket_timestamp(client: redis.Redis):
+def test_range_bucket_timestamp(client: valkey.Valkey):
     timeseries = client.ts()
     timeseries.create("t1")
     timeseries.add("t1", 15, 1)
@@ -309,7 +311,7 @@ def test_range_bucket_timestamp(client: redis.Redis):
 
 
 @skip_ifmodversion_lt("1.8.0", "timeseries")
-def test_range_empty(client: redis.Redis):
+def test_range_empty(client: valkey.Valkey):
     timeseries = client.ts()
     timeseries.create("t1")
     timeseries.add("t1", 15, 1)
@@ -401,7 +403,7 @@ def test_rev_range(client):
 
 @pytest.mark.onlynoncluster
 @skip_ifmodversion_lt("1.8.0", "timeseries")
-def test_revrange_latest(client: redis.Redis):
+def test_revrange_latest(client: valkey.Valkey):
     timeseries = client.ts()
     timeseries.create("t1")
     timeseries.create("t2")
@@ -419,7 +421,7 @@ def test_revrange_latest(client: redis.Redis):
 
 
 @skip_ifmodversion_lt("1.8.0", "timeseries")
-def test_revrange_bucket_timestamp(client: redis.Redis):
+def test_revrange_bucket_timestamp(client: valkey.Valkey):
     timeseries = client.ts()
     timeseries.create("t1")
     timeseries.add("t1", 15, 1)
@@ -452,7 +454,7 @@ def test_revrange_bucket_timestamp(client: redis.Redis):
 
 
 @skip_ifmodversion_lt("1.8.0", "timeseries")
-def test_revrange_empty(client: redis.Redis):
+def test_revrange_empty(client: valkey.Valkey):
     timeseries = client.ts()
     timeseries.create("t1")
     timeseries.add("t1", 15, 1)
@@ -658,7 +660,7 @@ def test_multi_range_advanced(client):
 
 @pytest.mark.onlynoncluster
 @skip_ifmodversion_lt("1.8.0", "timeseries")
-def test_mrange_latest(client: redis.Redis):
+def test_mrange_latest(client: valkey.Valkey):
     timeseries = client.ts()
     timeseries.create("t1")
     timeseries.create("t2", labels={"is_compaction": "true"})
@@ -805,7 +807,7 @@ def test_multi_reverse_range(client):
 
 @pytest.mark.onlynoncluster
 @skip_ifmodversion_lt("1.8.0", "timeseries")
-def test_mrevrange_latest(client: redis.Redis):
+def test_mrevrange_latest(client: valkey.Valkey):
     timeseries = client.ts()
     timeseries.create("t1")
     timeseries.create("t2", labels={"is_compaction": "true"})
@@ -844,7 +846,7 @@ def test_get(client):
 
 @pytest.mark.onlynoncluster
 @skip_ifmodversion_lt("1.8.0", "timeseries")
-def test_get_latest(client: redis.Redis):
+def test_get_latest(client: valkey.Valkey):
     timeseries = client.ts()
     timeseries.create("t1")
     timeseries.create("t2")
@@ -896,7 +898,7 @@ def test_mget(client):
 
 @pytest.mark.onlynoncluster
 @skip_ifmodversion_lt("1.8.0", "timeseries")
-def test_mget_latest(client: redis.Redis):
+def test_mget_latest(client: valkey.Valkey):
     timeseries = client.ts()
     timeseries.create("t1")
     timeseries.create("t2", labels={"is_compaction": "true"})

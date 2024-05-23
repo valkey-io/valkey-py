@@ -1,9 +1,9 @@
 import socket
 
 import pytest
-from redis.asyncio.retry import Retry
-from redis.asyncio.sentinel import SentinelManagedConnection
-from redis.backoff import NoBackoff
+from valkey.asyncio.retry import Retry
+from valkey.asyncio.sentinel import SentinelManagedConnection
+from valkey.backoff import NoBackoff
 
 from .compat import mock
 

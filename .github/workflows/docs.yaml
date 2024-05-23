@@ -42,6 +42,6 @@ jobs:
        - name: upload docs
          uses: actions/upload-artifact@v4
          with:
-           name: redis-py-docs
+           name: valkey-py-docs
            path: |
              docs/_build/html

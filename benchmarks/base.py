@@ -3,7 +3,7 @@ import itertools
 import sys
 import timeit
 
-import redis
+import valkey
 
 
 class Benchmark:
@@ -18,8 +18,8 @@ class Benchmark:
         if self._client is None or kwargs:
             defaults = {"db": 9}
             defaults.update(kwargs)
-            pool = redis.ConnectionPool(**kwargs)
-            self._client = redis.Redis(connection_pool=pool)
+            pool = valkey.ConnectionPool(**kwargs)
+            self._client = valkey.Valkey(connection_pool=pool)
         return self._client
 
     def setup(self, **kwargs):

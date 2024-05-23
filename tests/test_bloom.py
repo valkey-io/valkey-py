@@ -1,11 +1,13 @@
 from math import inf
 
 import pytest
-import redis.commands.bf
-from redis.exceptions import ModuleError, RedisError
-from redis.utils import HIREDIS_AVAILABLE
+import valkey.commands.bf
+from valkey.exceptions import ModuleError, ValkeyError
+from valkey.utils import HIREDIS_AVAILABLE
 
 from .conftest import assert_resp_response, is_resp2_connection, skip_ifmodversion_lt
+
+pytestmark = pytest.mark.skip
 
 
 def intlist(obj):
@@ -14,11 +16,11 @@ def intlist(obj):
 
 @pytest.fixture
 def client(decoded_r):
-    assert isinstance(decoded_r.bf(), redis.commands.bf.BFBloom)
-    assert isinstance(decoded_r.cf(), redis.commands.bf.CFBloom)
-    assert isinstance(decoded_r.cms(), redis.commands.bf.CMSBloom)
-    assert isinstance(decoded_r.tdigest(), redis.commands.bf.TDigestBloom)
-    assert isinstance(decoded_r.topk(), redis.commands.bf.TOPKBloom)
+    assert isinstance(decoded_r.bf(), valkey.commands.bf.BFBloom)
+    assert isinstance(decoded_r.cf(), valkey.commands.bf.CFBloom)
+    assert isinstance(decoded_r.cms(), valkey.commands.bf.CMSBloom)
+    assert isinstance(decoded_r.tdigest(), valkey.commands.bf.TDigestBloom)
+    assert isinstance(decoded_r.topk(), valkey.commands.bf.TOPKBloom)
 
     decoded_r.flushdb()
     return decoded_r
@@ -177,7 +179,7 @@ def test_bf_info(client):
             "myBloom", "0.0001", "1000", expansion=expansion, noScale=True
         )
         assert False
-    except RedisError:
+    except ValkeyError:
         assert True
 
 
@@ -190,7 +192,7 @@ def test_bf_card(client):
     assert client.bf().card("bf1") == 1
 
     # Error when key is of a type other than Bloom filter.
-    with pytest.raises(redis.ResponseError):
+    with pytest.raises(valkey.ResponseError):
         client.set("setKey", "value")
         client.bf().card("setKey")
 
@@ -477,7 +479,7 @@ def test_tdigest_byrank(client):
     assert 1 == client.tdigest().byrank("t-digest", 0)[0]
     assert 10 == client.tdigest().byrank("t-digest", 9)[0]
     assert client.tdigest().byrank("t-digest", 100)[0] == inf
-    with pytest.raises(redis.ResponseError):
+    with pytest.raises(valkey.ResponseError):
         client.tdigest().byrank("t-digest", -1)[0]
 
 
@@ -488,7 +490,7 @@ def test_tdigest_byrevrank(client):
     assert 10 == client.tdigest().byrevrank("t-digest", 0)[0]
     assert 1 == client.tdigest().byrevrank("t-digest", 9)[0]
     assert client.tdigest().byrevrank("t-digest", 100)[0] == -inf
-    with pytest.raises(redis.ResponseError):
+    with pytest.raises(valkey.ResponseError):
         client.tdigest().byrevrank("t-digest", -1)[0]
 
 

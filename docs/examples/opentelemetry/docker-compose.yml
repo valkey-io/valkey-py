@@ -65,12 +65,12 @@ services:
     ports:
       - "8025:8025"
 
-  redis-server:
-    image: redis
+  valkey-server:
+    image: valkey
     ports:
       - "6379:6379"
-  redis-cli:
-    image: redis
+  valkey-cli:
+    image: valkey
 
 volumes:
   uptrace_data:

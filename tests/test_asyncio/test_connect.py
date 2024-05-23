@@ -5,12 +5,12 @@ import socket
 import ssl
 
 import pytest
-from redis.asyncio.connection import (
+from valkey.asyncio.connection import (
     Connection,
     SSLConnection,
     UnixDomainSocketConnection,
 )
-from redis.exceptions import ConnectionError
+from valkey.exceptions import ConnectionError
 
 from ..ssl_utils import get_ssl_filename
 
@@ -142,7 +142,7 @@ async def _assert_connect(
 
     async def _handler(reader, writer):
         try:
-            return await _redis_request_handler(reader, writer, stop_event)
+            return await _valkey_request_handler(reader, writer, stop_event)
         finally:
             writer.close()
             await writer.wait_closed()
@@ -177,7 +177,7 @@ async def _assert_connect(
             await finished.wait()
 
 
-async def _redis_request_handler(reader, writer, stop_event):
+async def _valkey_request_handler(reader, writer, stop_event):
     buffer = b""
     command = None
     command_ptr = None

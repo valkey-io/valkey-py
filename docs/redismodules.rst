@@ -1,20 +1,20 @@
-Redis Modules Commands
+Valkey Modules Commands
 ######################
 
-Accessing redis module commands requires the installation of the supported `Redis module <https://docs.redis.com/latest/modules/>`_. For a quick start with redis modules, try the `Redismod docker <https://hub.docker.com/r/redislabs/redismod>`_.
+Accessing valkey module commands requires the installation of the supported `Valkey module <https://docs.valkey.com/latest/modules/>`_. For a quick start with valkey modules, try the `Valkeymod docker <https://hub.docker.com/r/valkeylabs/valkeymod>`_.
 
 
-RedisBloom Commands
+ValkeyBloom Commands
 *******************
 
-These are the commands for interacting with the `RedisBloom module <https://redisbloom.io>`_. Below is a brief example, as well as documentation on the commands themselves.
+These are the commands for interacting with the `ValkeyBloom module <https://valkeybloom.io>`_. Below is a brief example, as well as documentation on the commands themselves.
 
 **Create and add to a bloom filter**
 
 .. code-block:: python
 
-    import redis
-    r = redis.Redis()
+    import valkey
+    r = valkey.Valkey()
     r.bf().create("bloom", 0.01, 1000)
     r.bf().add("bloom", "foo")
 
@@ -22,8 +22,8 @@ These are the commands for interacting with the `RedisBloom module <https://redi
 
 .. code-block:: python
 
-    import redis
-    r = redis.Redis()
+    import valkey
+    r = valkey.Valkey()
     r.cf().create("cuckoo", 1000)
     r.cf().add("cuckoo", "filter")
 
@@ -31,8 +31,8 @@ These are the commands for interacting with the `RedisBloom module <https://redi
 
 .. code-block:: python
 
-    import redis
-    r = redis.Redis()
+    import valkey
+    r = valkey.Valkey()
     r.cms().initbydim("dim", 1000, 5)
     r.cms().incrby("dim", ["foo"], [5])
     r.cms().info("dim")
@@ -41,45 +41,45 @@ These are the commands for interacting with the `RedisBloom module <https://redi
 
 .. code-block:: python
 
-    import redis
-    r = redis.Redis()
+    import valkey
+    r = valkey.Valkey()
     r.topk().reserve("mytopk", 3, 50, 4, 0.9)
     r.topk().info("mytopk")
 
-.. automodule:: redis.commands.bf.commands
+.. automodule:: valkey.commands.bf.commands
     :members: BFCommands, CFCommands, CMSCommands, TOPKCommands
 
 ------
 
-RedisGraph Commands
+ValkeyGraph Commands
 *******************
 
-These are the commands for interacting with the `RedisGraph module <https://redisgraph.io>`_. Below is a brief example, as well as documentation on the commands themselves.
+These are the commands for interacting with the `ValkeyGraph module <https://valkeygraph.io>`_. Below is a brief example, as well as documentation on the commands themselves.
 
 **Create a graph, adding two nodes**
 
 .. code-block:: python
 
-    import redis
-    from redis.graph.node import Node
+    import valkey
+    from valkey.graph.node import Node
 
     john = Node(label="person", properties={"name": "John Doe", "age": 33}
     jane = Node(label="person", properties={"name": "Jane Doe", "age": 34}
 
-    r = redis.Redis()
+    r = valkey.Valkey()
     graph = r.graph()
     graph.add_node(john)
     graph.add_node(jane)
     graph.add_node(pat)
     graph.commit()
 
-.. automodule:: redis.commands.graph.node
+.. automodule:: valkey.commands.graph.node
     :members: Node
 
-.. automodule:: redis.commands.graph.edge
+.. automodule:: valkey.commands.graph.edge
     :members: Edge
 
-.. automodule:: redis.commands.graph.commands
+.. automodule:: valkey.commands.graph.commands
     :members: GraphCommands
 
 ------
@@ -87,19 +87,19 @@ These are the commands for interacting with the `RedisGraph module <https://redi
 RedisJSON Commands
 ******************
 
-These are the commands for interacting with the `RedisJSON module <https://redisjson.io>`_. Below is a brief example, as well as documentation on the commands themselves.
+These are the commands for interacting with the `RedisJSON module <https://valkeyjson.io>`_. Below is a brief example, as well as documentation on the commands themselves.
 
 **Create a json object**
 
 .. code-block:: python
 
-    import redis
-    r = redis.Redis()
+    import valkey
+    r = valkey.Valkey()
     r.json().set("mykey", ".", {"hello": "world", "i am": ["a", "json", "object!"]})
 
 Examples of how to combine search and json can be found `here <examples/search_json_examples.html>`_.
 
-.. automodule:: redis.commands.json.commands
+.. automodule:: valkey.commands.json.commands
     :members: JSONCommands
 
 -----
@@ -107,17 +107,17 @@ Examples of how to combine search and json can be found `here <examples/search_j
 RediSearch Commands
 *******************
 
-These are the commands for interacting with the `RediSearch module <https://redisearch.io>`_. Below is a brief example, as well as documentation on the commands themselves. In the example
+These are the commands for interacting with the `RediSearch module <https://valkeyearch.io>`_. Below is a brief example, as well as documentation on the commands themselves. In the example
 below, an index named *my_index* is being created. When an index name is not specified, an index named *idx* is created.
 
 **Create a search index, and display its information**
 
 .. code-block:: python
 
-    import redis
-    from redis.commands.search.field import TextField
+    import valkey
+    from valkey.commands.search.field import TextField
 
-    r = redis.Redis()
+    r = valkey.Valkey()
     index_name = "my_index"
     schema = (
         TextField("play", weight=5.0),
@@ -127,26 +127,26 @@ below, an index named *my_index* is being created. When an index name is not spe
     print(r.ft(index_name).info())
 
 
-.. automodule:: redis.commands.search.commands
+.. automodule:: valkey.commands.search.commands
     :members: SearchCommands
 
 -----
 
-RedisTimeSeries Commands
+ValkeyTimeSeries Commands
 ************************
 
-These are the commands for interacting with the `RedisTimeSeries module <https://redistimeseries.io>`_. Below is a brief example, as well as documentation on the commands themselves.
+These are the commands for interacting with the `ValkeyTimeSeries module <https://valkeytimeseries.io>`_. Below is a brief example, as well as documentation on the commands themselves.
 
 
 **Create a timeseries object with 5 second retention**
 
 .. code-block:: python
 
-    import redis
-    r = redis.Redis()
+    import valkey
+    r = valkey.Valkey()
     r.ts().create(2, retention_msecs=5000)
 
-.. automodule:: redis.commands.timeseries.commands
+.. automodule:: valkey.commands.timeseries.commands
     :members: TimeSeriesCommands
 
 

@@ -1,9 +1,9 @@
 import time
 
 import pytest
-from redis.client import Redis
-from redis.exceptions import LockError, LockNotOwnedError
-from redis.lock import Lock
+from valkey.client import Valkey
+from valkey.exceptions import LockError, LockNotOwnedError
+from valkey.lock import Lock
 
 from .conftest import _get_client
 
@@ -11,11 +11,11 @@ from .conftest import _get_client
 class TestLock:
     @pytest.fixture()
     def r_decoded(self, request):
-        return _get_client(Redis, request=request, decode_responses=True)
+        return _get_client(Valkey, request=request, decode_responses=True)
 
-    def get_lock(self, redis, *args, **kwargs):
+    def get_lock(self, valkey, *args, **kwargs):
         kwargs["lock_class"] = Lock
-        return redis.lock(*args, **kwargs)
+        return valkey.lock(*args, **kwargs)
 
     def test_lock(self, r):
         lock = self.get_lock(r, "foo")

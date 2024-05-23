@@ -27,23 +27,23 @@ def build_docs(c):
 @task
 def linters(c):
     """Run code linters"""
-    run("flake8 tests redis")
-    run("black --target-version py37 --check --diff tests redis")
-    run("isort --check-only --diff tests redis")
-    run("vulture redis whitelist.py --min-confidence 80")
-    run("flynt --fail-on-change --dry-run tests redis")
+    run("flake8 tests valkey")
+    run("black --target-version py37 --check --diff tests valkey")
+    run("isort --check-only --diff tests valkey")
+    run("vulture valkey whitelist.py --min-confidence 80")
+    run("flynt --fail-on-change --dry-run tests valkey")
 
 
 @task
 def all_tests(c):
-    """Run all linters, and tests in redis-py."""
+    """Run all linters, and tests in valkey-py."""
     linters(c)
     tests(c)
 
 
 @task
 def tests(c, uvloop=False, protocol=2):
-    """Run the redis-py test suite against the current python,
+    """Run the valkey-py test suite against the current python,
     with and without hiredis.
     """
     print("Starting Redis tests")
@@ -53,28 +53,28 @@ def tests(c, uvloop=False, protocol=2):
 
 @task
 def standalone_tests(c, uvloop=False, protocol=2):
-    """Run tests against a standalone redis instance"""
+    """Run tests against a standalone valkey instance"""
     if uvloop:
         run(
-            f"pytest --protocol={protocol} --cov=./ --cov-report=xml:coverage_redis.xml -W always -m 'not onlycluster' --uvloop --junit-xml=standalone-uvloop-results.xml"
+            f"pytest --protocol={protocol} --cov=./ --cov-report=xml:coverage_valkey.xml -W always -m 'not onlycluster' --uvloop --junit-xml=standalone-uvloop-results.xml"
         )
     else:
         run(
-            f"pytest --protocol={protocol} --cov=./ --cov-report=xml:coverage_redis.xml -W always -m 'not onlycluster' --junit-xml=standalone-results.xml"
+            f"pytest --protocol={protocol} --cov=./ --cov-report=xml:coverage_valkey.xml -W always -m 'not onlycluster' --junit-xml=standalone-results.xml"
         )
 
 
 @task
 def cluster_tests(c, uvloop=False, protocol=2):
-    """Run tests against a redis cluster"""
-    cluster_url = "redis://localhost:16379/0"
+    """Run tests against a valkey cluster"""
+    cluster_url = "valkey://localhost:16379/0"
     if uvloop:
         run(
-            f"pytest --protocol={protocol} --cov=./ --cov-report=xml:coverage_cluster.xml -W always -m 'not onlynoncluster and not redismod' --redis-url={cluster_url} --junit-xml=cluster-uvloop-results.xml --uvloop"
+            f"pytest --protocol={protocol} --cov=./ --cov-report=xml:coverage_cluster.xml -W always -m 'not onlynoncluster and not valkeymod' --valkey-url={cluster_url} --junit-xml=cluster-uvloop-results.xml --uvloop"
         )
     else:
         run(
-            f"pytest --protocol={protocol} --cov=./ --cov-report=xml:coverage_clusteclient.xml -W always -m 'not onlynoncluster and not redismod' --redis-url={cluster_url} --junit-xml=cluster-results.xml"
+            f"pytest --protocol={protocol} --cov=./ --cov-report=xml:coverage_clusteclient.xml -W always -m 'not onlynoncluster and not valkeymod' --valkey-url={cluster_url} --junit-xml=cluster-results.xml"
         )
 
 

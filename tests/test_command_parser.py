@@ -1,10 +1,10 @@
 import pytest
-from redis._parsers import CommandsParser
+from valkey._parsers import CommandsParser
 
 from .conftest import (
     assert_resp_response,
-    skip_if_redis_enterprise,
     skip_if_server_version_lt,
+    skip_if_valkey_enterprise,
 )
 
 
@@ -24,7 +24,7 @@ class TestCommandsParser:
         assert commands_parser.get_keys(r, *args3) == ["foo", "bar", "foobar"]
 
     @pytest.mark.filterwarnings("ignore:ResponseError")
-    @skip_if_redis_enterprise()
+    @skip_if_valkey_enterprise()
     def test_get_moveable_keys(self, r):
         commands_parser = CommandsParser(r)
         args1 = [

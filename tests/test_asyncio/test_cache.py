@@ -2,15 +2,15 @@ import time
 
 import pytest
 import pytest_asyncio
-from redis._cache import EvictionPolicy, _LocalCache
-from redis.utils import HIREDIS_AVAILABLE
+from valkey._cache import EvictionPolicy, _LocalCache
+from valkey.utils import HIREDIS_AVAILABLE
 
 
 @pytest_asyncio.fixture
-async def r(request, create_redis):
+async def r(request, create_valkey):
     cache = request.param.get("cache")
     kwargs = request.param.get("kwargs", {})
-    r = await create_redis(protocol=3, client_cache=cache, **kwargs)
+    r = await create_valkey(protocol=3, client_cache=cache, **kwargs)
     yield r, cache
 
 
@@ -25,29 +25,29 @@ class TestLocalCache:
     @pytest.mark.onlynoncluster
     async def test_get_from_cache(self, r, r2):
         r, cache = r
-        # add key to redis
+        # add key to valkey
         await r.set("foo", "bar")
-        # get key from redis and save in local cache
+        # get key from valkey and save in local cache
         assert await r.get("foo") == b"bar"
         # get key from local cache
         assert cache.get(("GET", "foo")) == b"bar"
-        # change key in redis (cause invalidation)
+        # change key in valkey (cause invalidation)
         await r2.set("foo", "barbar")
-        # send any command to redis (process invalidation in background)
+        # send any command to valkey (process invalidation in background)
         await r.ping()
         # the command is not in the local cache anymore
         assert cache.get(("GET", "foo")) is None
-        # get key from redis
+        # get key from valkey
         assert await r.get("foo") == b"barbar"
 
     @pytest.mark.parametrize("r", [{"cache": _LocalCache(max_size=3)}], indirect=True)
     async def test_cache_lru_eviction(self, r):
         r, cache = r
-        # add 3 keys to redis
+        # add 3 keys to valkey
         await r.set("foo", "bar")
         await r.set("foo2", "bar2")
         await r.set("foo3", "bar3")
-        # get 3 keys from redis and save in local cache
+        # get 3 keys from valkey and save in local cache
         assert await r.get("foo") == b"bar"
         assert await r.get("foo2") == b"bar2"
         assert await r.get("foo3") == b"bar3"
@@ -55,7 +55,7 @@ class TestLocalCache:
         assert cache.get(("GET", "foo")) == b"bar"
         assert cache.get(("GET", "foo2")) == b"bar2"
         assert cache.get(("GET", "foo3")) == b"bar3"
-        # add 1 more key to redis (exceed the max size)
+        # add 1 more key to valkey (exceed the max size)
         await r.set("foo4", "bar4")
         assert await r.get("foo4") == b"bar4"
         # the first key is not in the local cache anymore
@@ -64,9 +64,9 @@ class TestLocalCache:
     @pytest.mark.parametrize("r", [{"cache": _LocalCache(ttl=1)}], indirect=True)
     async def test_cache_ttl(self, r):
         r, cache = r
-        # add key to redis
+        # add key to valkey
         await r.set("foo", "bar")
-        # get key from redis and save in local cache
+        # get key from valkey and save in local cache
         assert await r.get("foo") == b"bar"
         # get key from local cache
         assert cache.get(("GET", "foo")) == b"bar"
@@ -82,11 +82,11 @@ class TestLocalCache:
     )
     async def test_cache_lfu_eviction(self, r):
         r, cache = r
-        # add 3 keys to redis
+        # add 3 keys to valkey
         await r.set("foo", "bar")
         await r.set("foo2", "bar2")
         await r.set("foo3", "bar3")
-        # get 3 keys from redis and save in local cache
+        # get 3 keys from valkey and save in local cache
         assert await r.get("foo") == b"bar"
         assert await r.get("foo2") == b"bar2"
         assert await r.get("foo3") == b"bar3"
@@ -94,7 +94,7 @@ class TestLocalCache:
         assert cache.get(("GET", "foo")) == b"bar"
         assert cache.get(("GET", "foo")) == b"bar"
         assert cache.get(("GET", "foo3")) == b"bar3"
-        # add 1 more key to redis (exceed the max size)
+        # add 1 more key to valkey (exceed the max size)
         await r.set("foo4", "bar4")
         assert await r.get("foo4") == b"bar4"
         # test the eviction policy
@@ -111,17 +111,17 @@ class TestLocalCache:
     async def test_cache_decode_response(self, r):
         r, cache = r
         await r.set("foo", "bar")
-        # get key from redis and save in local cache
+        # get key from valkey and save in local cache
         assert await r.get("foo") == "bar"
         # get key from local cache
         assert cache.get(("GET", "foo")) == "bar"
-        # change key in redis (cause invalidation)
+        # change key in valkey (cause invalidation)
         await r.set("foo", "barbar")
-        # send any command to redis (process invalidation in background)
+        # send any command to valkey (process invalidation in background)
         await r.ping()
         # the command is not in the local cache anymore
         assert cache.get(("GET", "foo")) is None
-        # get key from redis
+        # get key from valkey
         assert await r.get("foo") == "barbar"
 
     @pytest.mark.parametrize(
@@ -131,7 +131,7 @@ class TestLocalCache:
     )
     async def test_cache_deny_list(self, r):
         r, cache = r
-        # add list to redis
+        # add list to valkey
         await r.lpush("mylist", "foo", "bar", "baz")
         assert await r.llen("mylist") == 3
         assert await r.lindex("mylist", 1) == b"bar"
@@ -145,7 +145,7 @@ class TestLocalCache:
     )
     async def test_cache_allow_list(self, r):
         r, cache = r
-        # add list to redis
+        # add list to valkey
         await r.lpush("mylist", "foo", "bar", "baz")
         assert await r.llen("mylist") == 3
         assert await r.lindex("mylist", 1) == b"bar"
@@ -188,7 +188,7 @@ class TestLocalCache:
 
         await r.mset({"a": 2, "b": 2, "c": 2, "d": 2, "e": 2})
         id3 = await r.client_id()
-        # client should get value from redis server post invalidate messages
+        # client should get value from valkey server post invalidate messages
         assert await r.mget("a", "b", "c", "d", "e") == ["2", "2", "2", "2", "2"]
 
         await r.mset({"a": 3, "b": 3, "c": 3, "d": 3, "e": 3})
@@ -248,7 +248,7 @@ class TestLocalCache:
         # the other command is still in the local cache anymore
         assert cache.get(("MGET", "a{a}", "b{a}")) is None
         assert cache.get(("GET", "c")) == "1"
-        # get from redis
+        # get from valkey
         assert await r.mget("a{a}", "b{a}") == ["1", "1"]
         assert await r.get("c") == "1"
 
@@ -271,7 +271,7 @@ class TestLocalCache:
         # one other command is still in the local cache anymore
         assert cache.get(("MGET", "a{a}", "b{a}")) is None
         assert cache.get(("GET", "c")) == "1"
-        # get from redis
+        # get from valkey
         assert await r.mget("a{a}", "b{a}") == ["1", "1"]
         assert await r.get("c") == "1"
 
@@ -294,7 +294,7 @@ class TestLocalCache:
         # the commands are not in the local cache anymore
         assert cache.get(("MGET", "a{a}", "b{a}")) is None
         assert cache.get(("GET", "c")) is None
-        # get from redis
+        # get from valkey
         assert await r.mget("a{a}", "b{a}") == ["1", "1"]
         assert await r.get("c") == "1"
 
@@ -305,20 +305,20 @@ class TestClusterLocalCache:
     @pytest.mark.parametrize("r", [{"cache": _LocalCache()}], indirect=True)
     async def test_get_from_cache(self, r, r2):
         r, cache = r
-        # add key to redis
+        # add key to valkey
         await r.set("foo", "bar")
-        # get key from redis and save in local cache
+        # get key from valkey and save in local cache
         assert await r.get("foo") == b"bar"
         # get key from local cache
         assert cache.get(("GET", "foo")) == b"bar"
-        # change key in redis (cause invalidation)
+        # change key in valkey (cause invalidation)
         await r2.set("foo", "barbar")
-        # send any command to redis (process invalidation in background)
+        # send any command to valkey (process invalidation in background)
         node = r.get_node_from_key("foo")
         await r.ping(target_nodes=node)
         # the command is not in the local cache anymore
         assert cache.get(("GET", "foo")) is None
-        # get key from redis
+        # get key from valkey
         assert await r.get("foo") == b"barbar"
 
     @pytest.mark.parametrize(
@@ -329,18 +329,18 @@ class TestClusterLocalCache:
     async def test_cache_decode_response(self, r):
         r, cache = r
         await r.set("foo", "bar")
-        # get key from redis and save in local cache
+        # get key from valkey and save in local cache
         assert await r.get("foo") == "bar"
         # get key from local cache
         assert cache.get(("GET", "foo")) == "bar"
-        # change key in redis (cause invalidation)
+        # change key in valkey (cause invalidation)
         await r.set("foo", "barbar")
-        # send any command to redis (process invalidation in background)
+        # send any command to valkey (process invalidation in background)
         node = r.get_node_from_key("foo")
         await r.ping(target_nodes=node)
         # the command is not in the local cache anymore
         assert cache.get(("GET", "foo")) is None
-        # get key from redis
+        # get key from valkey
         assert await r.get("foo") == "barbar"
 
     @pytest.mark.parametrize(
@@ -374,17 +374,17 @@ class TestSentinelLocalCache:
 
     async def test_get_from_cache(self, local_cache, master):
         await master.set("foo", "bar")
-        # get key from redis and save in local cache
+        # get key from valkey and save in local cache
         assert await master.get("foo") == b"bar"
         # get key from local cache
         assert local_cache.get(("GET", "foo")) == b"bar"
-        # change key in redis (cause invalidation)
+        # change key in valkey (cause invalidation)
         await master.set("foo", "barbar")
-        # send any command to redis (process invalidation in background)
+        # send any command to valkey (process invalidation in background)
         await master.ping()
         # the command is not in the local cache anymore
         assert local_cache.get(("GET", "foo")) is None
-        # get key from redis
+        # get key from valkey
         assert await master.get("foo") == b"barbar"
 
     @pytest.mark.parametrize(
@@ -394,15 +394,15 @@ class TestSentinelLocalCache:
     )
     async def test_cache_decode_response(self, local_cache, sentinel_setup, master):
         await master.set("foo", "bar")
-        # get key from redis and save in local cache
+        # get key from valkey and save in local cache
         assert await master.get("foo") == "bar"
         # get key from local cache
         assert local_cache.get(("GET", "foo")) == "bar"
-        # change key in redis (cause invalidation)
+        # change key in valkey (cause invalidation)
         await master.set("foo", "barbar")
-        # send any command to redis (process invalidation in background)
+        # send any command to valkey (process invalidation in background)
         await master.ping()
         # the command is not in the local cache anymore
         assert local_cache.get(("GET", "foo")) is None
-        # get key from redis
+        # get key from valkey
         assert await master.get("foo") == "barbar"

@@ -1,7 +1,7 @@
 import pytest
-import redis
-from redis.connection import Connection
-from redis.utils import HIREDIS_PACK_AVAILABLE
+import valkey
+from valkey.connection import Connection
+from valkey.utils import HIREDIS_PACK_AVAILABLE
 
 from .conftest import _get_client
 
@@ -9,11 +9,11 @@ from .conftest import _get_client
 class TestEncoding:
     @pytest.fixture()
     def r(self, request):
-        return _get_client(redis.Redis, request=request, decode_responses=True)
+        return _get_client(valkey.Valkey, request=request, decode_responses=True)
 
     @pytest.fixture()
     def r_no_decode(self, request):
-        return _get_client(redis.Redis, request=request, decode_responses=False)
+        return _get_client(valkey.Valkey, request=request, decode_responses=False)
 
     def test_simple_encoding(self, r_no_decode):
         unicode_string = chr(3456) + "abcd" + chr(3421)
@@ -34,7 +34,7 @@ class TestEncoding:
         unicode_string_view = memoryview(unicode_string.encode("utf-8"))
         r_no_decode["unicode-string-memoryview"] = unicode_string_view
         cached_val = r_no_decode["unicode-string-memoryview"]
-        # The cached value won't be a memoryview because it's a copy from Redis
+        # The cached value won't be a memoryview because it's a copy from Valkey
         assert isinstance(cached_val, bytes)
         assert unicode_string == cached_val.decode("utf-8")
 
@@ -56,7 +56,7 @@ class TestEncoding:
 class TestEncodingErrors:
     def test_ignore(self, request):
         r = _get_client(
-            redis.Redis,
+            valkey.Valkey,
             request=request,
             decode_responses=True,
             encoding_errors="ignore",
@@ -66,7 +66,7 @@ class TestEncodingErrors:
 
     def test_replace(self, request):
         r = _get_client(
-            redis.Redis,
+            valkey.Valkey,
             request=request,
             decode_responses=True,
             encoding_errors="replace",
@@ -94,7 +94,7 @@ class TestMemoryviewsAreNotPacked:
 class TestCommandsAreNotEncoded:
     @pytest.fixture()
     def r(self, request):
-        return _get_client(redis.Redis, request=request, encoding="utf-8")
+        return _get_client(valkey.Valkey, request=request, encoding="utf-8")
 
     def test_basic_command(self, r):
         r.set("hello", "world")
@@ -102,11 +102,11 @@ class TestCommandsAreNotEncoded:
 
 class TestInvalidUserInput:
     def test_boolean_fails(self, r):
-        with pytest.raises(redis.DataError):
+        with pytest.raises(valkey.DataError):
             r.set("a", True)
 
     def test_none_fails(self, r):
-        with pytest.raises(redis.DataError):
+        with pytest.raises(valkey.DataError):
             r.set("a", None)
 
     def test_user_type_fails(self, r):
@@ -114,5 +114,5 @@ class TestInvalidUserInput:
             def __str__(self):
                 return "Foo"
 
-        with pytest.raises(redis.DataError):
+        with pytest.raises(valkey.DataError):
             r.set("a", Foo())

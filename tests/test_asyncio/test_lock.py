@@ -2,20 +2,20 @@ import asyncio
 
 import pytest
 import pytest_asyncio
-from redis.asyncio.lock import Lock
-from redis.exceptions import LockError, LockNotOwnedError
+from valkey.asyncio.lock import Lock
+from valkey.exceptions import LockError, LockNotOwnedError
 
 
 class TestLock:
     @pytest_asyncio.fixture()
-    async def r_decoded(self, create_redis):
-        redis = await create_redis(decode_responses=True)
-        yield redis
-        await redis.flushall()
+    async def r_decoded(self, create_valkey):
+        valkey = await create_valkey(decode_responses=True)
+        yield valkey
+        await valkey.flushall()
 
-    def get_lock(self, redis, *args, **kwargs):
+    def get_lock(self, valkey, *args, **kwargs):
         kwargs["lock_class"] = Lock
-        return redis.lock(*args, **kwargs)
+        return valkey.lock(*args, **kwargs)
 
     async def test_lock(self, r):
         lock = self.get_lock(r, "foo")

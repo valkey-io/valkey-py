@@ -1,11 +1,11 @@
 from base import Benchmark
 
-from redis.connection import SYM_CRLF, SYM_DOLLAR, SYM_EMPTY, SYM_STAR, Connection
+from valkey.connection import SYM_CRLF, SYM_DOLLAR, SYM_EMPTY, SYM_STAR, Connection
 
 
 class StringJoiningConnection(Connection):
     def send_packed_command(self, command, check_health=True):
-        "Send an already packed command to the Redis server"
+        "Send an already packed command to the Valkey server"
         if not self._sock:
             self.connect()
         try:
@@ -22,7 +22,7 @@ class StringJoiningConnection(Connection):
             raise
 
     def pack_command(self, *args):
-        "Pack a series of arguments into a value Redis command"
+        "Pack a series of arguments into a value Valkey command"
         args_output = SYM_EMPTY.join(
             [
                 SYM_EMPTY.join(

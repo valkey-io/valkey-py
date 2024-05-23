@@ -3,8 +3,8 @@ import ssl
 from urllib.parse import urlparse
 
 import pytest
-import redis
-from redis.exceptions import ConnectionError, RedisError
+import valkey
+from valkey.exceptions import ConnectionError, ValkeyError
 
 from .conftest import skip_if_cryptography, skip_if_nocryptography
 from .ssl_utils import get_ssl_filename
@@ -14,7 +14,7 @@ from .ssl_utils import get_ssl_filename
 class TestSSL:
     """Tests for SSL connections
 
-    This relies on the --redis-ssl-url purely for rebuilding the client
+    This relies on the --valkey-ssl-url purely for rebuilding the client
     and connecting to the appropriate port.
     """
 
@@ -24,24 +24,24 @@ class TestSSL:
     SERVER_CERT = get_ssl_filename("server-cert.pem")
 
     def test_ssl_with_invalid_cert(self, request):
-        ssl_url = request.config.option.redis_ssl_url
-        sslclient = redis.from_url(ssl_url)
+        ssl_url = request.config.option.valkey_ssl_url
+        sslclient = valkey.from_url(ssl_url)
         with pytest.raises(ConnectionError) as e:
             sslclient.ping()
         assert "SSL: CERTIFICATE_VERIFY_FAILED" in str(e)
         sslclient.close()
 
     def test_ssl_connection(self, request):
-        ssl_url = request.config.option.redis_ssl_url
+        ssl_url = request.config.option.valkey_ssl_url
         p = urlparse(ssl_url)[1].split(":")
-        r = redis.Redis(host=p[0], port=p[1], ssl=True, ssl_cert_reqs="none")
+        r = valkey.Valkey(host=p[0], port=p[1], ssl=True, ssl_cert_reqs="none")
         assert r.ping()
         r.close()
 
     def test_ssl_connection_without_ssl(self, request):
-        ssl_url = request.config.option.redis_ssl_url
+        ssl_url = request.config.option.valkey_ssl_url
         p = urlparse(ssl_url)[1].split(":")
-        r = redis.Redis(host=p[0], port=p[1], ssl=False)
+        r = valkey.Valkey(host=p[0], port=p[1], ssl=False)
 
         with pytest.raises(ConnectionError) as e:
             r.ping()
@@ -49,9 +49,9 @@ class TestSSL:
         r.close()
 
     def test_validating_self_signed_certificate(self, request):
-        ssl_url = request.config.option.redis_ssl_url
+        ssl_url = request.config.option.valkey_ssl_url
         p = urlparse(ssl_url)[1].split(":")
-        r = redis.Redis(
+        r = valkey.Valkey(
             host=p[0],
             port=p[1],
             ssl=True,
@@ -66,9 +66,9 @@ class TestSSL:
     def test_validating_self_signed_string_certificate(self, request):
         with open(self.CA_CERT) as f:
             cert_data = f.read()
-        ssl_url = request.config.option.redis_ssl_url
+        ssl_url = request.config.option.valkey_ssl_url
         p = urlparse(ssl_url)[1].split(":")
-        r = redis.Redis(
+        r = valkey.Valkey(
             host=p[0],
             port=p[1],
             ssl=True,
@@ -89,9 +89,9 @@ class TestSSL:
         ],
     )
     def test_ssl_connection_tls12_custom_ciphers(self, request, ssl_ciphers):
-        ssl_url = request.config.option.redis_ssl_url
+        ssl_url = request.config.option.valkey_ssl_url
         p = urlparse(ssl_url)[1].split(":")
-        r = redis.Redis(
+        r = valkey.Valkey(
             host=p[0],
             port=p[1],
             ssl=True,
@@ -103,9 +103,9 @@ class TestSSL:
         r.close()
 
     def test_ssl_connection_tls12_custom_ciphers_invalid(self, request):
-        ssl_url = request.config.option.redis_ssl_url
+        ssl_url = request.config.option.valkey_ssl_url
         p = urlparse(ssl_url)[1].split(":")
-        r = redis.Redis(
+        r = valkey.Valkey(
             host=p[0],
             port=p[1],
             ssl=True,
@@ -113,7 +113,7 @@ class TestSSL:
             ssl_min_version=ssl.TLSVersion.TLSv1_2,
             ssl_ciphers="foo:bar",
         )
-        with pytest.raises(RedisError) as e:
+        with pytest.raises(ValkeyError) as e:
             r.ping()
         assert "No cipher can be selected" in str(e)
         r.close()
@@ -127,9 +127,9 @@ class TestSSL:
     )
     def test_ssl_connection_tls13_custom_ciphers(self, request, ssl_ciphers):
         # TLSv1.3 does not support changing the ciphers
-        ssl_url = request.config.option.redis_ssl_url
+        ssl_url = request.config.option.valkey_ssl_url
         p = urlparse(ssl_url)[1].split(":")
-        r = redis.Redis(
+        r = valkey.Valkey(
             host=p[0],
             port=p[1],
             ssl=True,
@@ -137,15 +137,15 @@ class TestSSL:
             ssl_min_version=ssl.TLSVersion.TLSv1_2,
             ssl_ciphers=ssl_ciphers,
         )
-        with pytest.raises(RedisError) as e:
+        with pytest.raises(ValkeyError) as e:
             r.ping()
         assert "No cipher can be selected" in str(e)
         r.close()
 
     def _create_oscp_conn(self, request):
-        ssl_url = request.config.option.redis_ssl_url
+        ssl_url = request.config.option.valkey_ssl_url
         p = urlparse(ssl_url)[1].split(":")
-        r = redis.Redis(
+        r = valkey.Valkey(
             host=p[0],
             port=p[1],
             ssl=True,
@@ -160,7 +160,7 @@ class TestSSL:
     @skip_if_cryptography()
     def test_ssl_ocsp_called(self, request):
         r = self._create_oscp_conn(request)
-        with pytest.raises(RedisError) as e:
+        with pytest.raises(ValkeyError) as e:
             r.ping()
         assert "cryptography is not installed" in str(e)
         r.close()
@@ -175,7 +175,7 @@ class TestSSL:
 
     @skip_if_nocryptography()
     def test_valid_ocsp_cert_http(self):
-        from redis.ocsp import OCSPVerifier
+        from valkey.ocsp import OCSPVerifier
 
         hostnames = ["github.com", "aws.amazon.com", "ynet.co.il"]
         for hostname in hostnames:
@@ -187,7 +187,7 @@ class TestSSL:
 
     @skip_if_nocryptography()
     def test_revoked_ocsp_certificate(self):
-        from redis.ocsp import OCSPVerifier
+        from valkey.ocsp import OCSPVerifier
 
         context = ssl.create_default_context()
         hostname = "revoked.badssl.com"
@@ -200,7 +200,7 @@ class TestSSL:
 
     @skip_if_nocryptography()
     def test_unauthorized_ocsp(self):
-        from redis.ocsp import OCSPVerifier
+        from valkey.ocsp import OCSPVerifier
 
         context = ssl.create_default_context()
         hostname = "stackoverflow.com"
@@ -212,7 +212,7 @@ class TestSSL:
 
     @skip_if_nocryptography()
     def test_ocsp_not_present_in_response(self):
-        from redis.ocsp import OCSPVerifier
+        from valkey.ocsp import OCSPVerifier
 
         context = ssl.create_default_context()
         hostname = "google.co.il"
@@ -225,7 +225,7 @@ class TestSSL:
 
     @skip_if_nocryptography()
     def test_unauthorized_then_direct(self):
-        from redis.ocsp import OCSPVerifier
+        from valkey.ocsp import OCSPVerifier
 
         # these certificates on the socket end return unauthorized
         # then the second call succeeds
@@ -241,9 +241,9 @@ class TestSSL:
     def test_mock_ocsp_staple(self, request):
         import OpenSSL
 
-        ssl_url = request.config.option.redis_ssl_url
+        ssl_url = request.config.option.valkey_ssl_url
         p = urlparse(ssl_url)[1].split(":")
-        r = redis.Redis(
+        r = valkey.Valkey(
             host=p[0],
             port=p[1],
             ssl=True,
@@ -255,7 +255,7 @@ class TestSSL:
             ssl_ocsp_context=p,  # just needs to not be none
         )
 
-        with pytest.raises(RedisError):
+        with pytest.raises(ValkeyError):
             r.ping()
         r.close()
 
@@ -263,7 +263,7 @@ class TestSSL:
         ctx.use_certificate_file(self.CLIENT_CERT)
         ctx.use_privatekey_file(self.CLIENT_KEY)
 
-        r = redis.Redis(
+        r = valkey.Valkey(
             host=p[0],
             port=p[1],
             ssl=True,
@@ -281,7 +281,7 @@ class TestSSL:
         assert "no ocsp response present" in str(e)
         r.close()
 
-        r = redis.Redis(
+        r = valkey.Valkey(
             host=p[0],
             port=p[1],
             ssl=True,

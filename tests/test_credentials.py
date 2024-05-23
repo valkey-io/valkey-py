@@ -4,11 +4,11 @@ import string
 from typing import Optional, Tuple, Union
 
 import pytest
-import redis
-from redis import AuthenticationError, DataError, ResponseError
-from redis.credentials import CredentialProvider, UsernamePasswordCredentialProvider
-from redis.utils import str_if_bytes
-from tests.conftest import _get_client, skip_if_redis_enterprise
+import valkey
+from tests.conftest import _get_client, skip_if_valkey_enterprise
+from valkey import AuthenticationError, DataError, ResponseError
+from valkey.credentials import CredentialProvider, UsernamePasswordCredentialProvider
+from valkey.utils import str_if_bytes
 
 
 class NoPassCredProvider(CredentialProvider):
@@ -98,18 +98,18 @@ def init_required_pass(r, request, password):
 
 
 class TestCredentialsProvider:
-    @skip_if_redis_enterprise()
+    @skip_if_valkey_enterprise()
     def test_only_pass_without_creds_provider(self, r, request):
         # test for default user (`username` is supposed to be optional)
         password = "password"
         init_required_pass(r, request, password)
         assert r.auth(password) is True
 
-        r2 = _get_client(redis.Redis, request, flushdb=False, password=password)
+        r2 = _get_client(valkey.Valkey, request, flushdb=False, password=password)
 
         assert r2.ping() is True
 
-    @skip_if_redis_enterprise()
+    @skip_if_valkey_enterprise()
     def test_user_and_pass_without_creds_provider(self, r, request):
         """
         Test backward compatibility with username and password
@@ -120,13 +120,13 @@ class TestCredentialsProvider:
 
         init_acl_user(r, request, username, password)
         r2 = _get_client(
-            redis.Redis, request, flushdb=False, username=username, password=password
+            valkey.Valkey, request, flushdb=False, username=username, password=password
         )
 
         assert r2.ping() is True
 
     @pytest.mark.parametrize("username", ["username", None])
-    @skip_if_redis_enterprise()
+    @skip_if_valkey_enterprise()
     @pytest.mark.onlynoncluster
     def test_credential_provider_with_supplier(self, r, request, username):
         creds_provider = RandomAuthCredProvider(
@@ -142,7 +142,7 @@ class TestCredentialsProvider:
             init_required_pass(r, request, password)
 
         r2 = _get_client(
-            redis.Redis, request, flushdb=False, credential_provider=creds_provider
+            valkey.Valkey, request, flushdb=False, credential_provider=creds_provider
         )
 
         assert r2.ping() is True
@@ -150,7 +150,7 @@ class TestCredentialsProvider:
     def test_credential_provider_no_password_success(self, r, request):
         init_acl_user(r, request, "username", "")
         r2 = _get_client(
-            redis.Redis,
+            valkey.Valkey,
             request,
             flushdb=False,
             credential_provider=NoPassCredProvider(),
@@ -162,7 +162,7 @@ class TestCredentialsProvider:
         init_acl_user(r, request, "username", "password")
         with pytest.raises(AuthenticationError) as e:
             _get_client(
-                redis.Redis,
+                valkey.Valkey,
                 request,
                 flushdb=False,
                 credential_provider=NoPassCredProvider(),
@@ -179,7 +179,7 @@ class TestCredentialsProvider:
         )
         with pytest.raises(DataError) as e:
             _get_client(
-                redis.Redis,
+                valkey.Valkey,
                 request,
                 flushdb=False,
                 username="username",
@@ -205,7 +205,7 @@ class TestCredentialsProvider:
 
         init_acl_user(r, request, username, password)
         r2 = _get_client(
-            redis.Redis, request, flushdb=False, username=username, password=password
+            valkey.Valkey, request, flushdb=False, username=username, password=password
         )
         assert r2.ping() is True
         conn = r2.connection_pool.get_connection("_")
@@ -230,7 +230,7 @@ class TestUsernamePasswordCredentialProvider:
         assert provider.get_credentials() == (username, password)
         init_acl_user(r, request, provider.username, provider.password)
         r2 = _get_client(
-            redis.Redis, request, flushdb=False, credential_provider=provider
+            valkey.Valkey, request, flushdb=False, credential_provider=provider
         )
         assert r2.ping() is True
 
@@ -244,7 +244,7 @@ class TestUsernamePasswordCredentialProvider:
         init_required_pass(r, request, password)
 
         r2 = _get_client(
-            redis.Redis, request, flushdb=False, credential_provider=provider
+            valkey.Valkey, request, flushdb=False, credential_provider=provider
         )
         assert r2.auth(provider.password) is True
         assert r2.ping() is True

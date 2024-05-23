@@ -1,16 +1,16 @@
 from unittest.mock import patch
 
 import pytest
-from redis.backoff import ExponentialBackoff, NoBackoff
-from redis.client import Redis
-from redis.connection import Connection, UnixDomainSocketConnection
-from redis.exceptions import (
+from valkey.backoff import ExponentialBackoff, NoBackoff
+from valkey.client import Valkey
+from valkey.connection import Connection, UnixDomainSocketConnection
+from valkey.exceptions import (
     BusyLoadingError,
     ConnectionError,
     ReadOnlyError,
     TimeoutError,
 )
-from redis.retry import Retry
+from valkey.retry import Retry
 
 from .conftest import _get_client
 
@@ -123,11 +123,11 @@ class TestRetry:
 
 
 @pytest.mark.onlynoncluster
-class TestRedisClientRetry:
-    "Test the standalone Redis client behavior with retries"
+class TestValkeyClientRetry:
+    "Test the standalone Valkey client behavior with retries"
 
     def test_client_retry_on_error_with_success(self, request):
-        with patch.object(Redis, "parse_response") as parse_response:
+        with patch.object(Valkey, "parse_response") as parse_response:
 
             def mock_parse_response(connection, *args, **options):
                 def ok_response(connection, *args, **options):
@@ -137,16 +137,16 @@ class TestRedisClientRetry:
                 raise ReadOnlyError()
 
             parse_response.side_effect = mock_parse_response
-            r = _get_client(Redis, request, retry_on_error=[ReadOnlyError])
+            r = _get_client(Valkey, request, retry_on_error=[ReadOnlyError])
             assert r.get("foo") == "MOCK_OK"
             assert parse_response.call_count == 2
 
     def test_client_retry_on_error_raise(self, request):
-        with patch.object(Redis, "parse_response") as parse_response:
+        with patch.object(Valkey, "parse_response") as parse_response:
             parse_response.side_effect = BusyLoadingError()
             retries = 3
             r = _get_client(
-                Redis,
+                Valkey,
                 request,
                 retry_on_error=[ReadOnlyError, BusyLoadingError],
                 retry=Retry(NoBackoff(), retries),
@@ -158,11 +158,11 @@ class TestRedisClientRetry:
                     assert parse_response.call_count == retries + 1
 
     def test_client_retry_on_error_different_error_raised(self, request):
-        with patch.object(Redis, "parse_response") as parse_response:
+        with patch.object(Valkey, "parse_response") as parse_response:
             parse_response.side_effect = TimeoutError()
             retries = 3
             r = _get_client(
-                Redis,
+                Valkey,
                 request,
                 retry_on_error=[ReadOnlyError],
                 retry=Retry(NoBackoff(), retries),
@@ -174,11 +174,11 @@ class TestRedisClientRetry:
                     assert parse_response.call_count == 1
 
     def test_client_retry_on_error_and_timeout(self, request):
-        with patch.object(Redis, "parse_response") as parse_response:
+        with patch.object(Valkey, "parse_response") as parse_response:
             parse_response.side_effect = TimeoutError()
             retries = 3
             r = _get_client(
-                Redis,
+                Valkey,
                 request,
                 retry_on_error=[ReadOnlyError],
                 retry_on_timeout=True,
@@ -191,11 +191,14 @@ class TestRedisClientRetry:
                     assert parse_response.call_count == retries + 1
 
     def test_client_retry_on_timeout(self, request):
-        with patch.object(Redis, "parse_response") as parse_response:
+        with patch.object(Valkey, "parse_response") as parse_response:
             parse_response.side_effect = TimeoutError()
             retries = 3
             r = _get_client(
-                Redis, request, retry_on_timeout=True, retry=Retry(NoBackoff(), retries)
+                Valkey,
+                request,
+                retry_on_timeout=True,
+                retry=Retry(NoBackoff(), retries),
             )
             with pytest.raises(TimeoutError):
                 try:
@@ -205,7 +208,7 @@ class TestRedisClientRetry:
 
     def test_get_set_retry_object(self, request):
         retry = Retry(NoBackoff(), 2)
-        r = _get_client(Redis, request, retry_on_timeout=True, retry=retry)
+        r = _get_client(Valkey, request, retry_on_timeout=True, retry=retry)
         exist_conn = r.connection_pool.get_connection("_")
         assert r.get_retry()._retries == retry._retries
         assert isinstance(r.get_retry()._backoff, NoBackoff)

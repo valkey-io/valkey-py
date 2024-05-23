@@ -3,9 +3,9 @@ import re
 
 import pytest
 import pytest_asyncio
-import redis.asyncio as redis
-from redis.asyncio.connection import Connection, to_bool
-from tests.conftest import skip_if_redis_enterprise, skip_if_server_version_lt
+import valkey.asyncio as valkey
+from tests.conftest import skip_if_server_version_lt, skip_if_valkey_enterprise
+from valkey.asyncio.connection import Connection, to_bool
 
 from .compat import aclosing, mock
 from .conftest import asynccontextmanager
@@ -13,11 +13,11 @@ from .test_pubsub import wait_for_message
 
 
 @pytest.mark.onlynoncluster
-class TestRedisAutoReleaseConnectionPool:
+class TestValkeyAutoReleaseConnectionPool:
     @pytest_asyncio.fixture
-    async def r(self, create_redis) -> redis.Redis:
+    async def r(self, create_valkey) -> valkey.Valkey:
         """This is necessary since r and r2 create ConnectionPools behind the scenes"""
-        r = await create_redis()
+        r = await create_valkey()
         r.auto_close_connection_pool = True
         yield r
 
@@ -26,26 +26,26 @@ class TestRedisAutoReleaseConnectionPool:
         return len(pool._available_connections) + len(pool._in_use_connections)
 
     @staticmethod
-    async def create_two_conn(r: redis.Redis):
+    async def create_two_conn(r: valkey.Valkey):
         if not r.single_connection_client:  # Single already initialized connection
             r.connection = await r.connection_pool.get_connection("_")
         return await r.connection_pool.get_connection("_")
 
     @staticmethod
-    def has_no_connected_connections(pool: redis.ConnectionPool):
+    def has_no_connected_connections(pool: valkey.ConnectionPool):
         return not any(
             x.is_connected
             for x in pool._available_connections + list(pool._in_use_connections)
         )
 
-    async def test_auto_disconnect_redis_created_pool(self, r: redis.Redis):
+    async def test_auto_disconnect_valkey_created_pool(self, r: valkey.Valkey):
         new_conn = await self.create_two_conn(r)
         assert new_conn != r.connection
         assert self.get_total_connected_connections(r.connection_pool) == 2
         await r.aclose()
         assert self.has_no_connected_connections(r.connection_pool)
 
-    async def test_do_not_auto_disconnect_redis_created_pool(self, r2: redis.Redis):
+    async def test_do_not_auto_disconnect_valkey_created_pool(self, r2: valkey.Valkey):
         assert r2.auto_close_connection_pool is False, (
             "The connection pool should not be disconnected as a manually created "
             "connection pool was passed in in conftest.py"
@@ -58,7 +58,9 @@ class TestRedisAutoReleaseConnectionPool:
         assert len(r2.connection_pool._available_connections) == 1
         assert r2.connection_pool._available_connections[0].is_connected
 
-    async def test_auto_release_override_true_manual_created_pool(self, r: redis.Redis):
+    async def test_auto_release_override_true_manual_created_pool(
+        self, r: valkey.Valkey
+    ):
         assert r.auto_close_connection_pool is True, "This is from the class fixture"
         await self.create_two_conn(r)
         await r.aclose()
@@ -69,7 +71,7 @@ class TestRedisAutoReleaseConnectionPool:
         assert self.has_no_connected_connections(r.connection_pool)
 
     @pytest.mark.parametrize("auto_close_conn_pool", [True, False])
-    async def test_close_override(self, r: redis.Redis, auto_close_conn_pool):
+    async def test_close_override(self, r: valkey.Valkey, auto_close_conn_pool):
         r.auto_close_connection_pool = auto_close_conn_pool
         await self.create_two_conn(r)
         await r.aclose(close_connection_pool=True)
@@ -77,7 +79,7 @@ class TestRedisAutoReleaseConnectionPool:
 
     @pytest.mark.parametrize("auto_close_conn_pool", [True, False])
     async def test_negate_auto_close_client_pool(
-        self, r: redis.Redis, auto_close_conn_pool
+        self, r: valkey.Valkey, auto_close_conn_pool
     ):
         r.auto_close_connection_pool = auto_close_conn_pool
         new_conn = await self.create_two_conn(r)
@@ -113,10 +115,10 @@ class TestConnectionPool:
         self,
         connection_kwargs=None,
         max_connections=None,
-        connection_class=redis.Connection,
+        connection_class=valkey.Connection,
     ):
         connection_kwargs = connection_kwargs or {}
-        pool = redis.ConnectionPool(
+        pool = valkey.ConnectionPool(
             connection_class=connection_class,
             max_connections=max_connections,
             **connection_kwargs,
@@ -137,7 +139,7 @@ class TestConnectionPool:
 
     async def test_aclosing(self):
         connection_kwargs = {"foo": "bar", "biz": "baz"}
-        pool = redis.ConnectionPool(
+        pool = valkey.ConnectionPool(
             connection_class=DummyConnection,
             max_connections=None,
             **connection_kwargs,
@@ -159,7 +161,7 @@ class TestConnectionPool:
         ) as pool:
             await pool.get_connection("_")
             await pool.get_connection("_")
-            with pytest.raises(redis.ConnectionError):
+            with pytest.raises(valkey.ConnectionError):
                 await pool.get_connection("_")
 
     async def test_reuse_previously_released_connection(self, master_host):
@@ -178,7 +180,7 @@ class TestConnectionPool:
             "client_name": "test-client",
         }
         async with self.get_pool(
-            connection_kwargs=connection_kwargs, connection_class=redis.Connection
+            connection_kwargs=connection_kwargs, connection_class=valkey.Connection
         ) as pool:
             expected = "host=localhost,port=6379,db=1,client_name=test-client"
             assert expected in repr(pool)
@@ -187,7 +189,7 @@ class TestConnectionPool:
         connection_kwargs = {"path": "/abc", "db": 1, "client_name": "test-client"}
         async with self.get_pool(
             connection_kwargs=connection_kwargs,
-            connection_class=redis.UnixDomainSocketConnection,
+            connection_class=valkey.UnixDomainSocketConnection,
         ) as pool:
             expected = "path=/abc,db=1,client_name=test-client"
             assert expected in repr(pool)
@@ -197,7 +199,7 @@ class TestBlockingConnectionPool:
     @asynccontextmanager
     async def get_pool(self, connection_kwargs=None, max_connections=10, timeout=20):
         connection_kwargs = connection_kwargs or {}
-        pool = redis.BlockingConnectionPool(
+        pool = valkey.BlockingConnectionPool(
             connection_class=DummyConnection,
             max_connections=max_connections,
             timeout=timeout,
@@ -248,7 +250,7 @@ class TestBlockingConnectionPool:
             c1 = await pool.get_connection("_")
 
             start = asyncio.get_running_loop().time()
-            with pytest.raises(redis.ConnectionError):
+            with pytest.raises(valkey.ConnectionError):
                 await pool.get_connection("_")
 
             # we should have waited at least some period of time
@@ -284,15 +286,15 @@ class TestBlockingConnectionPool:
             assert c1 == c2
 
     def test_repr_contains_db_info_tcp(self):
-        pool = redis.ConnectionPool(
+        pool = valkey.ConnectionPool(
             host="localhost", port=6379, client_name="test-client"
         )
         expected = "host=localhost,port=6379,db=0,client_name=test-client"
         assert expected in repr(pool)
 
     def test_repr_contains_db_info_unix(self):
-        pool = redis.ConnectionPool(
-            connection_class=redis.UnixDomainSocketConnection,
+        pool = valkey.ConnectionPool(
+            connection_class=valkey.UnixDomainSocketConnection,
             path="abc",
             client_name="test-client",
         )
@@ -302,47 +304,47 @@ class TestBlockingConnectionPool:
 
 class TestConnectionPoolURLParsing:
     def test_hostname(self):
-        pool = redis.ConnectionPool.from_url("redis://my.host")
-        assert pool.connection_class == redis.Connection
+        pool = valkey.ConnectionPool.from_url("valkey://my.host")
+        assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "my.host"}
 
     def test_quoted_hostname(self):
-        pool = redis.ConnectionPool.from_url("redis://my %2F host %2B%3D+")
-        assert pool.connection_class == redis.Connection
+        pool = valkey.ConnectionPool.from_url("valkey://my %2F host %2B%3D+")
+        assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "my / host +=+"}
 
     def test_port(self):
-        pool = redis.ConnectionPool.from_url("redis://localhost:6380")
-        assert pool.connection_class == redis.Connection
+        pool = valkey.ConnectionPool.from_url("valkey://localhost:6380")
+        assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "port": 6380}
 
     @skip_if_server_version_lt("6.0.0")
     def test_username(self):
-        pool = redis.ConnectionPool.from_url("redis://myuser:@localhost")
-        assert pool.connection_class == redis.Connection
+        pool = valkey.ConnectionPool.from_url("valkey://myuser:@localhost")
+        assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "username": "myuser"}
 
     @skip_if_server_version_lt("6.0.0")
     def test_quoted_username(self):
-        pool = redis.ConnectionPool.from_url(
-            "redis://%2Fmyuser%2F%2B name%3D%24+:@localhost"
+        pool = valkey.ConnectionPool.from_url(
+            "valkey://%2Fmyuser%2F%2B name%3D%24+:@localhost"
         )
-        assert pool.connection_class == redis.Connection
+        assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {
             "host": "localhost",
             "username": "/myuser/+ name=$+",
         }
 
     def test_password(self):
-        pool = redis.ConnectionPool.from_url("redis://:mypassword@localhost")
-        assert pool.connection_class == redis.Connection
+        pool = valkey.ConnectionPool.from_url("valkey://:mypassword@localhost")
+        assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "password": "mypassword"}
 
     def test_quoted_password(self):
-        pool = redis.ConnectionPool.from_url(
-            "redis://:%2Fmypass%2F%2B word%3D%24+@localhost"
+        pool = valkey.ConnectionPool.from_url(
+            "valkey://:%2Fmypass%2F%2B word%3D%24+@localhost"
         )
-        assert pool.connection_class == redis.Connection
+        assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {
             "host": "localhost",
             "password": "/mypass/+ word=$+",
@@ -350,8 +352,8 @@ class TestConnectionPoolURLParsing:
 
     @skip_if_server_version_lt("6.0.0")
     def test_username_and_password(self):
-        pool = redis.ConnectionPool.from_url("redis://myuser:mypass@localhost")
-        assert pool.connection_class == redis.Connection
+        pool = valkey.ConnectionPool.from_url("valkey://myuser:mypass@localhost")
+        assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {
             "host": "localhost",
             "username": "myuser",
@@ -359,27 +361,27 @@ class TestConnectionPoolURLParsing:
         }
 
     def test_db_as_argument(self):
-        pool = redis.ConnectionPool.from_url("redis://localhost", db=1)
-        assert pool.connection_class == redis.Connection
+        pool = valkey.ConnectionPool.from_url("valkey://localhost", db=1)
+        assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "db": 1}
 
     def test_db_in_path(self):
-        pool = redis.ConnectionPool.from_url("redis://localhost/2", db=1)
-        assert pool.connection_class == redis.Connection
+        pool = valkey.ConnectionPool.from_url("valkey://localhost/2", db=1)
+        assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "db": 2}
 
     def test_db_in_querystring(self):
-        pool = redis.ConnectionPool.from_url("redis://localhost/2?db=3", db=1)
-        assert pool.connection_class == redis.Connection
+        pool = valkey.ConnectionPool.from_url("valkey://localhost/2?db=3", db=1)
+        assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "db": 3}
 
     def test_extra_typed_querystring_options(self):
-        pool = redis.ConnectionPool.from_url(
-            "redis://localhost/2?socket_timeout=20&socket_connect_timeout=10"
+        pool = valkey.ConnectionPool.from_url(
+            "valkey://localhost/2?socket_timeout=20&socket_connect_timeout=10"
             "&socket_keepalive=&retry_on_timeout=Yes&max_connections=10"
         )
 
-        assert pool.connection_class == redis.Connection
+        assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {
             "host": "localhost",
             "db": 2,
@@ -410,46 +412,48 @@ class TestConnectionPoolURLParsing:
             assert expected is to_bool(value)
 
     def test_client_name_in_querystring(self):
-        pool = redis.ConnectionPool.from_url("redis://location?client_name=test-client")
+        pool = valkey.ConnectionPool.from_url(
+            "valkey://location?client_name=test-client"
+        )
         assert pool.connection_kwargs["client_name"] == "test-client"
 
     def test_invalid_extra_typed_querystring_options(self):
         with pytest.raises(ValueError):
-            redis.ConnectionPool.from_url(
-                "redis://localhost/2?socket_timeout=_&socket_connect_timeout=abc"
+            valkey.ConnectionPool.from_url(
+                "valkey://localhost/2?socket_timeout=_&socket_connect_timeout=abc"
             )
 
     def test_extra_querystring_options(self):
-        pool = redis.ConnectionPool.from_url("redis://localhost?a=1&b=2")
-        assert pool.connection_class == redis.Connection
+        pool = valkey.ConnectionPool.from_url("valkey://localhost?a=1&b=2")
+        assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "a": "1", "b": "2"}
 
     def test_calling_from_subclass_returns_correct_instance(self):
-        pool = redis.BlockingConnectionPool.from_url("redis://localhost")
-        assert isinstance(pool, redis.BlockingConnectionPool)
+        pool = valkey.BlockingConnectionPool.from_url("valkey://localhost")
+        assert isinstance(pool, valkey.BlockingConnectionPool)
 
     def test_client_creates_connection_pool(self):
-        r = redis.Redis.from_url("redis://myhost")
-        assert r.connection_pool.connection_class == redis.Connection
+        r = valkey.Valkey.from_url("valkey://myhost")
+        assert r.connection_pool.connection_class == valkey.Connection
         assert r.connection_pool.connection_kwargs == {"host": "myhost"}
 
     def test_invalid_scheme_raises_error(self):
         with pytest.raises(ValueError) as cm:
-            redis.ConnectionPool.from_url("localhost")
+            valkey.ConnectionPool.from_url("localhost")
         assert str(cm.value) == (
-            "Redis URL must specify one of the following schemes "
-            "(redis://, rediss://, unix://)"
+            "Valkey URL must specify one of the following schemes "
+            "(valkey://, valkeys://, unix://)"
         )
 
 
 class TestBlockingConnectionPoolURLParsing:
     def test_extra_typed_querystring_options(self):
-        pool = redis.BlockingConnectionPool.from_url(
-            "redis://localhost/2?socket_timeout=20&socket_connect_timeout=10"
+        pool = valkey.BlockingConnectionPool.from_url(
+            "valkey://localhost/2?socket_timeout=20&socket_connect_timeout=10"
             "&socket_keepalive=&retry_on_timeout=Yes&max_connections=10&timeout=13.37"
         )
 
-        assert pool.connection_class == redis.Connection
+        assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {
             "host": "localhost",
             "db": 2,
@@ -462,105 +466,107 @@ class TestBlockingConnectionPoolURLParsing:
 
     def test_invalid_extra_typed_querystring_options(self):
         with pytest.raises(ValueError):
-            redis.BlockingConnectionPool.from_url(
-                "redis://localhost/2?timeout=_not_a_float_"
+            valkey.BlockingConnectionPool.from_url(
+                "valkey://localhost/2?timeout=_not_a_float_"
             )
 
 
 class TestConnectionPoolUnixSocketURLParsing:
     def test_defaults(self):
-        pool = redis.ConnectionPool.from_url("unix:///socket")
-        assert pool.connection_class == redis.UnixDomainSocketConnection
+        pool = valkey.ConnectionPool.from_url("unix:///socket")
+        assert pool.connection_class == valkey.UnixDomainSocketConnection
         assert pool.connection_kwargs == {"path": "/socket"}
 
     @skip_if_server_version_lt("6.0.0")
     def test_username(self):
-        pool = redis.ConnectionPool.from_url("unix://myuser:@/socket")
-        assert pool.connection_class == redis.UnixDomainSocketConnection
+        pool = valkey.ConnectionPool.from_url("unix://myuser:@/socket")
+        assert pool.connection_class == valkey.UnixDomainSocketConnection
         assert pool.connection_kwargs == {"path": "/socket", "username": "myuser"}
 
     @skip_if_server_version_lt("6.0.0")
     def test_quoted_username(self):
-        pool = redis.ConnectionPool.from_url(
+        pool = valkey.ConnectionPool.from_url(
             "unix://%2Fmyuser%2F%2B name%3D%24+:@/socket"
         )
-        assert pool.connection_class == redis.UnixDomainSocketConnection
+        assert pool.connection_class == valkey.UnixDomainSocketConnection
         assert pool.connection_kwargs == {
             "path": "/socket",
             "username": "/myuser/+ name=$+",
         }
 
     def test_password(self):
-        pool = redis.ConnectionPool.from_url("unix://:mypassword@/socket")
-        assert pool.connection_class == redis.UnixDomainSocketConnection
+        pool = valkey.ConnectionPool.from_url("unix://:mypassword@/socket")
+        assert pool.connection_class == valkey.UnixDomainSocketConnection
         assert pool.connection_kwargs == {"path": "/socket", "password": "mypassword"}
 
     def test_quoted_password(self):
-        pool = redis.ConnectionPool.from_url(
+        pool = valkey.ConnectionPool.from_url(
             "unix://:%2Fmypass%2F%2B word%3D%24+@/socket"
         )
-        assert pool.connection_class == redis.UnixDomainSocketConnection
+        assert pool.connection_class == valkey.UnixDomainSocketConnection
         assert pool.connection_kwargs == {
             "path": "/socket",
             "password": "/mypass/+ word=$+",
         }
 
     def test_quoted_path(self):
-        pool = redis.ConnectionPool.from_url(
+        pool = valkey.ConnectionPool.from_url(
             "unix://:mypassword@/my%2Fpath%2Fto%2F..%2F+_%2B%3D%24ocket"
         )
-        assert pool.connection_class == redis.UnixDomainSocketConnection
+        assert pool.connection_class == valkey.UnixDomainSocketConnection
         assert pool.connection_kwargs == {
             "path": "/my/path/to/../+_+=$ocket",
             "password": "mypassword",
         }
 
     def test_db_as_argument(self):
-        pool = redis.ConnectionPool.from_url("unix:///socket", db=1)
-        assert pool.connection_class == redis.UnixDomainSocketConnection
+        pool = valkey.ConnectionPool.from_url("unix:///socket", db=1)
+        assert pool.connection_class == valkey.UnixDomainSocketConnection
         assert pool.connection_kwargs == {"path": "/socket", "db": 1}
 
     def test_db_in_querystring(self):
-        pool = redis.ConnectionPool.from_url("unix:///socket?db=2", db=1)
-        assert pool.connection_class == redis.UnixDomainSocketConnection
+        pool = valkey.ConnectionPool.from_url("unix:///socket?db=2", db=1)
+        assert pool.connection_class == valkey.UnixDomainSocketConnection
         assert pool.connection_kwargs == {"path": "/socket", "db": 2}
 
     def test_client_name_in_querystring(self):
-        pool = redis.ConnectionPool.from_url("redis://location?client_name=test-client")
+        pool = valkey.ConnectionPool.from_url(
+            "valkey://location?client_name=test-client"
+        )
         assert pool.connection_kwargs["client_name"] == "test-client"
 
     def test_extra_querystring_options(self):
-        pool = redis.ConnectionPool.from_url("unix:///socket?a=1&b=2")
-        assert pool.connection_class == redis.UnixDomainSocketConnection
+        pool = valkey.ConnectionPool.from_url("unix:///socket?a=1&b=2")
+        assert pool.connection_class == valkey.UnixDomainSocketConnection
         assert pool.connection_kwargs == {"path": "/socket", "a": "1", "b": "2"}
 
 
 class TestSSLConnectionURLParsing:
     def test_host(self):
-        pool = redis.ConnectionPool.from_url("rediss://my.host")
-        assert pool.connection_class == redis.SSLConnection
+        pool = valkey.ConnectionPool.from_url("valkeys://my.host")
+        assert pool.connection_class == valkey.SSLConnection
         assert pool.connection_kwargs == {"host": "my.host"}
 
     def test_cert_reqs_options(self):
         import ssl
 
-        class DummyConnectionPool(redis.ConnectionPool):
+        class DummyConnectionPool(valkey.ConnectionPool):
             def get_connection(self, *args, **kwargs):
                 return self.make_connection()
 
-        pool = DummyConnectionPool.from_url("rediss://?ssl_cert_reqs=none")
+        pool = DummyConnectionPool.from_url("valkeys://?ssl_cert_reqs=none")
         assert pool.get_connection("_").cert_reqs == ssl.CERT_NONE
 
-        pool = DummyConnectionPool.from_url("rediss://?ssl_cert_reqs=optional")
+        pool = DummyConnectionPool.from_url("valkeys://?ssl_cert_reqs=optional")
         assert pool.get_connection("_").cert_reqs == ssl.CERT_OPTIONAL
 
-        pool = DummyConnectionPool.from_url("rediss://?ssl_cert_reqs=required")
+        pool = DummyConnectionPool.from_url("valkeys://?ssl_cert_reqs=required")
         assert pool.get_connection("_").cert_reqs == ssl.CERT_REQUIRED
 
-        pool = DummyConnectionPool.from_url("rediss://?ssl_check_hostname=False")
+        pool = DummyConnectionPool.from_url("valkeys://?ssl_check_hostname=False")
         assert pool.get_connection("_").check_hostname is False
 
-        pool = DummyConnectionPool.from_url("rediss://?ssl_check_hostname=True")
+        pool = DummyConnectionPool.from_url("valkeys://?ssl_check_hostname=True")
         assert pool.get_connection("_").check_hostname is True
 
 
@@ -568,13 +574,13 @@ class TestConnection:
     async def test_on_connect_error(self):
         """
         An error in Connection.on_connect should disconnect from the server
-        see for details: https://github.com/andymccurdy/redis-py/issues/368
+        see for details: https://github.com/andymccurdy/valkey-py/issues/368
         """
-        # this assumes the Redis server being tested against doesn't have
+        # this assumes the Valkey server being tested against doesn't have
         # 9999 databases ;)
-        bad_connection = redis.Redis(db=9999)
+        bad_connection = valkey.Valkey(db=9999)
         # an error should be raised on connect
-        with pytest.raises(redis.RedisError):
+        with pytest.raises(valkey.ValkeyError):
             await bad_connection.info()
         pool = bad_connection.connection_pool
         assert len(pool._available_connections) == 1
@@ -582,27 +588,27 @@ class TestConnection:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.8")
-    @skip_if_redis_enterprise()
+    @skip_if_valkey_enterprise()
     async def test_busy_loading_disconnects_socket(self, r):
         """
-        If Redis raises a LOADING error, the connection should be
+        If Valkey raises a LOADING error, the connection should be
         disconnected and a BusyLoadingError raised
         """
-        with pytest.raises(redis.BusyLoadingError):
+        with pytest.raises(valkey.BusyLoadingError):
             await r.execute_command("DEBUG", "ERROR", "LOADING fake message")
         if r.connection:
             assert not r.connection._reader
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.8")
-    @skip_if_redis_enterprise()
+    @skip_if_valkey_enterprise()
     async def test_busy_loading_from_pipeline_immediate_command(self, r):
         """
         BusyLoadingErrors should raise from Pipelines that execute a
         command immediately, like WATCH does.
         """
         pipe = r.pipeline()
-        with pytest.raises(redis.BusyLoadingError):
+        with pytest.raises(valkey.BusyLoadingError):
             await pipe.immediate_execute_command(
                 "DEBUG", "ERROR", "LOADING fake message"
             )
@@ -613,7 +619,7 @@ class TestConnection:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.8")
-    @skip_if_redis_enterprise()
+    @skip_if_valkey_enterprise()
     async def test_busy_loading_from_pipeline(self, r):
         """
         BusyLoadingErrors should be raised from a pipeline execution
@@ -621,7 +627,7 @@ class TestConnection:
         """
         pipe = r.pipeline()
         pipe.execute_command("DEBUG", "ERROR", "LOADING fake message")
-        with pytest.raises(redis.BusyLoadingError):
+        with pytest.raises(valkey.BusyLoadingError):
             await pipe.execute()
         pool = r.connection_pool
         assert not pipe.connection
@@ -629,22 +635,22 @@ class TestConnection:
         assert not pool._available_connections[0]._reader
 
     @skip_if_server_version_lt("2.8.8")
-    @skip_if_redis_enterprise()
+    @skip_if_valkey_enterprise()
     async def test_read_only_error(self, r):
         """READONLY errors get turned into ReadOnlyError exceptions"""
-        with pytest.raises(redis.ReadOnlyError):
+        with pytest.raises(valkey.ReadOnlyError):
             await r.execute_command("DEBUG", "ERROR", "READONLY blah blah")
 
-    @skip_if_redis_enterprise()
+    @skip_if_valkey_enterprise()
     async def test_oom_error(self, r):
         """OOM errors get turned into OutOfMemoryError exceptions"""
-        with pytest.raises(redis.OutOfMemoryError):
+        with pytest.raises(valkey.OutOfMemoryError):
             # note: don't use the DEBUG OOM command since it's not the same
             # as the db being full
             await r.execute_command("DEBUG", "ERROR", "OOM blah blah")
 
     def test_connect_from_url_tcp(self):
-        connection = redis.Redis.from_url("redis://localhost")
+        connection = valkey.Valkey.from_url("valkey://localhost")
         pool = connection.connection_pool
 
         print(repr(pool))
@@ -657,7 +663,7 @@ class TestConnection:
         )
 
     def test_connect_from_url_unix(self):
-        connection = redis.Redis.from_url("unix:///path/to/socket")
+        connection = valkey.Valkey.from_url("unix:///path/to/socket")
         pool = connection.connection_pool
 
         assert re.match(
@@ -668,31 +674,31 @@ class TestConnection:
             "path=/path/to/socket,db=0",
         )
 
-    @skip_if_redis_enterprise()
+    @skip_if_valkey_enterprise()
     async def test_connect_no_auth_supplied_when_required(self, r):
         """
         AuthenticationError should be raised when the server requires a
         password but one isn't supplied.
         """
-        with pytest.raises(redis.AuthenticationError):
+        with pytest.raises(valkey.AuthenticationError):
             await r.execute_command(
                 "DEBUG", "ERROR", "ERR Client sent AUTH, but no password is set"
             )
 
-    @skip_if_redis_enterprise()
+    @skip_if_valkey_enterprise()
     async def test_connect_invalid_password_supplied(self, r):
         """AuthenticationError should be raised when sending the wrong password"""
-        with pytest.raises(redis.AuthenticationError):
+        with pytest.raises(valkey.AuthenticationError):
             await r.execute_command("DEBUG", "ERROR", "ERR invalid password")
 
 
 @pytest.mark.onlynoncluster
 class TestMultiConnectionClient:
     @pytest_asyncio.fixture()
-    async def r(self, create_redis, server):
-        redis = await create_redis(single_connection_client=False)
-        yield redis
-        await redis.flushall()
+    async def r(self, create_valkey, server):
+        valkey = await create_valkey(single_connection_client=False)
+        yield valkey
+        await valkey.flushall()
 
 
 @pytest.mark.onlynoncluster
@@ -701,10 +707,10 @@ class TestHealthCheck:
     interval = 60
 
     @pytest_asyncio.fixture()
-    async def r(self, create_redis):
-        redis = await create_redis(health_check_interval=self.interval)
-        yield redis
-        await redis.flushall()
+    async def r(self, create_valkey):
+        valkey = await create_valkey(health_check_interval=self.interval)
+        yield valkey
+        await valkey.flushall()
 
     def assert_interval_advanced(self, connection):
         diff = connection.next_health_check - asyncio.get_running_loop().time()

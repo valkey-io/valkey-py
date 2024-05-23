@@ -8,15 +8,15 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-import redis
-from redis.exceptions import ConnectionError
-from redis.utils import HIREDIS_AVAILABLE
+import valkey
+from valkey.exceptions import ConnectionError
+from valkey.utils import HIREDIS_AVAILABLE
 
 from .conftest import (
     _get_client,
     is_resp2_connection,
-    skip_if_redis_enterprise,
     skip_if_server_version_lt,
+    skip_if_valkey_enterprise,
 )
 
 
@@ -378,7 +378,7 @@ class TestPubSubSubscribeUnsubscribe:
     def _test_sub_unsub_resub(
         self, p, sub_type, unsub_type, sub_func, unsub_func, keys
     ):
-        # https://github.com/andymccurdy/redis-py/issues/764
+        # https://github.com/andymccurdy/valkey-py/issues/764
         key = keys[0]
         sub_func(key)
         unsub_func(key)
@@ -426,7 +426,7 @@ class TestPubSubSubscribeUnsubscribe:
     def _test_sub_unsub_all_resub(
         self, p, sub_type, unsub_type, sub_func, unsub_func, keys
     ):
-        # https://github.com/andymccurdy/redis-py/issues/764
+        # https://github.com/andymccurdy/valkey-py/issues/764
         key = keys[0]
         sub_func(key)
         unsub_func()
@@ -574,7 +574,7 @@ class TestPubSubMessages:
         assert self.message == make_message("smessage", channel, "test message")
 
     @pytest.mark.onlynoncluster
-    # see: https://redis-py-cluster.readthedocs.io/en/stable/pubsub.html
+    # see: https://valkey-py-cluster.readthedocs.io/en/stable/pubsub.html
     # #known-limitations-with-pubsub
     def test_unicode_pattern_message_handler(self, r):
         p = r.pubsub(ignore_subscribe_messages=True)
@@ -637,7 +637,7 @@ class TestPubSubAutoDecoding:
 
     @pytest.fixture()
     def r(self, request):
-        return _get_client(redis.Redis, request=request, decode_responses=True)
+        return _get_client(valkey.Valkey, request=request, decode_responses=True)
 
     def test_channel_subscribe_unsubscribe(self, r):
         p = r.pubsub()
@@ -771,9 +771,9 @@ class TestPubSubAutoDecoding:
         assert pubsub.patterns == {}
 
 
-class TestPubSubRedisDown:
+class TestPubSubValkeyDown:
     def test_channel_subscribe(self, r):
-        r = redis.Redis(host="localhost", port=6390)
+        r = valkey.Valkey(host="localhost", port=6390)
         p = r.pubsub()
         with pytest.raises(ConnectionError):
             p.subscribe("foo")
@@ -898,7 +898,7 @@ class TestPubSubPings:
 @pytest.mark.onlynoncluster
 class TestPubSubConnectionKilled:
     @skip_if_server_version_lt("3.0.0")
-    @skip_if_redis_enterprise()
+    @skip_if_valkey_enterprise()
     def test_connection_error_raised_when_connection_dies(self, r):
         p = r.pubsub()
         p.subscribe("foo")
@@ -977,8 +977,8 @@ class TestPubSubWorkerThread:
 class TestPubSubDeadlock:
     @pytest.mark.timeout(30, method="thread")
     def test_pubsub_deadlock(self, master_host):
-        pool = redis.ConnectionPool(host=master_host[0], port=master_host[1])
-        r = redis.Redis(connection_pool=pool)
+        pool = valkey.ConnectionPool(host=master_host[0], port=master_host[1])
+        r = valkey.Valkey(connection_pool=pool)
 
         for i in range(60):
             p = r.pubsub()
@@ -1032,7 +1032,7 @@ class TestPubSubAutoReconnect:
             self.cond.notify()
         self.thread.join()
 
-    def test_reconnect_socket_error(self, r: redis.Redis, method):
+    def test_reconnect_socket_error(self, r: valkey.Valkey, method):
         """
         Test that a socket error will cause reconnect
         """
@@ -1054,7 +1054,7 @@ class TestPubSubAutoReconnect:
         finally:
             self.mycleanup()
 
-    def test_reconnect_disconnect(self, r: redis.Redis, method):
+    def test_reconnect_disconnect(self, r: valkey.Valkey, method):
         """
         Test that a manual disconnect() will cause reconnect
         """
@@ -1086,7 +1086,7 @@ class TestPubSubAutoReconnect:
                     assert got_msg
                     if self.state in (1, 2):
                         self.state = 3  # successful reconnect
-                except redis.ConnectionError:
+                except valkey.ConnectionError:
                     assert self.state in (1, 2)
                     self.state = 2
                 finally:
@@ -1113,7 +1113,7 @@ class TestPubSubAutoReconnect:
 
 @pytest.mark.onlynoncluster
 class TestBaseException:
-    def test_base_exception(self, r: redis.Redis):
+    def test_base_exception(self, r: valkey.Valkey):
         """
         Manually trigger a BaseException inside the parser's .read_response method
         and verify that it isn't caught
@@ -1141,9 +1141,9 @@ class TestBaseException:
         assert msg is not None
         # timeout waiting for another message which never arrives
         assert is_connected()
-        with patch("redis._parsers._RESP2Parser.read_response") as mock1, patch(
-            "redis._parsers._HiredisParser.read_response"
-        ) as mock2, patch("redis._parsers._RESP3Parser.read_response") as mock3:
+        with patch("valkey._parsers._RESP2Parser.read_response") as mock1, patch(
+            "valkey._parsers._HiredisParser.read_response"
+        ) as mock2, patch("valkey._parsers._RESP3Parser.read_response") as mock3:
             mock1.side_effect = BaseException("boom")
             mock2.side_effect = BaseException("boom")
             mock3.side_effect = BaseException("boom")

@@ -4,28 +4,28 @@ import types
 from unittest.mock import patch
 
 import pytest
-import redis
-from redis._parsers import (
+import valkey
+from tests.conftest import skip_if_server_version_lt
+from valkey._parsers import (
     _AsyncHiredisParser,
     _AsyncRESP2Parser,
     _AsyncRESP3Parser,
     _AsyncRESPBase,
 )
-from redis.asyncio import ConnectionPool, Redis
-from redis.asyncio.connection import Connection, UnixDomainSocketConnection, parse_url
-from redis.asyncio.retry import Retry
-from redis.backoff import NoBackoff
-from redis.exceptions import ConnectionError, InvalidResponse, TimeoutError
-from redis.utils import HIREDIS_AVAILABLE
-from tests.conftest import skip_if_server_version_lt
+from valkey.asyncio import ConnectionPool, Valkey
+from valkey.asyncio.connection import Connection, UnixDomainSocketConnection, parse_url
+from valkey.asyncio.retry import Retry
+from valkey.backoff import NoBackoff
+from valkey.exceptions import ConnectionError, InvalidResponse, TimeoutError
+from valkey.utils import HIREDIS_AVAILABLE
 
 from .compat import mock
 from .mocks import MockStream
 
 
 @pytest.mark.onlynoncluster
-async def test_invalid_response(create_redis):
-    r = await create_redis(single_connection_client=True)
+async def test_invalid_response(create_valkey):
+    r = await create_valkey(single_connection_client=True)
 
     raw = b"x"
     fake_stream = MockStream(raw + b"\r\n")
@@ -46,7 +46,7 @@ async def test_invalid_response(create_redis):
 @pytest.mark.onlynoncluster
 async def test_single_connection():
     """Test that concurrent requests on a single client are synchronised."""
-    r = Redis(single_connection_client=True)
+    r = Valkey(single_connection_client=True)
 
     init_call_count = 0
     command_call_count = 0
@@ -91,7 +91,7 @@ async def test_single_connection():
 
 
 @skip_if_server_version_lt("4.0.0")
-@pytest.mark.redismod
+@pytest.mark.valkeymod
 @pytest.mark.onlynoncluster
 async def test_loading_external_modules(r):
     def inner():
@@ -102,9 +102,9 @@ async def test_loading_external_modules(r):
     assert isinstance(getattr(r, "myfuncname"), types.FunctionType)
 
     # and call it
-    from redis.commands import RedisModuleCommands
+    from valkey.commands import ValkeyModuleCommands
 
-    j = RedisModuleCommands.json
+    j = ValkeyModuleCommands.json
     r.load_external_module("sometestfuncname", j)
 
     # d = {'hello': 'world!'}
@@ -173,7 +173,7 @@ async def test_connect_timeout_error_without_retry():
 
 
 @pytest.mark.onlynoncluster
-async def test_connection_parse_response_resume(r: redis.Redis):
+async def test_connection_parse_response_resume(r: valkey.Valkey):
     """
     This test verifies that the Connection parser,
     be that PythonParser or HiredisParser,
@@ -289,23 +289,25 @@ async def test_connection_disconect_race(parser_class, connect_args):
 
 @pytest.mark.onlynoncluster
 def test_create_single_connection_client_from_url():
-    client = Redis.from_url("redis://localhost:6379/0?", single_connection_client=True)
+    client = Valkey.from_url(
+        "valkey://localhost:6379/0?", single_connection_client=True
+    )
     assert client.single_connection_client is True
 
 
 @pytest.mark.parametrize("from_url", (True, False), ids=("from_url", "from_args"))
 async def test_pool_auto_close(request, from_url):
-    """Verify that basic Redis instances have auto_close_connection_pool set to True"""
+    """Verify that basic Valkey instances have auto_close_connection_pool set to True"""
 
-    url: str = request.config.getoption("--redis-url")
+    url: str = request.config.getoption("--valkey-url")
     url_args = parse_url(url)
 
-    async def get_redis_connection():
+    async def get_valkey_connection():
         if from_url:
-            return Redis.from_url(url)
-        return Redis(**url_args)
+            return Valkey.from_url(url)
+        return Valkey(**url_args)
 
-    r1 = await get_redis_connection()
+    r1 = await get_valkey_connection()
     assert r1.auto_close_connection_pool is True
     await r1.aclose()
 
@@ -318,8 +320,8 @@ async def test_close_is_aclose(request):
         nonlocal calls
         calls += 1
 
-    url: str = request.config.getoption("--redis-url")
-    r1 = await Redis.from_url(url)
+    url: str = request.config.getoption("--valkey-url")
+    r1 = await Valkey.from_url(url)
     with patch.object(r1, "aclose", mock_aclose):
         with pytest.deprecated_call():
             await r1.close()
@@ -330,46 +332,46 @@ async def test_close_is_aclose(request):
 
 
 async def test_pool_from_url_deprecation(request):
-    url: str = request.config.getoption("--redis-url")
+    url: str = request.config.getoption("--valkey-url")
 
     with pytest.deprecated_call():
-        return Redis.from_url(url, auto_close_connection_pool=False)
+        return Valkey.from_url(url, auto_close_connection_pool=False)
 
 
 async def test_pool_auto_close_disable(request):
     """Verify that auto_close_connection_pool can be disabled (deprecated)"""
 
-    url: str = request.config.getoption("--redis-url")
+    url: str = request.config.getoption("--valkey-url")
     url_args = parse_url(url)
 
-    async def get_redis_connection():
+    async def get_valkey_connection():
         url_args["auto_close_connection_pool"] = False
         with pytest.deprecated_call():
-            return Redis(**url_args)
+            return Valkey(**url_args)
 
-    r1 = await get_redis_connection()
+    r1 = await get_valkey_connection()
     assert r1.auto_close_connection_pool is False
     await r1.connection_pool.disconnect()
     await r1.aclose()
 
 
 @pytest.mark.parametrize("from_url", (True, False), ids=("from_url", "from_args"))
-async def test_redis_connection_pool(request, from_url):
-    """Verify that basic Redis instances using `connection_pool`
+async def test_valkey_connection_pool(request, from_url):
+    """Verify that basic Valkey instances using `connection_pool`
     have auto_close_connection_pool set to False"""
 
-    url: str = request.config.getoption("--redis-url")
+    url: str = request.config.getoption("--valkey-url")
     url_args = parse_url(url)
 
     pool = None
 
-    async def get_redis_connection():
+    async def get_valkey_connection():
         nonlocal pool
         if from_url:
             pool = ConnectionPool.from_url(url)
         else:
             pool = ConnectionPool(**url_args)
-        return Redis(connection_pool=pool)
+        return Valkey(connection_pool=pool)
 
     called = 0
 
@@ -378,7 +380,7 @@ async def test_redis_connection_pool(request, from_url):
         called += 1
 
     with patch.object(ConnectionPool, "disconnect", mock_disconnect):
-        async with await get_redis_connection() as r1:
+        async with await get_valkey_connection() as r1:
             assert r1.auto_close_connection_pool is False
 
     assert called == 0
@@ -386,22 +388,22 @@ async def test_redis_connection_pool(request, from_url):
 
 
 @pytest.mark.parametrize("from_url", (True, False), ids=("from_url", "from_args"))
-async def test_redis_from_pool(request, from_url):
-    """Verify that basic Redis instances created using `from_pool()`
+async def test_valkey_from_pool(request, from_url):
+    """Verify that basic Valkey instances created using `from_pool()`
     have auto_close_connection_pool set to True"""
 
-    url: str = request.config.getoption("--redis-url")
+    url: str = request.config.getoption("--valkey-url")
     url_args = parse_url(url)
 
     pool = None
 
-    async def get_redis_connection():
+    async def get_valkey_connection():
         nonlocal pool
         if from_url:
             pool = ConnectionPool.from_url(url)
         else:
             pool = ConnectionPool(**url_args)
-        return Redis.from_pool(pool)
+        return Valkey.from_pool(pool)
 
     called = 0
 
@@ -410,7 +412,7 @@ async def test_redis_from_pool(request, from_url):
         called += 1
 
     with patch.object(ConnectionPool, "disconnect", mock_disconnect):
-        async with await get_redis_connection() as r1:
+        async with await get_valkey_connection() as r1:
             assert r1.auto_close_connection_pool is True
 
     assert called == 1
@@ -418,16 +420,16 @@ async def test_redis_from_pool(request, from_url):
 
 
 @pytest.mark.parametrize("auto_close", (True, False))
-async def test_redis_pool_auto_close_arg(request, auto_close):
-    """test that redis instance where pool is provided have
+async def test_valkey_pool_auto_close_arg(request, auto_close):
+    """test that valkey instance where pool is provided have
     auto_close_connection_pool set to False, regardless of arg"""
 
-    url: str = request.config.getoption("--redis-url")
+    url: str = request.config.getoption("--valkey-url")
     pool = ConnectionPool.from_url(url)
 
-    async def get_redis_connection():
+    async def get_valkey_connection():
         with pytest.deprecated_call():
-            client = Redis(connection_pool=pool, auto_close_connection_pool=auto_close)
+            client = Valkey(connection_pool=pool, auto_close_connection_pool=auto_close)
         return client
 
     called = 0
@@ -437,7 +439,7 @@ async def test_redis_pool_auto_close_arg(request, auto_close):
         called += 1
 
     with patch.object(ConnectionPool, "disconnect", mock_disconnect):
-        async with await get_redis_connection() as r1:
+        async with await get_valkey_connection() as r1:
             assert r1.auto_close_connection_pool is False
 
     assert called == 0
@@ -446,15 +448,15 @@ async def test_redis_pool_auto_close_arg(request, auto_close):
 
 async def test_client_garbage_collection(request):
     """
-    Test that a Redis client will call _close() on any
+    Test that a Valkey client will call _close() on any
     connection that it holds at time of destruction
     """
 
-    url: str = request.config.getoption("--redis-url")
+    url: str = request.config.getoption("--valkey-url")
     pool = ConnectionPool.from_url(url)
 
     # create a client with a connection from the pool
-    client = Redis(connection_pool=pool, single_connection_client=True)
+    client = Valkey(connection_pool=pool, single_connection_client=True)
     await client.initialize()
     with mock.patch.object(client, "connection") as a:
         # we cannot, in unittests, or from asyncio, reliably trigger garbage collection
@@ -473,11 +475,11 @@ async def test_connection_garbage_collection(request):
     stream that it holds.
     """
 
-    url: str = request.config.getoption("--redis-url")
+    url: str = request.config.getoption("--valkey-url")
     pool = ConnectionPool.from_url(url)
 
     # create a client with a connection from the pool
-    client = Redis(connection_pool=pool, single_connection_client=True)
+    client = Valkey(connection_pool=pool, single_connection_client=True)
     await client.initialize()
     conn = client.connection
 

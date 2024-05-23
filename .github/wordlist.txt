@@ -139,5 +139,6 @@ txt
 un
 unicode
 url
+valkey
 virtualenv
 www

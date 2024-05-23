@@ -3,5 +3,5 @@
 Exceptions
 ##########
 
-.. automodule:: redis.exceptions
+.. automodule:: valkey.exceptions
     :members:
