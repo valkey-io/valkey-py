@@ -22,8 +22,8 @@ class Graph(GraphCommands):
         """
         warnings.warn(
             DeprecationWarning(
-                "RedisGraph support is deprecated as of Valkey Stack 7.2 \
-                (https://valkey.com/blog/valkeygraph-eol/)"
+                "RedisGraph support is deprecated as of Redis Stack 7.2 \
+                (https://redis.com/blog/redisgraph-eol/)"
             )
         )
         self.NAME = name  # Graph key

@@ -6,7 +6,7 @@ from typing import Optional
 from unittest.mock import patch
 
 # the functionality is available in 3.11.x but has a major issue before
-# 3.11.3. See https://github.com/valkey/valkey-py/issues/2633
+# 3.11.3. See https://github.com/redis/redis-py/issues/2633
 if sys.version_info >= (3, 11, 3):
     from asyncio import timeout as async_timeout
 else:
@@ -302,7 +302,7 @@ class TestPubSubSubscribeUnsubscribe:
     async def _test_sub_unsub_resub(
         self, p, sub_type, unsub_type, sub_func, unsub_func, keys
     ):
-        # https://github.com/andymccurdy/valkey-py/issues/764
+        # https://github.com/andymccurdy/redis-py/issues/764
         key = keys[0]
         await sub_func(key)
         await unsub_func(key)
@@ -324,7 +324,7 @@ class TestPubSubSubscribeUnsubscribe:
     async def _test_sub_unsub_all_resub(
         self, p, sub_type, unsub_type, sub_func, unsub_func, keys
     ):
-        # https://github.com/andymccurdy/valkey-py/issues/764
+        # https://github.com/andymccurdy/redis-py/issues/764
         key = keys[0]
         await sub_func(key)
         await unsub_func()

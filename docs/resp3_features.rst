@@ -1,7 +1,7 @@
 RESP 3 Features
 ===============
 
-As of version 5.0, valkey-py supports the `RESP 3 standard <https://github.com/valkey/valkey-specifications/blob/master/protocol/RESP3.md>`_. Practically, this means that client using RESP 3 will be faster and more performant as fewer type translations occur in the client. It also means new response types like doubles, true simple strings, maps, and booleans are available.
+valkey-py supports the `RESP 3 standard <https://github.com/valkey/valkey-specifications/blob/master/protocol/RESP3.md>`_. Practically, this means that client using RESP 3 will be faster and more performant as fewer type translations occur in the client. It also means new response types like doubles, true simple strings, maps, and booleans are available.
 
 Connecting
 -----------

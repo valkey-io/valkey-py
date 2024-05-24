@@ -2216,8 +2216,7 @@ class BasicKeyCommands(CommandsProtocol):
         it's not specified an error is raised on collision.
 
         ``absttl`` if True, specified ``ttl`` should represent an absolute Unix
-        timestamp in milliseconds in which the key will expire. (Valkey 5.0 or
-        greater).
+        timestamp in milliseconds in which the key will expire.
 
         ``idletime`` Used for eviction, this is the number of seconds the
         key must be idle, prior to execution.
@@ -2275,11 +2274,9 @@ class BasicKeyCommands(CommandsProtocol):
             if it already exists.
 
         ``keepttl`` if True, retain the time to live associated with the key.
-            (Available since Valkey 6.0)
 
         ``get`` if True, set the value at key ``name`` to ``value`` and return
             the old value stored at key, or None if the key did not exist.
-            (Available since Valkey 6.2)
 
         ``exat`` sets an expire flag on key ``name`` for ``ex`` seconds,
             specified in unix time.
@@ -3451,8 +3448,7 @@ class SetCommands(CommandsProtocol):
         If ``number`` is None, returns a random member of set ``name``.
 
         If ``number`` is supplied, returns a list of ``number`` random
-        members of set ``name``. Note this is only available when running
-        Valkey 2.6+.
+        members of set ``name``.
 
         For more information see https://valkey.io/commands/srandmember
         """
@@ -4512,8 +4508,8 @@ class SortedSetCommands(CommandsProtocol):
 
         For more information see https://valkey.io/commands/zrange
         """
-        # Need to support ``desc`` also when using old valkey version
-        # because it was supported in 3.5.3 (of valkey-py)
+        # Need to support ``desc`` also when using old redis version
+        # because it was supported in 3.5.3 (of redis-py)
         if not byscore and not bylex and (offset is None and num is None) and desc:
             return self.zrevrange(name, start, end, withscores, score_cast_func)
 
@@ -5269,7 +5265,7 @@ AsyncPubSubCommands = PubSubCommands
 class ScriptCommands(CommandsProtocol):
     """
     Valkey Lua script commands. see:
-    https://valkey.com/ebook/part-3-next-steps/chapter-11-scripting-valkey-with-lua/
+    https://redis.com/ebook/part-3-next-steps/chapter-11-scripting-redis-with-lua/
     """
 
     def _eval(
@@ -5368,7 +5364,7 @@ class ScriptCommands(CommandsProtocol):
         For more information see  https://valkey.io/commands/script-flush
         """
 
-        # Valkey pre 6 had no sync_type.
+        # Redis pre 6 had no sync_type.
         if sync_type not in ["SYNC", "ASYNC", None]:
             raise DataError(
                 "SCRIPT FLUSH defaults to SYNC in valkey > 6.2, or "
@@ -5749,7 +5745,7 @@ class GeoCommands(CommandsProtocol):
         sort: Union[str, None] = None,
         count: Union[int, None] = None,
         any: bool = False,
-        stovalkeyt: bool = False,
+        storedist: bool = False,
     ) -> ResponseT:
         """
         This command is like GEOSEARCH, but stores the result in
@@ -5779,7 +5775,7 @@ class GeoCommands(CommandsProtocol):
             withdist=None,
             withhash=None,
             store=None,
-            store_dist=stovalkeyt,
+            store_dist=storedist,
         )
 
     def _geosearchgeneric(

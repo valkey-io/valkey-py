@@ -123,11 +123,6 @@ def pytest_addoption(parser):
 def _get_info(valkey_url):
     client = valkey.Valkey.from_url(valkey_url)
     info = client.info()
-    try:
-        client.execute_command("DPING")
-        info["enterprise"] = True
-    except valkey.ResponseError:
-        info["enterprise"] = False
     client.connection_pool.disconnect()
     return info
 
@@ -141,18 +136,15 @@ def pytest_sessionstart(session):
         version = info["valkey_version"]
         arch_bits = info["arch_bits"]
         cluster_enabled = info["cluster_enabled"]
-        enterprise = info["enterprise"]
     except valkey.ConnectionError:
         # provide optimistic defaults
         info = {}
         version = "10.0.0"
         arch_bits = 64
         cluster_enabled = False
-        enterprise = False
     VALKEY_INFO["version"] = version
     VALKEY_INFO["arch_bits"] = arch_bits
     VALKEY_INFO["cluster_enabled"] = cluster_enabled
-    VALKEY_INFO["enterprise"] = enterprise
     # store VALKEY_INFO in config so that it is available from "condition strings"
     session.config.VALKEY_INFO = VALKEY_INFO
 
@@ -245,16 +237,6 @@ def skip_ifmodversion_lt(min_version: str, module_name: str):
             return pytest.mark.skipif(check, reason="Valkey module version")
 
     raise AttributeError(f"No valkey module named {module_name}")
-
-
-def skip_if_valkey_enterprise() -> _TestDecorator:
-    check = VALKEY_INFO.get("enterprise", False) is True
-    return pytest.mark.skipif(check, reason="Valkey enterprise")
-
-
-def skip_ifnot_valkey_enterprise() -> _TestDecorator:
-    check = VALKEY_INFO.get("enterprise", False) is False
-    return pytest.mark.skipif(check, reason="Not running in valkey enterprise")
 
 
 def skip_if_nocryptography() -> _TestDecorator:

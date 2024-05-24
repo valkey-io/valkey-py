@@ -2295,7 +2295,7 @@ class TestValkeyCommands:
         ]
 
     async def test_sort_issue_924(self, r: valkey.Valkey):
-        # Tests for issue https://github.com/andymccurdy/valkey-py/issues/924
+        # Tests for issue https://github.com/andymccurdy/redis-py/issues/924
         await r.execute_command("SADD", "issue#924", 1)
         await r.execute_command("SORT", "issue#924")
 
@@ -3320,10 +3320,6 @@ class TestBinarySave:
             assert await r.lrange(key, 0, -1) == value
 
     async def test_22_info(self, r: valkey.Valkey):
-        """
-        Older Valkey versions contained 'allocation_stats' in INFO that
-        was the cause of a number of bugs when parsing.
-        """
         info = (
             "allocation_stats:6=1,7=1,8=7141,9=180,10=92,11=116,12=5330,"
             "13=123,14=3091,15=11048,16=225842,17=1784,18=814,19=12020,"

@@ -1,6 +1,6 @@
 import pytest
 import valkey
-from tests.conftest import skip_if_server_version_lt, skip_if_valkey_enterprise
+from tests.conftest import skip_if_server_version_lt
 from valkey import exceptions
 from valkey.commands.core import Script
 
@@ -65,7 +65,6 @@ class TestScripting:
         assert r.eval(multiply_script, 1, "a", 3) == 6
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_valkey_enterprise()
     def test_eval_ro(self, r):
         r.set("a", "b")
         assert r.eval_ro("return redis.call('GET', KEYS[1])", 1, "a") == b"b"
@@ -154,7 +153,6 @@ class TestScripting:
         assert r.evalsha(sha, 1, "a", 3) == 6
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_valkey_enterprise()
     def test_evalsha_ro(self, r):
         r.set("a", "b")
         get_sha = r.script_load("return redis.call('GET', KEYS[1])")

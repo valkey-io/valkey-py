@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 import pytest
-from tests.conftest import _get_client, skip_if_valkey_enterprise
+from tests.conftest import _get_client
 from valkey import Valkey
 from valkey.commands.graph import Edge, Node, Path
 from valkey.commands.graph.execution_plan import Operation
@@ -318,7 +318,6 @@ def test_profile(client):
     assert "Node By Label Scan | (p:Person) | Records produced: 3" in profile
 
 
-@skip_if_valkey_enterprise()
 def test_config(client):
     config_name = "RESULTSET_SIZE"
     config_value = 3

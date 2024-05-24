@@ -32,7 +32,7 @@ OpenTelemetry instrumentation
 
 Instrumentations are plugins for popular frameworks and libraries that use OpenTelemetry API to record important operations, for example, HTTP requests, DB queries, logs, errors, and more.
 
-To install OpenTelemetry `instrumentation <https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/valkey/valkey.html>`_ for valkey-py:
+To install OpenTelemetry `instrumentation <https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/redis/redis.html>`_ for valkey-py:
 
 .. code-block:: shell
 

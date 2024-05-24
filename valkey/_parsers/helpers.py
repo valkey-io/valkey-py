@@ -661,7 +661,6 @@ def parse_client_info(value):
 
 def parse_set_result(response, **options):
     """
-    Handle SET result since GET argument is available since Valkey 6.2.
     Parsing SET result into:
     - BOOL
     - String when GET argument is used

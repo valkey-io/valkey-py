@@ -14,7 +14,6 @@ from tests.conftest import (
     is_resp2_connection,
     skip_if_server_version_gte,
     skip_if_server_version_lt,
-    skip_if_valkey_enterprise,
     skip_unless_arch_bits,
 )
 from valkey._parsers import AsyncCommandsParser
@@ -846,7 +845,6 @@ class TestValkeyClusterObj:
             assert replica.server_type == REPLICA
             assert replica in slot_nodes
 
-    @skip_if_valkey_enterprise()
     async def test_not_require_full_coverage_cluster_down_error(
         self, r: ValkeyCluster
     ) -> None:
@@ -1043,26 +1041,23 @@ class TestClusterValkeyCommands:
     async def test_initialize_before_execute_multi_key_command(
         self, request: FixtureRequest
     ) -> None:
-        # Test for issue https://github.com/valkey/valkey-py/issues/2437
+        # Test for issue https://github.com/redis/redis-py/issues/2437
         url = request.config.getoption("--valkey-url")
         r = ValkeyCluster.from_url(url)
         assert 0 == await r.exists("a", "b", "c")
         await r.aclose()
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_myid(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
         myid = await r.cluster_myid(node)
         assert len(myid) == 40
 
     @skip_if_server_version_lt("7.2.0")
-    @skip_if_valkey_enterprise()
     async def test_cluster_myshardid(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
         myshardid = await r.cluster_myshardid(node)
         assert len(myshardid) == 40
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_slots(self, r: ValkeyCluster) -> None:
         mock_all_nodes_resp(r, default_cluster_slots)
         cluster_slots = await r.cluster_slots()
@@ -1071,20 +1066,17 @@ class TestClusterValkeyCommands:
         assert cluster_slots.get((0, 8191)) is not None
         assert cluster_slots.get((0, 8191)).get("primary") == ("127.0.0.1", 7000)
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_addslots(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
         mock_node_resp(node, "OK")
         assert await r.cluster_addslots(node, 1, 2, 3) is True
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_valkey_enterprise()
     async def test_cluster_addslotsrange(self, r: ValkeyCluster):
         node = r.get_random_node()
         mock_node_resp(node, "OK")
         assert await r.cluster_addslotsrange(node, 1, 5)
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_countkeysinslot(self, r: ValkeyCluster) -> None:
         node = r.nodes_manager.get_node_from_slot(1)
         mock_node_resp(node, 2)
@@ -1094,7 +1086,6 @@ class TestClusterValkeyCommands:
         mock_all_nodes_resp(r, 0)
         assert await r.cluster_count_failure_report("node_0") == 0
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_delslots(self) -> None:
         cluster_slots = [
             [0, 8191, ["127.0.0.1", 7000, "node_0"]],
@@ -1113,7 +1104,6 @@ class TestClusterValkeyCommands:
         await r.aclose()
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_valkey_enterprise()
     async def test_cluster_delslotsrange(self):
         r = await get_mocked_valkey_client(host=default_host, port=default_port)
         mock_all_nodes_resp(r, "OK")
@@ -1123,7 +1113,6 @@ class TestClusterValkeyCommands:
         assert node._free.pop().read_response.called
         await r.aclose()
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_failover(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
         mock_node_resp(node, "OK")
@@ -1133,24 +1122,20 @@ class TestClusterValkeyCommands:
         with pytest.raises(ValkeyError):
             await r.cluster_failover(node, "FORCT")
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_info(self, r: ValkeyCluster) -> None:
         info = await r.cluster_info()
         assert isinstance(info, dict)
         assert info["cluster_state"] == "ok"
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_keyslot(self, r: ValkeyCluster) -> None:
         mock_all_nodes_resp(r, 12182)
         assert await r.cluster_keyslot("foo") == 12182
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_meet(self, r: ValkeyCluster) -> None:
         node = r.get_default_node()
         mock_node_resp(node, "OK")
         assert await r.cluster_meet("127.0.0.1", 6379) is True
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_nodes(self, r: ValkeyCluster) -> None:
         response = (
             "c8253bae761cb1ecb2b61857d85dfe455a0fec8b 172.17.0.7:7006 "
@@ -1179,7 +1164,6 @@ class TestClusterValkeyCommands:
             == "c8253bae761cb1ecb2b61857d85dfe455a0fec8b"
         )
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_nodes_importing_migrating(self, r: ValkeyCluster) -> None:
         response = (
             "488ead2fcce24d8c0f158f9172cb1f4a9e040fe5 127.0.0.1:16381@26381 "
@@ -1216,7 +1200,6 @@ class TestClusterValkeyCommands:
         assert node_16381.get("slots") == [["10923", "16383"]]
         assert node_16381.get("migrations") == []
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_replicate(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
         all_replicas = r.get_replicas()
@@ -1229,7 +1212,6 @@ class TestClusterValkeyCommands:
         else:
             assert results is True
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_reset(self, r: ValkeyCluster) -> None:
         mock_all_nodes_resp(r, "OK")
         assert await r.cluster_reset() is True
@@ -1238,7 +1220,6 @@ class TestClusterValkeyCommands:
         for res in all_results.values():
             assert res is True
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_save_config(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
         all_nodes = r.get_nodes()
@@ -1248,7 +1229,6 @@ class TestClusterValkeyCommands:
         for res in all_results.values():
             assert res is True
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_get_keys_in_slot(self, r: ValkeyCluster) -> None:
         response = ["{foo}1", "{foo}2"]
         node = r.nodes_manager.get_node_from_slot(12182)
@@ -1256,7 +1236,6 @@ class TestClusterValkeyCommands:
         keys = await r.cluster_get_keys_in_slot(12182, 4)
         assert keys == response
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_set_config_epoch(self, r: ValkeyCluster) -> None:
         mock_all_nodes_resp(r, "OK")
         assert await r.cluster_set_config_epoch(3) is True
@@ -1264,7 +1243,6 @@ class TestClusterValkeyCommands:
         for res in all_results.values():
             assert res is True
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_setslot(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
         mock_node_resp(node, "OK")
@@ -1282,7 +1260,6 @@ class TestClusterValkeyCommands:
         assert await r.cluster_setslot_stable(12182) is True
         assert node._free.pop().read_response.called
 
-    @skip_if_valkey_enterprise()
     async def test_cluster_replicas(self, r: ValkeyCluster) -> None:
         response = [
             b"01eca22229cf3c652b6fca0d09ff6941e0d2e3 "
@@ -1320,7 +1297,6 @@ class TestClusterValkeyCommands:
             for i in range(0, len(res) - 1, 2):
                 assert res[i][b"node"] == res[i + 1][b"node"]
 
-    @skip_if_valkey_enterprise()
     async def test_readonly(self) -> None:
         r = await get_mocked_valkey_client(host=default_host, port=default_port)
         mock_all_nodes_resp(r, "OK")
@@ -1333,7 +1309,6 @@ class TestClusterValkeyCommands:
 
         await r.aclose()
 
-    @skip_if_valkey_enterprise()
     async def test_readwrite(self) -> None:
         r = await get_mocked_valkey_client(host=default_host, port=default_port)
         mock_all_nodes_resp(r, "OK")
@@ -1346,7 +1321,6 @@ class TestClusterValkeyCommands:
 
         await r.aclose()
 
-    @skip_if_valkey_enterprise()
     async def test_bgsave(self, r: ValkeyCluster) -> None:
         try:
             assert await r.bgsave()
@@ -1443,12 +1417,10 @@ class TestClusterValkeyCommands:
         assert isinstance(await r.memory_usage("foo"), int)
 
     @skip_if_server_version_lt("4.0.0")
-    @skip_if_valkey_enterprise()
     async def test_memory_malloc_stats(self, r: ValkeyCluster) -> None:
         assert await r.memory_malloc_stats()
 
     @skip_if_server_version_lt("4.0.0")
-    @skip_if_valkey_enterprise()
     async def test_memory_stats(self, r: ValkeyCluster) -> None:
         # put a key into the current db to make sure that "db.<current-db>"
         # has data
@@ -1470,7 +1442,6 @@ class TestClusterValkeyCommands:
         with pytest.raises(NotImplementedError):
             await r.memory_doctor()
 
-    @skip_if_valkey_enterprise()
     async def test_lastsave(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         assert isinstance(await r.lastsave(target_nodes=node), datetime.datetime)
@@ -1513,7 +1484,6 @@ class TestClusterValkeyCommands:
             await r.client_pause(timeout="not an integer", target_nodes=node)
 
     @skip_if_server_version_lt("6.2.0")
-    @skip_if_valkey_enterprise()
     async def test_client_unpause(self, r: ValkeyCluster) -> None:
         assert await r.client_unpause()
 
@@ -2178,7 +2148,7 @@ class TestClusterValkeyCommands:
             longitude=2.191,
             latitude=41.433,
             radius=1000,
-            stovalkeyt=True,
+            storedist=True,
         )
         # instead of save the geo score, the distance is saved.
         assert await r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
@@ -2303,7 +2273,6 @@ class TestClusterValkeyCommands:
         assert await r.randomkey(target_nodes=node) in (b"{foo}a", b"{foo}b", b"{foo}c")
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_valkey_enterprise()
     async def test_acl_log(
         self, r: ValkeyCluster, create_valkey: Callable[..., ValkeyCluster]
     ) -> None:

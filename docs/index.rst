@@ -79,12 +79,12 @@ Module Documentation
 Contributing
 *************
 
-- `How to contribute <https://github.com/valkey/valkey-py/blob/master/CONTRIBUTING.md>`_
-- `Issue Tracker <https://github.com/valkey/valkey-py/issues>`_
-- `Source Code <https://github.com/valkey/valkey-py/>`_
-- `Release History <https://github.com/valkey/valkey-py/releases/>`_
+- `How to contribute <https://github.com/valkey-io/valkey-py/blob/master/CONTRIBUTING.md>`_
+- `Issue Tracker <https://github.com/valkey-io/valkey-py/issues>`_
+- `Source Code <https://github.com/valkey-io/valkey-py/>`_
+- `Release History <https://github.com/valkey-io/valkey-py/releases/>`_
 
 License
 *******
 
-This project is licensed under the `MIT license <https://github.com/valkey/valkey-py/blob/master/LICENSE>`_.
+This project is licensed under the `MIT license <https://github.com/valkey-io/valkey-py/blob/master/LICENSE>`_.

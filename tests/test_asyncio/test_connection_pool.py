@@ -4,7 +4,7 @@ import re
 import pytest
 import pytest_asyncio
 import valkey.asyncio as valkey
-from tests.conftest import skip_if_server_version_lt, skip_if_valkey_enterprise
+from tests.conftest import skip_if_server_version_lt
 from valkey.asyncio.connection import Connection, to_bool
 
 from .compat import aclosing, mock
@@ -574,7 +574,7 @@ class TestConnection:
     async def test_on_connect_error(self):
         """
         An error in Connection.on_connect should disconnect from the server
-        see for details: https://github.com/andymccurdy/valkey-py/issues/368
+        see for details: https://github.com/andymccurdy/redis-py/issues/368
         """
         # this assumes the Valkey server being tested against doesn't have
         # 9999 databases ;)
@@ -588,7 +588,6 @@ class TestConnection:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.8")
-    @skip_if_valkey_enterprise()
     async def test_busy_loading_disconnects_socket(self, r):
         """
         If Valkey raises a LOADING error, the connection should be
@@ -601,7 +600,6 @@ class TestConnection:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.8")
-    @skip_if_valkey_enterprise()
     async def test_busy_loading_from_pipeline_immediate_command(self, r):
         """
         BusyLoadingErrors should raise from Pipelines that execute a
@@ -619,7 +617,6 @@ class TestConnection:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.8")
-    @skip_if_valkey_enterprise()
     async def test_busy_loading_from_pipeline(self, r):
         """
         BusyLoadingErrors should be raised from a pipeline execution
@@ -635,13 +632,11 @@ class TestConnection:
         assert not pool._available_connections[0]._reader
 
     @skip_if_server_version_lt("2.8.8")
-    @skip_if_valkey_enterprise()
     async def test_read_only_error(self, r):
         """READONLY errors get turned into ReadOnlyError exceptions"""
         with pytest.raises(valkey.ReadOnlyError):
             await r.execute_command("DEBUG", "ERROR", "READONLY blah blah")
 
-    @skip_if_valkey_enterprise()
     async def test_oom_error(self, r):
         """OOM errors get turned into OutOfMemoryError exceptions"""
         with pytest.raises(valkey.OutOfMemoryError):
@@ -674,7 +669,6 @@ class TestConnection:
             "path=/path/to/socket,db=0",
         )
 
-    @skip_if_valkey_enterprise()
     async def test_connect_no_auth_supplied_when_required(self, r):
         """
         AuthenticationError should be raised when the server requires a
@@ -685,7 +679,6 @@ class TestConnection:
                 "DEBUG", "ERROR", "ERR Client sent AUTH, but no password is set"
             )
 
-    @skip_if_valkey_enterprise()
     async def test_connect_invalid_password_supplied(self, r):
         """AuthenticationError should be raised when sending the wrong password"""
         with pytest.raises(valkey.AuthenticationError):

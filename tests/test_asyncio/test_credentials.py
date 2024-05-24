@@ -6,7 +6,6 @@ from typing import Optional, Tuple, Union
 import pytest
 import pytest_asyncio
 import valkey
-from tests.conftest import skip_if_valkey_enterprise
 from valkey import AuthenticationError, DataError, ResponseError
 from valkey.credentials import CredentialProvider, UsernamePasswordCredentialProvider
 from valkey.utils import str_if_bytes
@@ -120,7 +119,6 @@ async def init_required_pass(r, password):
 
 @pytest.mark.asyncio
 class TestCredentialsProvider:
-    @skip_if_valkey_enterprise()
     async def test_only_pass_without_creds_provider(
         self, r_required_pass_teardown, create_valkey
     ):
@@ -134,7 +132,6 @@ class TestCredentialsProvider:
 
         assert await r2.ping() is True
 
-    @skip_if_valkey_enterprise()
     async def test_user_and_pass_without_creds_provider(
         self, r_acl_teardown, create_valkey
     ):
@@ -151,7 +148,6 @@ class TestCredentialsProvider:
         assert await r2.ping() is True
 
     @pytest.mark.parametrize("username", ["username", None])
-    @skip_if_valkey_enterprise()
     @pytest.mark.onlynoncluster
     async def test_credential_provider_with_supplier(
         self, r_acl_teardown, r_required_pass_teardown, create_valkey, username

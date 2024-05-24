@@ -12,7 +12,6 @@ import valkey.commands.search.reducers as reducers
 from tests.conftest import (
     assert_resp_response,
     is_resp2_connection,
-    skip_if_valkey_enterprise,
     skip_ifmodversion_lt,
 )
 from valkey.commands.search import AsyncSearch
@@ -1523,7 +1522,6 @@ async def test_withsuffixtrie(decoded_r: valkey.Valkey):
 
 
 @pytest.mark.valkeymod
-@skip_if_valkey_enterprise()
 async def test_search_commands_in_pipeline(decoded_r: valkey.Valkey):
     p = await decoded_r.ft().pipeline()
     p.create_index((TextField("txt"),))

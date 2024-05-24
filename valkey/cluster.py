@@ -838,10 +838,10 @@ class ValkeyCluster(AbstractValkeyCluster, ValkeyClusterCommands):
         continue trying forever. ``blocking_timeout`` can be specified as a
         float or integer, both representing the number of seconds to wait.
 
-        ``lock_class`` forces the specified lock implementation. Note that as
-        of valkey-py 3.0, the only lock class we implement is ``Lock`` (which is
-        a Lua-based lock). So, it's unlikely you'll need this parameter, unless
-        you have created your own custom lock class.
+        ``lock_class`` forces the specified lock implementation. Note that the
+        only lock class we implement is ``Lock`` (which is a Lua-based lock).
+        So, it's unlikely you'll need this parameter, unless you have created
+        your own custom lock class.
 
         ``thread_local`` indicates whether the lock token is placed in
         thread-local storage. By default, the token is placed in thread local
@@ -946,7 +946,7 @@ class ValkeyCluster(AbstractValkeyCluster, ValkeyClusterCommands):
         Get the keys in the command. If the command has no keys in in, None is
         returned.
 
-        NOTE: Due to a bug in valkey<7.0, this function does not work properly
+        NOTE: Due to a bug in redis<7.0, this function does not work properly
         for EVAL or EVALSHA when the `numkeys` arg is 0.
          - issue: https://github.com/redis/redis/issues/9493
          - fix: https://github.com/redis/redis/pull/9733
@@ -1795,7 +1795,7 @@ class ClusterPubSub(PubSub):
         """
         Execute a subscribe/unsubscribe command.
 
-        Taken code from valkey-py and tweak to make it work within a cluster.
+        Taken code from redis-py and tweak to make it work within a cluster.
         """
         # NOTE: don't parse the response in this function -- it could pull a
         # legitimate message off the stack if the connection is already

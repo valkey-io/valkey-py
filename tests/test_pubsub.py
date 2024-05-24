@@ -12,12 +12,7 @@ import valkey
 from valkey.exceptions import ConnectionError
 from valkey.utils import HIREDIS_AVAILABLE
 
-from .conftest import (
-    _get_client,
-    is_resp2_connection,
-    skip_if_server_version_lt,
-    skip_if_valkey_enterprise,
-)
+from .conftest import _get_client, is_resp2_connection, skip_if_server_version_lt
 
 
 def wait_for_message(
@@ -378,7 +373,7 @@ class TestPubSubSubscribeUnsubscribe:
     def _test_sub_unsub_resub(
         self, p, sub_type, unsub_type, sub_func, unsub_func, keys
     ):
-        # https://github.com/andymccurdy/valkey-py/issues/764
+        # https://github.com/andymccurdy/redis-py/issues/764
         key = keys[0]
         sub_func(key)
         unsub_func(key)
@@ -426,7 +421,7 @@ class TestPubSubSubscribeUnsubscribe:
     def _test_sub_unsub_all_resub(
         self, p, sub_type, unsub_type, sub_func, unsub_func, keys
     ):
-        # https://github.com/andymccurdy/valkey-py/issues/764
+        # https://github.com/andymccurdy/redis-py/issues/764
         key = keys[0]
         sub_func(key)
         unsub_func()
@@ -898,7 +893,6 @@ class TestPubSubPings:
 @pytest.mark.onlynoncluster
 class TestPubSubConnectionKilled:
     @skip_if_server_version_lt("3.0.0")
-    @skip_if_valkey_enterprise()
     def test_connection_error_raised_when_connection_dies(self, r):
         p = r.pubsub()
         p.subscribe("foo")

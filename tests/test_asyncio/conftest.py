@@ -5,7 +5,6 @@ from typing import Union
 import pytest
 import pytest_asyncio
 import valkey.asyncio as valkey
-from packaging.version import Version
 from tests.conftest import VALKEY_INFO
 from valkey._parsers import _AsyncHiredisParser, _AsyncRESP2Parser
 from valkey.asyncio import Sentinel
@@ -248,11 +247,7 @@ async def wait_for_command(
     # for, something went wrong
     if key is None:
         # generate key
-        valkey_version = VALKEY_INFO["version"]
-        if Version(valkey_version) >= Version("5.0.0"):
-            id_str = str(await client.client_id())
-        else:
-            id_str = f"{random.randrange(2 ** 32):08x}"
+        id_str = f"{random.randrange(2 ** 32):08x}"
         key = f"__VALKEY-PY-{id_str}__"
     await client.get(key)
     while True:

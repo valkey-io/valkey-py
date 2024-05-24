@@ -26,7 +26,6 @@ from .conftest import (
     is_resp2_connection,
     skip_if_server_version_gte,
     skip_if_server_version_lt,
-    skip_if_valkey_enterprise,
     skip_unless_arch_bits,
 )
 
@@ -83,7 +82,6 @@ class TestResponseCallbacks:
 
 class TestValkeyCommands:
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_auth(self, r, request):
         # sending an AUTH command before setting a user/password on the
         # server should return an AuthenticationError
@@ -151,7 +149,6 @@ class TestValkeyCommands:
         assert "get" in commands or b"get" in commands
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_valkey_enterprise()
     def test_acl_dryrun(self, r, request):
         username = "valkey-py-user"
 
@@ -166,7 +163,6 @@ class TestValkeyCommands:
         assert no_permissions_message in r.acl_dryrun(username, "get", "key")
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_valkey_enterprise()
     def test_acl_deluser(self, r, request):
         username = "valkey-py-user"
 
@@ -191,7 +187,6 @@ class TestValkeyCommands:
         assert r.acl_getuser(users[4]) is None
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_valkey_enterprise()
     def test_acl_genpass(self, r):
         password = r.acl_genpass()
         assert isinstance(password, (str, bytes))
@@ -206,7 +201,6 @@ class TestValkeyCommands:
         assert len(password) == 139
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_valkey_enterprise()
     def test_acl_getuser_setuser(self, r, request):
         r.flushall()
         username = "valkey-py-user"
@@ -346,7 +340,6 @@ class TestValkeyCommands:
         assert len(res) != 0
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_valkey_enterprise()
     def test_acl_list(self, r, request):
         username = "valkey-py-user"
         start = r.acl_list()
@@ -361,7 +354,6 @@ class TestValkeyCommands:
         assert len(users) == len(start) + 1
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_valkey_enterprise()
     @pytest.mark.onlynoncluster
     def test_acl_log(self, r, request):
         username = "valkey-py-user"
@@ -409,7 +401,6 @@ class TestValkeyCommands:
         )
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_valkey_enterprise()
     def test_acl_setuser_categories_without_prefix_fails(self, r, request):
         username = "valkey-py-user"
 
@@ -422,7 +413,6 @@ class TestValkeyCommands:
             r.acl_setuser(username, categories=["list"])
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_valkey_enterprise()
     def test_acl_setuser_commands_without_prefix_fails(self, r, request):
         username = "valkey-py-user"
 
@@ -435,7 +425,6 @@ class TestValkeyCommands:
             r.acl_setuser(username, commands=["get"])
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_valkey_enterprise()
     def test_acl_setuser_add_passwords_and_nopass_fails(self, r, request):
         username = "valkey-py-user"
 
@@ -480,7 +469,6 @@ class TestValkeyCommands:
             clients = r.client_list(_type=client_type)
             assert isinstance(clients, list)
 
-    @skip_if_valkey_enterprise()
     def test_client_list_replica(self, r):
         clients = r.client_list(_type="replica")
         assert isinstance(clients, list)
@@ -507,7 +495,6 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.2.0")
-    @skip_if_valkey_enterprise()
     def test_client_trackinginfo(self, r):
         res = r.client_trackinginfo()
         assert len(res) > 2
@@ -515,7 +502,6 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_valkey_enterprise()
     def test_client_tracking(self, r, r2):
         # simple case
         assert r.client_tracking_on()
@@ -689,7 +675,6 @@ class TestValkeyCommands:
         assert r.client_kill_filter(laddr=client_2_addr)
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_valkey_enterprise()
     def test_client_kill_filter_by_user(self, r, request):
         killuser = "user_to_kill"
         r.acl_setuser(
@@ -708,7 +693,6 @@ class TestValkeyCommands:
         r.acl_deluser(killuser)
 
     @skip_if_server_version_lt("7.4.0")
-    @skip_if_valkey_enterprise()
     def test_client_kill_filter_by_maxage(self, r, request):
         _get_client(valkey.Valkey, request, flushdb=False)
         time.sleep(4)
@@ -718,7 +702,6 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.9.50")
-    @skip_if_valkey_enterprise()
     def test_client_pause(self, r):
         assert r.client_pause(1)
         assert r.client_pause(timeout=1)
@@ -726,7 +709,6 @@ class TestValkeyCommands:
             r.client_pause(timeout="not an integer")
 
     @skip_if_server_version_lt("6.2.0")
-    @skip_if_valkey_enterprise()
     def test_client_pause_all(self, r, r2):
         assert r.client_pause(1, all=False)
         assert r2.set("foo", "bar")
@@ -735,7 +717,6 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.2.0")
-    @skip_if_valkey_enterprise()
     def test_client_unpause(self, r):
         assert r.client_unpause() == b"OK"
 
@@ -770,7 +751,6 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_valkey_enterprise()
     def test_client_getredir(self, r):
         assert isinstance(r.client_getredir(), int)
         assert r.client_getredir() == -1
@@ -793,7 +773,6 @@ class TestValkeyCommands:
         assert "hash-max-listpack-entries" in res
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_config_resetstat(self, r):
         r.ping()
         prior_commands_processed = int(r.info()["total_commands_processed"])
@@ -802,7 +781,6 @@ class TestValkeyCommands:
         reset_commands_processed = int(r.info()["total_commands_processed"])
         assert reset_commands_processed < prior_commands_processed
 
-    @skip_if_valkey_enterprise()
     def test_config_set(self, r):
         r.config_set("timeout", 70)
         assert r.config_get()["timeout"] == "70"
@@ -810,7 +788,6 @@ class TestValkeyCommands:
         assert r.config_get()["timeout"] == "0"
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_valkey_enterprise()
     def test_config_set_multi_params(self, r: valkey.Valkey):
         r.config_set("timeout", 70, "maxmemory", 100)
         assert r.config_get()["timeout"] == "70"
@@ -820,7 +797,6 @@ class TestValkeyCommands:
         assert r.config_get()["maxmemory"] == "0"
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_valkey_enterprise()
     def test_failover(self, r):
         with pytest.raises(NotImplementedError):
             r.failover()
@@ -853,7 +829,6 @@ class TestValkeyCommands:
         assert "connected_clients" in res
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_lastsave(self, r):
         assert isinstance(r.lastsave(), datetime.datetime)
 
@@ -868,7 +843,6 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.2.0")
-    @skip_if_valkey_enterprise()
     def test_reset(self, r):
         assert_resp_response(r, r.reset(), "RESET", b"RESET")
 
@@ -887,7 +861,6 @@ class TestValkeyCommands:
         assert r.quit()
 
     @skip_if_server_version_lt("2.8.12")
-    @skip_if_valkey_enterprise()
     @pytest.mark.onlynoncluster
     def test_role(self, r):
         assert r.role()[0] == b"master"
@@ -895,7 +868,6 @@ class TestValkeyCommands:
         assert isinstance(r.role()[2], list)
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_select(self, r):
         assert r.select(5)
         assert r.select(2)
@@ -974,7 +946,6 @@ class TestValkeyCommands:
         assert isinstance(t[0], int)
         assert isinstance(t[1], int)
 
-    @skip_if_valkey_enterprise()
     def test_bgsave(self, r):
         assert r.bgsave()
         time.sleep(0.3)
@@ -1735,18 +1706,12 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("6.0.0")
     @skip_if_server_version_gte("7.0.0")
-    @skip_if_valkey_enterprise()
     def test_stralgo_lcs(self, r):
         key1 = "{foo}key1"
         key2 = "{foo}key2"
         value1 = "ohmytext"
         value2 = "mynewtext"
         res = "mytext"
-
-        if skip_if_valkey_enterprise().args[0] is True:
-            with pytest.raises(valkey.exceptions.ResponseError):
-                assert r.stralgo("LCS", value1, value2) == res
-            return
 
         # test LCS of strings
         assert r.stralgo("LCS", value1, value2) == res
@@ -1778,7 +1743,6 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("6.0.0")
     @skip_if_server_version_gte("7.0.0")
-    @skip_if_valkey_enterprise()
     def test_stralgo_negative(self, r):
         with pytest.raises(exceptions.DataError):
             r.stralgo("ISSUB", "value1", "value2")
@@ -1795,11 +1759,6 @@ class TestValkeyCommands:
 
     def test_substr(self, r):
         r["a"] = "0123456789"
-
-        if skip_if_valkey_enterprise().args[0] is True:
-            with pytest.raises(valkey.exceptions.ResponseError):
-                assert r.substr("a", 0) == b"0123456789"
-            return
 
         assert r.substr("a", 0) == b"0123456789"
         assert r.substr("a", 2) == b"23456789"
@@ -2355,14 +2314,12 @@ class TestValkeyCommands:
         assert r.smembers("c") == {b"1", b"2", b"3"}
 
     @skip_if_server_version_lt("1.0.0")
-    @skip_if_valkey_enterprise()
     def test_debug_segfault(self, r):
         with pytest.raises(NotImplementedError):
             r.debug_segfault()
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("3.2.0")
-    @skip_if_valkey_enterprise()
     def test_script_debug(self, r):
         with pytest.raises(NotImplementedError):
             r.script_debug()
@@ -3388,91 +3345,75 @@ class TestValkeyCommands:
         assert r.sort_ro("b", desc=True) == [b"3", b"2", b"1"]
 
     def test_sort_issue_924(self, r):
-        # Tests for issue https://github.com/andymccurdy/valkey-py/issues/924
+        # Tests for issue https://github.com/andymccurdy/redis-py/issues/924
         r.execute_command("SADD", "issue#924", 1)
         r.execute_command("SORT", "issue#924")
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_cluster_addslots(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("ADDSLOTS", 1) is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_cluster_count_failure_reports(self, mock_cluster_resp_int):
         assert isinstance(
             mock_cluster_resp_int.cluster("COUNT-FAILURE-REPORTS", "node"), int
         )
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_cluster_countkeysinslot(self, mock_cluster_resp_int):
         assert isinstance(mock_cluster_resp_int.cluster("COUNTKEYSINSLOT", 2), int)
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_cluster_delslots(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("DELSLOTS", 1) is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_cluster_failover(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("FAILOVER", 1) is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_cluster_forget(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("FORGET", 1) is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_cluster_info(self, mock_cluster_resp_info):
         assert isinstance(mock_cluster_resp_info.cluster("info"), dict)
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_cluster_keyslot(self, mock_cluster_resp_int):
         assert isinstance(mock_cluster_resp_int.cluster("keyslot", "asdf"), int)
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_cluster_meet(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("meet", "ip", "port", 1) is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_cluster_nodes(self, mock_cluster_resp_nodes):
         assert isinstance(mock_cluster_resp_nodes.cluster("nodes"), dict)
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_cluster_replicate(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("replicate", "nodeid") is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_cluster_reset(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("reset", "hard") is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_cluster_saveconfig(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("saveconfig") is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_cluster_setslot(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("setslot", 1, "IMPORTING", "nodeid") is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_valkey_enterprise()
     def test_cluster_slaves(self, mock_cluster_resp_slaves):
         assert isinstance(mock_cluster_resp_slaves.cluster("slaves", "nodeid"), dict)
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("3.0.0")
     @skip_if_server_version_gte("7.0.0")
-    @skip_if_valkey_enterprise()
     def test_readwrite(self, r):
         assert r.readwrite()
 
@@ -3484,7 +3425,6 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("3.0.0")
-    @skip_if_valkey_enterprise()
     def test_readonly(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.readonly() is True
 
@@ -3847,7 +3787,7 @@ class TestValkeyCommands:
             longitude=2.191,
             latitude=41.433,
             radius=1000,
-            stovalkeyt=True,
+            storedist=True,
         )
         # instead of save the geo score, the distance is saved.
         assert r.zscore("places_barcelona", "place1") == 88.05060698409301
@@ -4889,26 +4829,14 @@ class TestValkeyCommands:
             r.memory_doctor()
 
     @skip_if_server_version_lt("4.0.0")
-    @skip_if_valkey_enterprise()
     def test_memory_malloc_stats(self, r):
-        if skip_if_valkey_enterprise().args[0] is True:
-            with pytest.raises(valkey.exceptions.ResponseError):
-                assert r.memory_malloc_stats()
-            return
-
         assert r.memory_malloc_stats()
 
     @skip_if_server_version_lt("4.0.0")
-    @skip_if_valkey_enterprise()
     def test_memory_stats(self, r):
         # put a key into the current db to make sure that "db.<current-db>"
         # has data
         r.set("foo", "bar")
-
-        if skip_if_valkey_enterprise().args[0] is True:
-            with pytest.raises(valkey.exceptions.ResponseError):
-                stats = r.memory_stats()
-            return
 
         stats = r.memory_stats()
         assert isinstance(stats, dict)
@@ -4944,14 +4872,12 @@ class TestValkeyCommands:
         assert r.latency_reset() == 0
 
     @skip_if_server_version_lt("4.0.0")
-    @skip_if_valkey_enterprise()
     def test_module_list(self, r):
         assert isinstance(r.module_list(), list)
         for x in r.module_list():
             assert isinstance(x, dict)
 
     @skip_if_server_version_lt("2.8.13")
-    @skip_if_valkey_enterprise()
     def test_command_count(self, r):
         res = r.command_count()
         assert isinstance(res, int)
@@ -4963,7 +4889,6 @@ class TestValkeyCommands:
             r.command_docs("set")
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_valkey_enterprise()
     def test_command_list(self, r: valkey.Valkey):
         assert len(r.command_list()) > 300
         assert len(r.command_list(module="fakemod")) == 0
@@ -4974,7 +4899,6 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.13")
-    @skip_if_valkey_enterprise()
     def test_command_getkeys(self, r):
         res = r.command_getkeys("MSET", "a", "b", "c", "d", "e", "f")
         assert_resp_response(r, res, ["a", "c", "e"], [b"a", b"c", b"e"])
@@ -5004,7 +4928,6 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_valkey_enterprise()
     def test_command_getkeysandflags(self, r: valkey.Valkey):
         assert_resp_response(
             r,
@@ -5021,7 +4944,6 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("4.0.0")
-    @skip_if_valkey_enterprise()
     def test_module(self, r):
         with pytest.raises(valkey.exceptions.ModuleError) as excinfo:
             r.module_load("/some/fake/path")
@@ -5033,7 +4955,6 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_valkey_enterprise()
     def test_module_loadex(self, r: valkey.Valkey):
         with pytest.raises(valkey.exceptions.ModuleError) as excinfo:
             r.module_loadex("/some/fake/path")
@@ -5088,7 +5009,6 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("5.0.0")
-    @skip_if_valkey_enterprise()
     def test_replicaof(self, r):
         with pytest.raises(valkey.ResponseError):
             assert r.replicaof("NO ONE")
@@ -5110,7 +5030,6 @@ class TestValkeyCommands:
     @pytest.mark.replica
     @pytest.mark.xfail(strict=False)
     @skip_if_server_version_lt("2.8.0")
-    @skip_if_valkey_enterprise()
     def test_sync(self, r):
         r.flushdb()
         time.sleep(1)
@@ -5120,7 +5039,6 @@ class TestValkeyCommands:
 
     @pytest.mark.replica
     @skip_if_server_version_lt("2.8.0")
-    @skip_if_valkey_enterprise()
     def test_psync(self, r):
         r2 = valkey.Valkey(port=6380, decode_responses=False)
         res = r2.psync(r2.client_id(), 1)
@@ -5199,10 +5117,6 @@ class TestBinarySave:
             assert r.lrange(key, 0, -1) == value
 
     def test_22_info(self, r):
-        """
-        Older Valkey versions contained 'allocation_stats' in INFO that
-        was the cause of a number of bugs when parsing.
-        """
         info = (
             "allocation_stats:6=1,7=1,8=7141,9=180,10=92,11=116,12=5330,"
             "13=123,14=3091,15=11048,16=225842,17=1784,18=814,19=12020,"
@@ -5234,7 +5148,6 @@ class TestBinarySave:
         assert "6" in parsed["allocation_stats"]
         assert ">=256" in parsed["allocation_stats"]
 
-    @skip_if_valkey_enterprise()
     def test_large_responses(self, r):
         "The PythonParser has some special cases for return values > 1MB"
         # load up 5MB of data into a key

@@ -1,6 +1,5 @@
 import pytest
 import valkey.asyncio as valkey
-from tests.conftest import skip_if_valkey_enterprise
 from valkey.commands.graph import Edge, Node, Path
 from valkey.commands.graph.execution_plan import Operation
 from valkey.exceptions import ResponseError
@@ -298,7 +297,6 @@ async def test_profile(decoded_r: valkey.Valkey):
     assert "Node By Label Scan | (p:Person) | Records produced: 3" in profile
 
 
-@skip_if_valkey_enterprise()
 async def test_config(decoded_r: valkey.Valkey):
     config_name = "RESULTSET_SIZE"
     config_value = 3

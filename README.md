@@ -13,10 +13,6 @@ The Python interface to the Valkey key-value store.
 
 ---------------------------------------------
 
-**Note: ** valkey-py 5.0 will be the last version of valkey-py to support Python 3.7, as it has reached [end of life](https://devguide.python.org/versions/). valkey-py 5.1 will support Python 3.8+.
-
----------------------------------------------
-
 ## Installation
 
 Start a valkey via docker:
@@ -79,7 +75,7 @@ There is built-in support for all of the [out-of-the-box Valkey commands](https:
 
 ## Advanced Topics
 
-The [official Redis command documentation](https://valkey.io/commands)
+The [official Valkey command documentation](https://valkey.io/commands)
 does a great job of explaining each command in detail. valkey-py attempts
 to adhere to the official command syntax. There are a few exceptions:
 
@@ -91,9 +87,9 @@ to adhere to the official command syntax. There are a few exceptions:
 -   **SUBSCRIBE/LISTEN**: Similar to pipelines, PubSub is implemented as
     a separate class as it places the underlying connection in a state
     where it can\'t execute non-pubsub commands. Calling the pubsub
-    method from the Redis client will return a PubSub instance where you
+    method from the Valkey client will return a PubSub instance where you
     can subscribe to channels and listen for messages. You can only call
-    PUBLISH from the Redis client (see [this comment on issue
+    PUBLISH from the Valkey client (see [this comment on issue
     #151](https://github.com/redis/redis-py/issues/151#issuecomment-1545015)
     for details).
 
@@ -101,7 +97,7 @@ For more details, please see the documentation on [advanced topics page](https:/
 
 ### Pipelines
 
-The following is a basic example of a [Redis pipeline](https://valkey.io/docs/manual/pipelining/), a method to optimize round-trip calls, by batching Redis commands, and receiving their results as a list.
+The following is a basic example of a [Valkey pipeline](https://redis.io/docs/manual/pipelining/), a method to optimize round-trip calls, by batching Valkey commands, and receiving their results as a list.
 
 
 ``` python
@@ -115,7 +111,7 @@ The following is a basic example of a [Redis pipeline](https://valkey.io/docs/ma
 
 ### PubSub
 
-The following example shows how to utilize [Redis Pub/Sub](https://valkey.io/docs/manual/pubsub/) to subscribe to specific channels.
+The following example shows how to utilize [Valkey Pub/Sub](https://redis.io/docs/manual/pubsub/) to subscribe to specific channels.
 
 ``` python
 >>> r = valkey.Valkey(...)
@@ -143,4 +139,4 @@ Special thanks to:
     system.
 -   Paul Hubbard for initial packaging support in redis-py.
 
-[![Redis](./docs/logo-valkey.png)](https://valkey.io/)
+[![Valkey](./docs/logo-valkey.png)](https://valkey.io/)

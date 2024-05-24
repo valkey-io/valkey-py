@@ -36,11 +36,11 @@ MODULE_EXPORTS_DATA_TYPES_ERROR = (
 )
 # user send an AUTH cmd to a server without authorization configured
 NO_AUTH_SET_ERROR = {
-    # Valkey >= 6.0
+    # Redis >= 6.0
     "AUTH <password> called without any password "
     "configured for the default user. Are you sure "
     "your configuration is correct?": AuthenticationError,
-    # Valkey < 6.0
+    # Redis < 6.0
     "Client sent AUTH, but no password is set": AuthenticationError,
 }
 

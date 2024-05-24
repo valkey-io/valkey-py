@@ -10,7 +10,7 @@ import valkey
 from valkey.connection import to_bool
 from valkey.utils import SSL_AVAILABLE
 
-from .conftest import _get_client, skip_if_server_version_lt, skip_if_valkey_enterprise
+from .conftest import _get_client, skip_if_server_version_lt
 from .test_pubsub import wait_for_message
 
 
@@ -496,7 +496,7 @@ class TestConnection:
     def test_on_connect_error(self):
         """
         An error in Connection.on_connect should disconnect from the server
-        see for details: https://github.com/andymccurdy/valkey-py/issues/368
+        see for details: https://github.com/andymccurdy/redis-py/issues/368
         """
         # this assumes the Valkey server being tested against doesn't have
         # 9999 databases ;)
@@ -510,7 +510,6 @@ class TestConnection:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.8")
-    @skip_if_valkey_enterprise()
     def test_busy_loading_disconnects_socket(self, r):
         """
         If Valkey raises a LOADING error, the connection should be
@@ -522,7 +521,6 @@ class TestConnection:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.8")
-    @skip_if_valkey_enterprise()
     def test_busy_loading_from_pipeline_immediate_command(self, r):
         """
         BusyLoadingErrors should raise from Pipelines that execute a
@@ -538,7 +536,6 @@ class TestConnection:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.8")
-    @skip_if_valkey_enterprise()
     def test_busy_loading_from_pipeline(self, r):
         """
         BusyLoadingErrors should be raised from a pipeline execution
@@ -554,7 +551,6 @@ class TestConnection:
         assert not pool._available_connections[0]._sock
 
     @skip_if_server_version_lt("2.8.8")
-    @skip_if_valkey_enterprise()
     def test_read_only_error(self, r):
         "READONLY errors get turned into ReadOnlyError exceptions"
         with pytest.raises(valkey.ReadOnlyError):
@@ -591,19 +587,18 @@ class TestConnection:
             "path=/path/to/socket,db=0",
         )
 
-    @skip_if_valkey_enterprise()
     def test_connect_no_auth_configured(self, r):
         """
         AuthenticationError should be raised when the server is not configured with auth
         but credentials are supplied by the user.
         """
-        # Valkey < 6
+        # Redis < 6
         with pytest.raises(valkey.AuthenticationError):
             r.execute_command(
                 "DEBUG", "ERROR", "ERR Client sent AUTH, but no password is set"
             )
 
-        # Valkey >= 6
+        # Redis >= 6
         with pytest.raises(valkey.AuthenticationError):
             r.execute_command(
                 "DEBUG",
@@ -613,16 +608,10 @@ class TestConnection:
                 "your configuration is correct?",
             )
 
-    @skip_if_valkey_enterprise()
     def test_connect_invalid_auth_credentials_supplied(self, r):
         """
         AuthenticationError should be raised when sending invalid username/password
         """
-        # Valkey < 6
-        with pytest.raises(valkey.AuthenticationError):
-            r.execute_command("DEBUG", "ERROR", "ERR invalid password")
-
-        # Valkey >= 6
         with pytest.raises(valkey.AuthenticationError):
             r.execute_command("DEBUG", "ERROR", "WRONGPASS")
 

@@ -627,7 +627,7 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
         # Get the keys in the command
 
         # EVAL and EVALSHA are common enough that it's wasteful to go to the
-        # valkey server to parse the keys. Besides, there is a bug in valkey<7.0
+        # valkey server to parse the keys. Besides, there is a bug in redis<7.0
         # where `self._get_command_keys()` fails anyway. So, we special case
         # EVAL/EVALSHA.
         # - issue: https://github.com/redis/redis/issues/9493
@@ -899,10 +899,10 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
         continue trying forever. ``blocking_timeout`` can be specified as a
         float or integer, both representing the number of seconds to wait.
 
-        ``lock_class`` forces the specified lock implementation. Note that as
-        of valkey-py 3.0, the only lock class we implement is ``Lock`` (which is
-        a Lua-based lock). So, it's unlikely you'll need this parameter, unless
-        you have created your own custom lock class.
+        ``lock_class`` forces the specified lock implementation. Note that the
+        only lock class we implement is ``Lock`` (which is a Lua-based lock).
+        So, it's unlikely you'll need this parameter, unless you have created
+        your own custom lock class.
 
         ``thread_local`` indicates whether the lock token is placed in
         thread-local storage. By default, the token is placed in thread local

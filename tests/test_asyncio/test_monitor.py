@@ -1,5 +1,4 @@
 import pytest
-from tests.conftest import skip_if_valkey_enterprise, skip_ifnot_valkey_enterprise
 
 from .conftest import wait_for_command
 
@@ -44,7 +43,6 @@ class TestMonitor:
             response = await wait_for_command(r, m, "GET foo\\\\x92")
             assert response["command"] == "GET foo\\\\x92"
 
-    @skip_if_valkey_enterprise()
     async def test_lua_script(self, r):
         async with r.monitor() as m:
             script = 'return redis.call("GET", "foo")'
@@ -54,11 +52,3 @@ class TestMonitor:
             assert response["client_type"] == "lua"
             assert response["client_address"] == "lua"
             assert response["client_port"] == ""
-
-    @skip_ifnot_valkey_enterprise()
-    async def test_lua_script_in_enterprise(self, r):
-        async with r.monitor() as m:
-            script = 'return redis.call("GET", "foo")'
-            assert await r.eval(script, 0) is None
-            response = await wait_for_command(r, m, "GET foo")
-            assert response is None

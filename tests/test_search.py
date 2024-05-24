@@ -28,7 +28,6 @@ from .conftest import (
     _get_client,
     assert_resp_response,
     is_resp2_connection,
-    skip_if_valkey_enterprise,
     skip_ifmodversion_lt,
 )
 
@@ -477,7 +476,6 @@ def test_example(client):
 
 
 @pytest.mark.valkeymod
-@skip_if_valkey_enterprise()
 def test_auto_complete(client):
     n = 0
     with open(TITLES_CSV) as f:
@@ -1489,7 +1487,6 @@ def test_index_definition(client):
 
 @pytest.mark.valkeymod
 @pytest.mark.onlynoncluster
-@skip_if_valkey_enterprise()
 def test_expire(client):
     client.ft().create_index((TextField("txt", sortable=True),), temporary=4)
     ttl = client.execute_command("ft.debug", "TTL", "idx")
@@ -1895,7 +1892,6 @@ def test_json_with_jsonpath(client):
 
 @pytest.mark.valkeymod
 @pytest.mark.onlynoncluster
-@skip_if_valkey_enterprise()
 def test_profile(client):
     client.ft().create_index((TextField("t"),))
     client.ft().client.hset("1", "t", "hello")
@@ -2122,7 +2118,6 @@ def test_geo_params(client):
 
 
 @pytest.mark.valkeymod
-@skip_if_valkey_enterprise()
 def test_search_commands_in_pipeline(client):
     p = client.ft().pipeline()
     p.create_index((TextField("txt"),))

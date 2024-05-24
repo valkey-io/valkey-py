@@ -333,7 +333,6 @@ existing event loop inside your application.
    >>>         # do something with the message
    >>>     time.sleep(0.001)  # be nice to the system :)
 
-Older versions of valkey-py only read messages with pubsub.listen().
 listen() is a generator that blocks until a message is available. If
 your application doesn't need to do anything else but receive and act on
 messages received from valkey, listen() is an easy way to get up an
@@ -424,7 +423,7 @@ supported:
 Sharded pubsub
 ~~~~~~~~~~~~~~
 
-`Sharded pubsub <https://valkey.io/docs/interact/pubsub/#:~:text=Sharded%20Pub%2FSub%20helps%20to,the%20shard%20of%20a%20cluster.>`_ is a feature introduced with Valkey 7.0, and fully supported by valkey-py as of 5.0. It helps scale the usage of pub/sub in cluster mode, by having the cluster shard messages to nodes that own a slot for a shard channel. Here, the cluster ensures the published shard messages are forwarded to the appropriate nodes. Clients subscribe to a channel by connecting to either the master responsible for the slot, or any of its replicas.
+`Sharded pubsub <https://valkey.io/docs/interact/pubsub/#:~:text=Sharded%20Pub%2FSub%20helps%20to,the%20shard%20of%20a%20cluster.>`_ is a feature that helps scale the usage of pub/sub in cluster mode, by having the cluster shard messages to nodes that own a slot for a shard channel. Here, the cluster ensures the published shard messages are forwarded to the appropriate nodes. Clients subscribe to a channel by connecting to either the master responsible for the slot, or any of its replicas.
 
 This makes use of the `SSUBSCRIBE <https://valkey.io/commands/ssubscribe>`_ and `SPUBLISH <https://valkey.io/commands/spublish>`_ commands within Valkey.
 

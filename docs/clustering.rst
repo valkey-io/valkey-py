@@ -1,11 +1,11 @@
 Clustering
 ==========
 
-valkey-py now supports cluster mode and provides a client for `Valkey
+valkey-py supports cluster mode and provides a client for `Valkey
 Cluster <https://valkey.io/topics/cluster-tutorial>`__.
 
 The cluster client is based on Grokzen’s
-`valkey-py-cluster <https://github.com/Grokzen/valkey-py-cluster>`__, has
+`redis-py-cluster <https://github.com/Grokzen/redis-py-cluster>`__, has
 added bug fixes, and now supersedes that library. Support for these
 changes is thanks to his contributions.
 
