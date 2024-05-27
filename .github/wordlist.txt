@@ -9,6 +9,8 @@ ClusterPipeline
 ClusterPubSub
 ConnectionPool
 CoreCommands
+DCO
+DeveloperCertificate
 EVAL
 EVALSHA
 GraphCommands
@@ -75,6 +77,7 @@ boolean
 booleans
 bysource
 charset
+configs
 del
 dev
 docstring
