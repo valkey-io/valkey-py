@@ -17,31 +17,31 @@ echo "ENDING: ${END_PORT}"
 
 for PORT in `seq ${START_PORT} ${END_PORT}`; do
   mkdir -p /nodes/$PORT
-  if [[ -e /redis.conf ]]; then
-    cp /redis.conf /nodes/$PORT/redis.conf
+  if [[ -e /valkey.conf ]]; then
+    cp /valkey.conf /nodes/$PORT/valkey.conf
   else
-    touch /nodes/$PORT/redis.conf
+    touch /nodes/$PORT/valkey.conf
   fi
-  cat << EOF >> /nodes/$PORT/redis.conf
+  cat << EOF >> /nodes/$PORT/valkey.conf
 port ${PORT}
 cluster-enabled yes
 daemonize yes
-logfile /redis.log
+logfile /valkey.log
 dir /nodes/$PORT
 EOF
 
   set -x
-  /opt/redis-stack/bin/redis-server /nodes/$PORT/redis.conf
+  /usr/local/bin/valkey-server /nodes/$PORT/valkey.conf
   sleep 1
   if [ $? -ne 0 ]; then
-    echo "Redis failed to start, exiting."
+    echo "Valkey failed to start, exiting."
     continue
   fi
   echo 127.0.0.1:$PORT >> /nodes/nodemap
 done
-if [ -z "${REDIS_PASSWORD}" ]; then
-    echo yes | /opt/redis-stack/bin/redis-cli --cluster create `seq -f 127.0.0.1:%g ${START_PORT} ${END_PORT}` --cluster-replicas 1
+if [ -z "${VALKEY_PASSWORD}" ]; then
+    echo yes | /usr/local/bin/valkey-cli --cluster create `seq -f 127.0.0.1:%g ${START_PORT} ${END_PORT}` --cluster-replicas 1
 else
-    echo yes | opt/redis-stack/bin/redis-cli -a ${REDIS_PASSWORD} --cluster create `seq -f 127.0.0.1:%g ${START_PORT} ${END_PORT}` --cluster-replicas 1
+    echo yes | /usr/local/bin/valkey-cli -a ${VALKEY_PASSWORD} --cluster create `seq -f 127.0.0.1:%g ${START_PORT} ${END_PORT}` --cluster-replicas 1
 fi
-tail -f /redis.log
+tail -f /valkey.log

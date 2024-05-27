@@ -5,15 +5,14 @@ from typing import Optional, Tuple, Union
 
 import pytest
 import pytest_asyncio
-import redis
-from redis import AuthenticationError, DataError, ResponseError
-from redis.credentials import CredentialProvider, UsernamePasswordCredentialProvider
-from redis.utils import str_if_bytes
-from tests.conftest import skip_if_redis_enterprise
+import valkey
+from valkey import AuthenticationError, DataError, ResponseError
+from valkey.credentials import CredentialProvider, UsernamePasswordCredentialProvider
+from valkey.utils import str_if_bytes
 
 
 @pytest_asyncio.fixture()
-async def r_acl_teardown(r: redis.Redis):
+async def r_acl_teardown(r: valkey.Valkey):
     """
     A special fixture which removes the provided names from the database after use
     """
@@ -29,7 +28,7 @@ async def r_acl_teardown(r: redis.Redis):
 
 
 @pytest_asyncio.fixture()
-async def r_required_pass_teardown(r: redis.Redis):
+async def r_required_pass_teardown(r: valkey.Valkey):
     """
     A special fixture which removes the provided password from the database after use
     """
@@ -120,9 +119,8 @@ async def init_required_pass(r, password):
 
 @pytest.mark.asyncio
 class TestCredentialsProvider:
-    @skip_if_redis_enterprise()
     async def test_only_pass_without_creds_provider(
-        self, r_required_pass_teardown, create_redis
+        self, r_required_pass_teardown, create_valkey
     ):
         # test for default user (`username` is supposed to be optional)
         password = "password"
@@ -130,13 +128,12 @@ class TestCredentialsProvider:
         await init_required_pass(r, password)
         assert await r.auth(password) is True
 
-        r2 = await create_redis(flushdb=False, password=password)
+        r2 = await create_valkey(flushdb=False, password=password)
 
         assert await r2.ping() is True
 
-    @skip_if_redis_enterprise()
     async def test_user_and_pass_without_creds_provider(
-        self, r_acl_teardown, create_redis
+        self, r_acl_teardown, create_valkey
     ):
         """
         Test backward compatibility with username and password
@@ -146,15 +143,14 @@ class TestCredentialsProvider:
         password = "password"
         r = r_acl_teardown(username)
         await init_acl_user(r, username, password)
-        r2 = await create_redis(flushdb=False, username=username, password=password)
+        r2 = await create_valkey(flushdb=False, username=username, password=password)
 
         assert await r2.ping() is True
 
     @pytest.mark.parametrize("username", ["username", None])
-    @skip_if_redis_enterprise()
     @pytest.mark.onlynoncluster
     async def test_credential_provider_with_supplier(
-        self, r_acl_teardown, r_required_pass_teardown, create_redis, username
+        self, r_acl_teardown, r_required_pass_teardown, create_valkey, username
     ):
         creds_provider = AsyncRandomAuthCredProvider(
             user=username,
@@ -171,17 +167,17 @@ class TestCredentialsProvider:
             r = r_required_pass_teardown(password)
             await init_required_pass(r, password)
 
-        r2 = await create_redis(flushdb=False, credential_provider=creds_provider)
+        r2 = await create_valkey(flushdb=False, credential_provider=creds_provider)
 
         assert await r2.ping() is True
 
     async def test_async_credential_provider_no_password_success(
-        self, r_acl_teardown, create_redis
+        self, r_acl_teardown, create_valkey
     ):
         username = "username"
         r = r_acl_teardown(username)
         await init_acl_user(r, username, "")
-        r2 = await create_redis(
+        r2 = await create_valkey(
             flushdb=False,
             credential_provider=NoPassCredProvider(),
         )
@@ -189,13 +185,13 @@ class TestCredentialsProvider:
 
     @pytest.mark.onlynoncluster
     async def test_credential_provider_no_password_error(
-        self, r_acl_teardown, create_redis
+        self, r_acl_teardown, create_valkey
     ):
         username = "username"
         r = r_acl_teardown(username)
         await init_acl_user(r, username, "password")
         with pytest.raises(AuthenticationError) as e:
-            await create_redis(
+            await create_valkey(
                 flushdb=False,
                 credential_provider=NoPassCredProvider(),
                 single_connection_client=True,
@@ -205,7 +201,7 @@ class TestCredentialsProvider:
 
     @pytest.mark.onlynoncluster
     async def test_password_and_username_together_with_cred_provider_raise_error(
-        self, r_acl_teardown, create_redis
+        self, r_acl_teardown, create_valkey
     ):
         username = "username"
         r = r_acl_teardown(username)
@@ -214,7 +210,7 @@ class TestCredentialsProvider:
             username="username", password="password"
         )
         with pytest.raises(DataError) as e:
-            await create_redis(
+            await create_valkey(
                 flushdb=False,
                 username="username",
                 password="password",
@@ -228,7 +224,7 @@ class TestCredentialsProvider:
 
     @pytest.mark.onlynoncluster
     async def test_change_username_password_on_existing_connection(
-        self, r_acl_teardown, create_redis
+        self, r_acl_teardown, create_valkey
     ):
         username = "origin_username"
         password = "origin_password"
@@ -236,7 +232,7 @@ class TestCredentialsProvider:
         new_password = "new_password"
         r = r_acl_teardown(username)
         await init_acl_user(r, username, password)
-        r2 = await create_redis(flushdb=False, username=username, password=password)
+        r2 = await create_valkey(flushdb=False, username=username, password=password)
         assert await r2.ping() is True
         conn = await r2.connection_pool.get_connection("_")
         await conn.send_command("PING")
@@ -253,7 +249,7 @@ class TestCredentialsProvider:
 @pytest.mark.asyncio
 class TestUsernamePasswordCredentialProvider:
     async def test_user_pass_credential_provider_acl_user_and_pass(
-        self, r_acl_teardown, create_redis
+        self, r_acl_teardown, create_valkey
     ):
         username = "username"
         password = "password"
@@ -263,11 +259,11 @@ class TestUsernamePasswordCredentialProvider:
         assert provider.password == password
         assert provider.get_credentials() == (username, password)
         await init_acl_user(r, provider.username, provider.password)
-        r2 = await create_redis(flushdb=False, credential_provider=provider)
+        r2 = await create_valkey(flushdb=False, credential_provider=provider)
         assert await r2.ping() is True
 
     async def test_user_pass_provider_only_password(
-        self, r_required_pass_teardown, create_redis
+        self, r_required_pass_teardown, create_valkey
     ):
         password = "password"
         provider = UsernamePasswordCredentialProvider(password=password)
@@ -278,6 +274,6 @@ class TestUsernamePasswordCredentialProvider:
 
         await init_required_pass(r, password)
 
-        r2 = await create_redis(flushdb=False, credential_provider=provider)
+        r2 = await create_valkey(flushdb=False, credential_provider=provider)
         assert await r2.auth(provider.password) is True
         assert await r2.ping() is True

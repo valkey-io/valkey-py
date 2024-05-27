@@ -1,9 +1,9 @@
 import pytest
-from redis.asyncio import Redis
-from redis.asyncio.connection import Connection, UnixDomainSocketConnection
-from redis.asyncio.retry import Retry
-from redis.backoff import AbstractBackoff, ExponentialBackoff, NoBackoff
-from redis.exceptions import ConnectionError, TimeoutError
+from valkey.asyncio import Valkey
+from valkey.asyncio.connection import Connection, UnixDomainSocketConnection
+from valkey.asyncio.retry import Retry
+from valkey.backoff import AbstractBackoff, ExponentialBackoff, NoBackoff
+from valkey.exceptions import ConnectionError, TimeoutError
 
 
 class BackoffMock(AbstractBackoff):
@@ -116,13 +116,13 @@ class TestRetry:
         assert self.actual_failures == 5
 
 
-class TestRedisClientRetry:
-    "Test the Redis client behavior with retries"
+class TestValkeyClientRetry:
+    "Test the Valkey client behavior with retries"
 
     async def test_get_set_retry_object(self, request):
         retry = Retry(NoBackoff(), 2)
-        url = request.config.getoption("--redis-url")
-        r = await Redis.from_url(url, retry_on_timeout=True, retry=retry)
+        url = request.config.getoption("--valkey-url")
+        r = await Valkey.from_url(url, retry_on_timeout=True, retry=retry)
         assert r.get_retry()._retries == retry._retries
         assert isinstance(r.get_retry()._backoff, NoBackoff)
         new_retry_policy = Retry(ExponentialBackoff(), 3)

@@ -2,15 +2,15 @@ import asyncio
 import contextlib
 
 import pytest
-from redis.asyncio import Redis
-from redis.asyncio.cluster import RedisCluster
-from redis.asyncio.connection import async_timeout
+from valkey.asyncio import Valkey
+from valkey.asyncio.cluster import ValkeyCluster
+from valkey.asyncio.connection import async_timeout
 
 
 class DelayProxy:
-    def __init__(self, addr, redis_addr, delay: float = 0.0):
+    def __init__(self, addr, valkey_addr, delay: float = 0.0):
         self.addr = addr
-        self.redis_addr = redis_addr
+        self.valkey_addr = valkey_addr
         self.delay = delay
         self.send_event = asyncio.Event()
         self.server = None
@@ -26,10 +26,10 @@ class DelayProxy:
         await self.stop()
 
     async def start(self):
-        # test that we can connect to redis
+        # test that we can connect to valkey
         async with async_timeout(2):
-            _, redis_writer = await asyncio.open_connection(*self.redis_addr)
-        redis_writer.close()
+            _, valkey_writer = await asyncio.open_connection(*self.valkey_addr)
+        valkey_writer.close()
         self.server = await asyncio.start_server(
             self.handle, *self.addr, reuse_address=True
         )
@@ -49,12 +49,12 @@ class DelayProxy:
             self.delay = old_delay
 
     async def handle(self, reader, writer):
-        # establish connection to redis
-        redis_reader, redis_writer = await asyncio.open_connection(*self.redis_addr)
+        # establish connection to valkey
+        valkey_reader, valkey_writer = await asyncio.open_connection(*self.valkey_addr)
         pipe1 = asyncio.create_task(
-            self.pipe(reader, redis_writer, "to redis:", self.send_event)
+            self.pipe(reader, valkey_writer, "to valkey:", self.send_event)
         )
-        pipe2 = asyncio.create_task(self.pipe(redis_reader, writer, "from redis:"))
+        pipe2 = asyncio.create_task(self.pipe(valkey_reader, writer, "from valkey:"))
         await asyncio.gather(pipe1, pipe2)
 
     async def stop(self):
@@ -106,12 +106,12 @@ class DelayProxy:
 @pytest.mark.onlynoncluster
 @pytest.mark.parametrize("delay", argvalues=[0.05, 0.5, 1, 2])
 async def test_standalone(delay, master_host):
-    # create a tcp socket proxy that relays data to Redis and back,
+    # create a tcp socket proxy that relays data to Valkey and back,
     # inserting 0.1 seconds of delay
-    async with DelayProxy(addr=("127.0.0.1", 5380), redis_addr=master_host) as dp:
+    async with DelayProxy(addr=("127.0.0.1", 5380), valkey_addr=master_host) as dp:
         for b in [True, False]:
-            # note that we connect to proxy, rather than to Redis directly
-            async with Redis(
+            # note that we connect to proxy, rather than to Valkey directly
+            async with Valkey(
                 host="127.0.0.1", port=5380, single_connection_client=b
             ) as r:
                 await r.set("foo", "foo")
@@ -143,9 +143,9 @@ async def test_standalone(delay, master_host):
 @pytest.mark.onlynoncluster
 @pytest.mark.parametrize("delay", argvalues=[0.05, 0.5, 1, 2])
 async def test_standalone_pipeline(delay, master_host):
-    async with DelayProxy(addr=("127.0.0.1", 5380), redis_addr=master_host) as dp:
+    async with DelayProxy(addr=("127.0.0.1", 5380), valkey_addr=master_host) as dp:
         for b in [True, False]:
-            async with Redis(
+            async with Valkey(
                 host="127.0.0.1", port=5380, single_connection_client=b
             ) as r:
                 await r.set("foo", "foo")
@@ -208,7 +208,7 @@ async def test_cluster(master_host):
         port = cluster_port + i
         remapped = remap_base + i
         forward_addr = hostname, port
-        proxy = DelayProxy(addr=("127.0.0.1", remapped), redis_addr=forward_addr)
+        proxy = DelayProxy(addr=("127.0.0.1", remapped), valkey_addr=forward_addr)
         proxies.append(proxy)
 
     def all_clear():
@@ -232,8 +232,8 @@ async def test_cluster(master_host):
         for p in proxies:
             await stack.enter_async_context(p)
 
-        r = RedisCluster.from_url(
-            f"redis://127.0.0.1:{remap_base}", address_remap=remap
+        r = ValkeyCluster.from_url(
+            f"valkey://127.0.0.1:{remap_base}", address_remap=remap
         )
         try:
             await r.initialize()

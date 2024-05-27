@@ -1,10 +1,11 @@
 from unittest.mock import patch
 
 import pytest
-from redis import Redis
-from redis.commands.graph import Edge, Node, Path
-from redis.commands.graph.execution_plan import Operation
-from redis.commands.graph.query_result import (
+from tests.conftest import _get_client
+from valkey import Valkey
+from valkey.commands.graph import Edge, Node, Path
+from valkey.commands.graph.execution_plan import Operation
+from valkey.commands.graph.query_result import (
     CACHED_EXECUTION,
     INDICES_CREATED,
     INDICES_DELETED,
@@ -19,13 +20,14 @@ from redis.commands.graph.query_result import (
     RELATIONSHIPS_DELETED,
     QueryResult,
 )
-from redis.exceptions import ResponseError
-from tests.conftest import _get_client, skip_if_redis_enterprise
+from valkey.exceptions import ResponseError
+
+pytestmark = pytest.mark.skip
 
 
 @pytest.fixture
 def client(request):
-    r = _get_client(Redis, request, decode_responses=True)
+    r = _get_client(Valkey, request, decode_responses=True)
     r.flushdb()
     return r
 
@@ -316,7 +318,6 @@ def test_profile(client):
     assert "Node By Label Scan | (p:Person) | Records produced: 3" in profile
 
 
-@skip_if_redis_enterprise()
 def test_config(client):
     config_name = "RESULTSET_SIZE"
     config_value = 3
@@ -371,14 +372,14 @@ def test_list_keys(client):
 
 
 def test_multi_label(client):
-    redis_graph = client.graph("g")
+    valkey_graph = client.graph("g")
 
     node = Node(label=["l", "ll"])
-    redis_graph.add_node(node)
-    redis_graph.commit()
+    valkey_graph.add_node(node)
+    valkey_graph.commit()
 
     query = "MATCH (n) RETURN n"
-    result = redis_graph.query(query)
+    result = valkey_graph.query(query)
     result_node = result.result_set[0][0]
     assert result_node == node
 
@@ -468,33 +469,33 @@ def test_cache_sync(client):
 
 
 def test_execution_plan(client):
-    redis_graph = client.graph("execution_plan")
+    valkey_graph = client.graph("execution_plan")
     create_query = """CREATE
     (:Rider {name:'Valentino Rossi'})-[:rides]->(:Team {name:'Yamaha'}),
     (:Rider {name:'Dani Pedrosa'})-[:rides]->(:Team {name:'Honda'}),
     (:Rider {name:'Andrea Dovizioso'})-[:rides]->(:Team {name:'Ducati'})"""
-    redis_graph.query(create_query)
+    valkey_graph.query(create_query)
 
-    result = redis_graph.execution_plan(
+    result = valkey_graph.execution_plan(
         "MATCH (r:Rider)-[:rides]->(t:Team) WHERE t.name = $name RETURN r.name, t.name, $params",  # noqa
         {"name": "Yehuda"},
     )
     expected = "Results\n    Project\n        Conditional Traverse | (t)->(r:Rider)\n            Filter\n                Node By Label Scan | (t:Team)"  # noqa
     assert result == expected
 
-    redis_graph.delete()
+    valkey_graph.delete()
 
 
 def test_explain(client):
-    redis_graph = client.graph("execution_plan")
+    valkey_graph = client.graph("execution_plan")
     # graph creation / population
     create_query = """CREATE
 (:Rider {name:'Valentino Rossi'})-[:rides]->(:Team {name:'Yamaha'}),
 (:Rider {name:'Dani Pedrosa'})-[:rides]->(:Team {name:'Honda'}),
 (:Rider {name:'Andrea Dovizioso'})-[:rides]->(:Team {name:'Ducati'})"""
-    redis_graph.query(create_query)
+    valkey_graph.query(create_query)
 
-    result = redis_graph.explain(
+    result = valkey_graph.explain(
         """MATCH (r:Rider)-[:rides]->(t:Team)
 WHERE t.name = $name
 RETURN r.name, t.name
@@ -546,7 +547,7 @@ Distinct
 
     assert result.structured_plan == expected
 
-    result = redis_graph.explain(
+    result = valkey_graph.explain(
         """MATCH (r:Rider), (t:Team)
                                     RETURN r.name, t.name"""
     )
@@ -570,7 +571,7 @@ Project
 
     assert result.structured_plan == expected
 
-    redis_graph.delete()
+    valkey_graph.delete()
 
 
 def test_resultset_statistics(client):

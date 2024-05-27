@@ -3,11 +3,11 @@ name: Docs CI
 on:
   push:
     branches:
-      - master
+      - main
       - '[0-9].[0-9]'
   pull_request:
     branches:
-      - master
+      - main
       - '[0-9].[0-9]'
   schedule:
     - cron: '0 1 * * *' # nightly build
@@ -42,6 +42,6 @@ jobs:
        - name: upload docs
          uses: actions/upload-artifact@v4
          with:
-           name: redis-py-docs
+           name: valkey-py-docs
            path: |
              docs/_build/html

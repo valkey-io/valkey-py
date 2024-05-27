@@ -1,17 +1,17 @@
 Retry Helpers
 #############
 
-.. automodule:: redis.retry
+.. automodule:: valkey.retry
     :members:
 
 
-Retry in Redis Standalone
+Retry in Valkey Standalone
 **************************
 
->>> from redis.backoff import ExponentialBackoff
->>> from redis.retry import Retry
->>> from redis.client import Redis
->>> from redis.exceptions import (
+>>> from valkey.backoff import ExponentialBackoff
+>>> from valkey.retry import Retry
+>>> from valkey.client import Valkey
+>>> from valkey.exceptions import (
 >>>    BusyLoadingError,
 >>>    ConnectionError,
 >>>    TimeoutError
@@ -19,12 +19,12 @@ Retry in Redis Standalone
 >>>
 >>> # Run 3 retries with exponential backoff strategy
 >>> retry = Retry(ExponentialBackoff(), 3)
->>> # Redis client with retries on custom errors
->>> r = Redis(host='localhost', port=6379, retry=retry, retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError])
->>> # Redis client with retries on TimeoutError only
->>> r_only_timeout = Redis(host='localhost', port=6379, retry=retry, retry_on_timeout=True)
+>>> # Valkey client with retries on custom errors
+>>> r = Valkey(host='localhost', port=6379, retry=retry, retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError])
+>>> # Valkey client with retries on TimeoutError only
+>>> r_only_timeout = Valkey(host='localhost', port=6379, retry=retry, retry_on_timeout=True)
 
-As you can see from the example above, Redis client supports 3 parameters to configure the retry behaviour:
+As you can see from the example above, Valkey client supports 3 parameters to configure the retry behaviour:
 
 * ``retry``: :class:`~.Retry` instance with a :ref:`backoff-label` strategy and the max number of retries
 * ``retry_on_error``: list of :ref:`exceptions-label` to retry on
@@ -34,30 +34,30 @@ If either ``retry_on_error`` or ``retry_on_timeout`` are passed and no ``retry``
 by default it uses a ``Retry(NoBackoff(), 1)`` (meaning 1 retry right after the first failure).
 
 
-Retry in Redis Cluster
+Retry in Valkey Cluster
 **************************
 
->>> from redis.backoff import ExponentialBackoff
->>> from redis.retry import Retry
->>> from redis.cluster import RedisCluster
+>>> from valkey.backoff import ExponentialBackoff
+>>> from valkey.retry import Retry
+>>> from valkey.cluster import ValkeyCluster
 >>>
 >>> # Run 3 retries with exponential backoff strategy
 >>> retry = Retry(ExponentialBackoff(), 3)
->>> # Redis Cluster client with retries
->>> rc = RedisCluster(host='localhost', port=6379, retry=retry, cluster_error_retry_attempts=2)
+>>> # Valkey Cluster client with retries
+>>> rc = ValkeyCluster(host='localhost', port=6379, retry=retry, cluster_error_retry_attempts=2)
 
-Retry behaviour in Redis Cluster is a little bit different from Standalone:
+Retry behaviour in Valkey Cluster is a little bit different from Standalone:
 
 * ``retry``: :class:`~.Retry` instance with a :ref:`backoff-label` strategy and the max number of retries, default value is ``Retry(NoBackoff(), 0)``
 * ``cluster_error_retry_attempts``: number of times to retry before raising an error when :class:`~.TimeoutError` or :class:`~.ConnectionError` or :class:`~.ClusterDownError` are encountered, default value is ``3``
 
 Let's consider the following example:
 
->>> from redis.backoff import ExponentialBackoff
->>> from redis.retry import Retry
->>> from redis.cluster import RedisCluster
+>>> from valkey.backoff import ExponentialBackoff
+>>> from valkey.retry import Retry
+>>> from valkey.cluster import ValkeyCluster
 >>>
->>> rc = RedisCluster(host='localhost', port=6379, retry=Retry(ExponentialBackoff(), 6), cluster_error_retry_attempts=1)
+>>> rc = ValkeyCluster(host='localhost', port=6379, retry=Retry(ExponentialBackoff(), 6), cluster_error_retry_attempts=1)
 >>> rc.set('foo', 'bar')
 
 #. the client library calculates the hash slot for key 'foo'.

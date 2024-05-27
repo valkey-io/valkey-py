@@ -4,20 +4,20 @@ Advanced Features
 A note about threading
 ----------------------
 
-Redis client instances can safely be shared between threads. Internally,
+Valkey client instances can safely be shared between threads. Internally,
 connection instances are only retrieved from the connection pool during
 command execution, and returned to the pool directly after. Command
 execution never modifies state on the client instance.
 
-However, there is one caveat: the Redis SELECT command. The SELECT
+However, there is one caveat: the Valkey SELECT command. The SELECT
 command allows you to switch the database currently in use by the
 connection. That database remains selected until another is selected or
 until the connection is closed. This creates an issue in that
 connections could be returned to the pool that are connected to a
 different database.
 
-As a result, redis-py does not implement the SELECT command on client
-instances. If you use multiple Redis databases within the same
+As a result, valkey-py does not implement the SELECT command on client
+instances. If you use multiple Valkey databases within the same
 application, you should create a separate client instance (and possibly
 a separate connection pool) for each database.
 
@@ -29,7 +29,7 @@ Pipelines
 Default pipelines
 ~~~~~~~~~~~~~~~~~
 
-Pipelines are a subclass of the base Redis class that provide support
+Pipelines are a subclass of the base Valkey class that provide support
 for buffering multiple commands to the server in a single request. They
 can be used to dramatically increase the performance of groups of
 commands by reducing the number of back-and-forth TCP packets between
@@ -39,7 +39,7 @@ Pipelines are quite simple to use:
 
 .. code:: python
 
-   >>> r = redis.Redis(...)
+   >>> r = valkey.Valkey(...)
    >>> r.set('bing', 'baz')
    >>> # Use the pipeline() method to create a pipeline instance
    >>> pipe = r.pipeline()
@@ -69,7 +69,7 @@ commands, you can turn off transactions.
    >>> pipe = r.pipeline(transaction=False)
 
 A common issue occurs when requiring atomic transactions but needing to
-retrieve values in Redis prior for use within the transaction. For
+retrieve values in Valkey prior for use within the transaction. For
 instance, let's assume that the INCR command didn't exist and we need to
 build an atomic version of INCR in Python.
 
@@ -148,20 +148,20 @@ like this, which is much easier to read:
    >>> r.transaction(client_side_incr, 'OUR-SEQUENCE-KEY')
    [True]
 
-Be sure to call pipe.multi() in the callable passed to Redis.transaction
+Be sure to call pipe.multi() in the callable passed to Valkey.transaction
 prior to any write commands.
 
 Pipelines in clusters
 ~~~~~~~~~~~~~~~~~~~~~
 
-ClusterPipeline is a subclass of RedisCluster that provides support for
-Redis pipelines in cluster mode. When calling the execute() command, all
+ClusterPipeline is a subclass of ValkeyCluster that provides support for
+Valkey pipelines in cluster mode. When calling the execute() command, all
 the commands are grouped by the node on which they will be executed, and
 are then executed by the respective nodes in parallel. The pipeline
 instance will wait for all the nodes to respond before returning the
 result to the caller. Command responses are returned as a list sorted in
 the same order in which they were sent. Pipelines can be used to
-dramatically increase the throughput of Redis Cluster by significantly
+dramatically increase the throughput of Valkey Cluster by significantly
 reducing the number of network round trips between the client and
 the server.
 
@@ -177,7 +177,7 @@ the server.
    ...     pipe.set('foo1', 'bar1').get('foo1').execute()
    [True, b'bar1']
 
-Please note: - RedisCluster pipelines currently only support key-based
+Please note: - ValkeyCluster pipelines currently only support key-based
 commands. - The pipeline gets its ‘read_from_replicas’ value from the
 cluster’s parameter. Thus, if read from replications is enabled in the
 cluster instance, the pipeline will also direct read commands to
@@ -195,12 +195,12 @@ most cases they are split up into several smaller pipelines.
 Publish / Subscribe
 -------------------
 
-redis-py includes a PubSub object that subscribes to channels and
+valkey-py includes a PubSub object that subscribes to channels and
 listens for new messages. Creating a PubSub object is easy.
 
 .. code:: python
 
-   >>> r = redis.Redis(...)
+   >>> r = valkey.Valkey(...)
    >>> p = r.pubsub()
 
 Once a PubSub instance is created, channels and patterns can be
@@ -267,7 +267,7 @@ Unsubscribing works just like subscribing. If no arguments are passed to
    >>> p.get_message()
    {'channel': b'my-*', 'data': 0, 'pattern': None, 'type': 'punsubscribe'}
 
-redis-py also allows you to register callback functions to handle
+valkey-py also allows you to register callback functions to handle
 published messages. Message handlers take a single argument, the
 message, which is a dictionary just like the examples above. To
 subscribe to a channel or pattern with a message handler, pass the
@@ -333,10 +333,9 @@ existing event loop inside your application.
    >>>         # do something with the message
    >>>     time.sleep(0.001)  # be nice to the system :)
 
-Older versions of redis-py only read messages with pubsub.listen().
 listen() is a generator that blocks until a message is available. If
 your application doesn't need to do anything else but receive and act on
-messages received from redis, listen() is an easy way to get up an
+messages received from valkey, listen() is an easy way to get up an
 running.
 
 .. code:: python
@@ -356,7 +355,7 @@ value in each iteration of the loop.
 
 Note: Since we're running in a separate thread, there's no way to handle
 messages that aren't automatically handled with registered message
-handlers. Therefore, redis-py prevents you from calling run_in_thread()
+handlers. Therefore, valkey-py prevents you from calling run_in_thread()
 if you're subscribed to patterns or channels that don't have message
 handlers attached.
 
@@ -387,7 +386,7 @@ run_in_thread.
 A PubSub object adheres to the same encoding semantics as the client
 instance it was created from. Any channel or pattern that's unicode will
 be encoded using the charset specified on the client before being sent
-to Redis. If the client's decode_responses flag is set the False (the
+to Valkey. If the client's decode_responses flag is set the False (the
 default), the 'channel', 'pattern' and 'data' values in message
 dictionaries will be byte strings (str on Python 2, bytes on Python 3).
 If the client's decode_responses is True, then the 'channel', 'pattern'
@@ -424,16 +423,16 @@ supported:
 Sharded pubsub
 ~~~~~~~~~~~~~~
 
-`Sharded pubsub <https://redis.io/docs/interact/pubsub/#:~:text=Sharded%20Pub%2FSub%20helps%20to,the%20shard%20of%20a%20cluster.>`_ is a feature introduced with Redis 7.0, and fully supported by redis-py as of 5.0. It helps scale the usage of pub/sub in cluster mode, by having the cluster shard messages to nodes that own a slot for a shard channel. Here, the cluster ensures the published shard messages are forwarded to the appropriate nodes. Clients subscribe to a channel by connecting to either the master responsible for the slot, or any of its replicas.
+`Sharded pubsub <https://valkey.io/docs/interact/pubsub/#:~:text=Sharded%20Pub%2FSub%20helps%20to,the%20shard%20of%20a%20cluster.>`_ is a feature that helps scale the usage of pub/sub in cluster mode, by having the cluster shard messages to nodes that own a slot for a shard channel. Here, the cluster ensures the published shard messages are forwarded to the appropriate nodes. Clients subscribe to a channel by connecting to either the master responsible for the slot, or any of its replicas.
 
-This makes use of the `SSUBSCRIBE <https://redis.io/commands/ssubscribe>`_ and `SPUBLISH <https://redis.io/commands/spublish>`_ commands within Redis.
+This makes use of the `SSUBSCRIBE <https://valkey.io/commands/ssubscribe>`_ and `SPUBLISH <https://valkey.io/commands/spublish>`_ commands within Valkey.
 
 The following, is a simplified example:
 
 .. code:: python
 
-    >>> from redis.cluster import RedisCluster, ClusterNode
-    >>> r = RedisCluster(startup_nodes=[ClusterNode('localhost', 6379), ClusterNode('localhost', 6380)])
+    >>> from valkey.cluster import ValkeyCluster, ClusterNode
+    >>> r = ValkeyCluster(startup_nodes=[ClusterNode('localhost', 6379), ClusterNode('localhost', 6380)])
     >>> p = r.pubsub()
     >>> p.ssubscribe('foo')
     >>> # assume someone sends a message along the channel via a publish
@@ -443,10 +442,10 @@ Similarly, the same process can be used to acquire sharded pubsub messages, that
 
 .. code:: python
 
-    >>> from redis.cluster import RedisCluster, ClusterNode
+    >>> from valkey.cluster import ValkeyCluster, ClusterNode
     >>> first_node = ClusterNode['localhost', 6379]
     >>> second_node = ClusterNode['localhost', 6380]
-    >>> r = RedisCluster(startup_nodes=[first_node, second_node])
+    >>> r = ValkeyCluster(startup_nodes=[first_node, second_node])
     >>> p = r.pubsub()
     >>> p.ssubscribe('foo')
     >>> # assume someone sends a message along the channel via a publish
@@ -456,13 +455,13 @@ Similarly, the same process can be used to acquire sharded pubsub messages, that
 Monitor
 ~~~~~~~
 
-redis-py includes a Monitor object that streams every command processed
-by the Redis server. Use listen() on the Monitor object to block until a
+valkey-py includes a Monitor object that streams every command processed
+by the Valkey server. Use listen() on the Monitor object to block until a
 command is received.
 
 .. code:: python
 
-   >>> r = redis.Redis(...)
+   >>> r = valkey.Valkey(...)
    >>> with r.monitor() as m:
    >>>     for command in m.listen():
    >>>         print(command)

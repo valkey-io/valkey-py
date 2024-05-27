@@ -32,30 +32,30 @@ OpenTelemetry instrumentation
 
 Instrumentations are plugins for popular frameworks and libraries that use OpenTelemetry API to record important operations, for example, HTTP requests, DB queries, logs, errors, and more.
 
-To install OpenTelemetry `instrumentation <https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/redis/redis.html>`_ for redis-py:
+To install OpenTelemetry `instrumentation <https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/redis/redis.html>`_ for valkey-py:
 
 .. code-block:: shell
 
-   pip install opentelemetry-instrumentation-redis
+   pip install opentelemetry-instrumentation-valkey
 
 You can then use it to instrument code like this:
 
 .. code-block:: python
 
-   from opentelemetry.instrumentation.redis import RedisInstrumentor
+   from opentelemetry.instrumentation.valkey import ValkeyInstrumentor
 
-   RedisInstrumentor().instrument()
+   ValkeyInstrumentor().instrument()
 
-Once the code is patched, you can use redis-py as usually:
+Once the code is patched, you can use valkey-py as usually:
 
 .. code-block:: python
 
    # Sync client
-   client = redis.Redis()
+   client = valkey.Valkey()
    client.get("my-key")
 
    # Async client
-   client = redis.asyncio.Redis()
+   client = valkey.asyncio.Valkey()
    await client.get("my-key")
 
 OpenTelemetry API
@@ -99,43 +99,43 @@ Uptrace
 
 Uptrace is an `open source APM <https://uptrace.dev/get/open-source-apm.html>`_ that supports distributed tracing, metrics, and logs. You can use it to monitor applications and set up automatic alerts to receive notifications via email, Slack, Telegram, and more.
 
-You can use Uptrace to monitor redis-py using this `GitHub example <https://github.com/redis/redis-py/tree/master/docs/examples/opentelemetry>`_ as a starting point.
+You can use Uptrace to monitor valkey-py using this `GitHub example <https://github.com/valkey/valkey-py/tree/master/docs/examples/opentelemetry>`_ as a starting point.
 
-.. image:: images/opentelemetry/redis-py-trace.png
-  :alt: Redis-py trace
+.. image:: images/opentelemetry/valkey-py-trace.png
+  :alt: Valkey-py trace
 
 You can `install Uptrace <https://uptrace.dev/get/install.html>`_ by downloading a DEB/RPM package or a pre-compiled binary.
 
-Monitoring Redis Server performance
+Monitoring Valkey Server performance
 -----------------------------------
 
-In addition to monitoring redis-py client, you can also monitor Redis Server performance using OpenTelemetry Collector Agent.
+In addition to monitoring valkey-py client, you can also monitor Valkey Server performance using OpenTelemetry Collector Agent.
 
 OpenTelemetry Collector is a proxy/middleman between your application and a `distributed tracing tool <https://uptrace.dev/blog/distributed-tracing-tools.html>`_ such as Uptrace or Jaeger. Collector receives telemetry data, processes it, and then exports the data to APM tools that can store it permanently.
 
-For example, you can use the `OpenTelemetry Redis receiver <https://uptrace.dev/get/monitor/opentelemetry-redis.html>` provided by Otel Collector to monitor Redis performance:
+For example, you can use the `OpenTelemetry Valkey receiver <https://uptrace.dev/get/monitor/opentelemetry-valkey.html>` provided by Otel Collector to monitor Valkey performance:
 
-.. image:: images/opentelemetry/redis-metrics.png
-  :alt: Redis metrics
+.. image:: images/opentelemetry/valkey-metrics.png
+  :alt: Valkey metrics
 
 See introduction to `OpenTelemetry Collector <https://uptrace.dev/opentelemetry/collector.html>`_ for details.
 
 Alerting and notifications
 --------------------------
 
-Uptrace also allows you to monitor `OpenTelemetry metrics <https://uptrace.dev/opentelemetry/metrics.html>`_ using alerting rules. For example, the following monitor uses the group by node expression to create an alert whenever an individual Redis shard is down:
+Uptrace also allows you to monitor `OpenTelemetry metrics <https://uptrace.dev/opentelemetry/metrics.html>`_ using alerting rules. For example, the following monitor uses the group by node expression to create an alert whenever an individual Valkey shard is down:
 
 .. code-block:: python
 
    monitors:
-     - name: Redis shard is down
+     - name: Valkey shard is down
        metrics:
-         - redis_up as $redis_up
+         - valkey_up as $valkey_up
        query:
          - group by cluster # monitor each cluster,
          - group by bdb # each database,
          - group by node # and each shard
-         - $redis_up
+         - $valkey_up
        min_allowed_value: 1
        # shard should be down for 5 minutes to trigger an alert
        for_duration: 5m
@@ -145,10 +145,10 @@ You can also create queries with more complex expressions. For example, the foll
 .. code-block:: python
 
    monitors:
-     - name: Redis read hit rate < 75%
+     - name: Valkey read hit rate < 75%
        metrics:
-         - redis_keyspace_read_hits as $hits
-         - redis_keyspace_read_misses as $misses
+         - valkey_keyspace_read_hits as $hits
+         - valkey_keyspace_read_misses as $misses
        query:
          - group by cluster
          - group by bdb

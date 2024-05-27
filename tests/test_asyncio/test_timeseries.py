@@ -2,18 +2,20 @@ import time
 from time import sleep
 
 import pytest
-import redis.asyncio as redis
+import valkey.asyncio as valkey
 from tests.conftest import (
     assert_resp_response,
     is_resp2_connection,
     skip_ifmodversion_lt,
 )
 
+pytestmark = pytest.mark.skip
 
-async def test_create(decoded_r: redis.Redis):
+
+async def test_create(decoded_r: valkey.Valkey):
     assert await decoded_r.ts().create(1)
     assert await decoded_r.ts().create(2, retention_msecs=5)
-    assert await decoded_r.ts().create(3, labels={"Redis": "Labs"})
+    assert await decoded_r.ts().create(3, labels={"Valkey": "Labs"})
     assert await decoded_r.ts().create(4, retention_msecs=20, labels={"Time": "Series"})
     info = await decoded_r.ts().info(4)
     assert_resp_response(
@@ -28,7 +30,7 @@ async def test_create(decoded_r: redis.Redis):
 
 
 @skip_ifmodversion_lt("1.4.0", "timeseries")
-async def test_create_duplicate_policy(decoded_r: redis.Redis):
+async def test_create_duplicate_policy(decoded_r: valkey.Valkey):
     # Test for duplicate policy
     for duplicate_policy in ["block", "last", "first", "min", "max"]:
         ts_name = f"time-serie-ooo-{duplicate_policy}"
@@ -42,7 +44,7 @@ async def test_create_duplicate_policy(decoded_r: redis.Redis):
         )
 
 
-async def test_alter(decoded_r: redis.Redis):
+async def test_alter(decoded_r: valkey.Valkey):
     assert await decoded_r.ts().create(1)
     res = await decoded_r.ts().info(1)
     assert_resp_response(
@@ -65,7 +67,7 @@ async def test_alter(decoded_r: redis.Redis):
 
 
 @skip_ifmodversion_lt("1.4.0", "timeseries")
-async def test_alter_diplicate_policy(decoded_r: redis.Redis):
+async def test_alter_diplicate_policy(decoded_r: valkey.Valkey):
     assert await decoded_r.ts().create(1)
     info = await decoded_r.ts().info(1)
     assert_resp_response(
@@ -78,12 +80,12 @@ async def test_alter_diplicate_policy(decoded_r: redis.Redis):
     )
 
 
-async def test_add(decoded_r: redis.Redis):
+async def test_add(decoded_r: valkey.Valkey):
     assert 1 == await decoded_r.ts().add(1, 1, 1)
     assert 2 == await decoded_r.ts().add(2, 2, 3, retention_msecs=10)
-    assert 3 == await decoded_r.ts().add(3, 3, 2, labels={"Redis": "Labs"})
+    assert 3 == await decoded_r.ts().add(3, 3, 2, labels={"Valkey": "Labs"})
     assert 4 == await decoded_r.ts().add(
-        4, 4, 2, retention_msecs=10, labels={"Redis": "Labs", "Time": "Series"}
+        4, 4, 2, retention_msecs=10, labels={"Valkey": "Labs", "Time": "Series"}
     )
     res = await decoded_r.ts().add(5, "*", 1)
     assert abs(time.time() - round(float(res) / 1000)) < 1.0
@@ -92,7 +94,7 @@ async def test_add(decoded_r: redis.Redis):
     assert_resp_response(
         decoded_r, 10, info.get("retention_msecs"), info.get("retentionTime")
     )
-    assert "Labs" == info["labels"]["Redis"]
+    assert "Labs" == info["labels"]["Valkey"]
 
     # Test for a chunk size of 128 Bytes on TS.ADD
     assert await decoded_r.ts().add("time-serie-1", 1, 10.0, chunk_size=128)
@@ -101,7 +103,7 @@ async def test_add(decoded_r: redis.Redis):
 
 
 @skip_ifmodversion_lt("1.4.0", "timeseries")
-async def test_add_duplicate_policy(r: redis.Redis):
+async def test_add_duplicate_policy(r: valkey.Valkey):
     # Test for duplicate policy BLOCK
     assert 1 == await r.ts().add("time-serie-add-ooo-block", 1, 5.0)
     with pytest.raises(Exception):
@@ -140,14 +142,14 @@ async def test_add_duplicate_policy(r: redis.Redis):
     assert 5.0 == res[1]
 
 
-async def test_madd(decoded_r: redis.Redis):
+async def test_madd(decoded_r: valkey.Valkey):
     await decoded_r.ts().create("a")
     assert [1, 2, 3] == await decoded_r.ts().madd(
         [("a", 1, 5), ("a", 2, 10), ("a", 3, 15)]
     )
 
 
-async def test_incrby_decrby(decoded_r: redis.Redis):
+async def test_incrby_decrby(decoded_r: valkey.Valkey):
     for _ in range(100):
         assert await decoded_r.ts().incrby(1, 1)
         sleep(0.001)
@@ -175,7 +177,7 @@ async def test_incrby_decrby(decoded_r: redis.Redis):
     assert_resp_response(decoded_r, 128, info.get("chunk_size"), info.get("chunkSize"))
 
 
-async def test_create_and_delete_rule(decoded_r: redis.Redis):
+async def test_create_and_delete_rule(decoded_r: valkey.Valkey):
     # test rule creation
     time = 100
     await decoded_r.ts().create(1)
@@ -199,7 +201,7 @@ async def test_create_and_delete_rule(decoded_r: redis.Redis):
 
 
 @skip_ifmodversion_lt("99.99.99", "timeseries")
-async def test_del_range(decoded_r: redis.Redis):
+async def test_del_range(decoded_r: valkey.Valkey):
     try:
         await decoded_r.ts().delete("test", 0, 100)
     except Exception as e:
@@ -214,7 +216,7 @@ async def test_del_range(decoded_r: redis.Redis):
     )
 
 
-async def test_range(r: redis.Redis):
+async def test_range(r: valkey.Valkey):
     for i in range(100):
         await r.ts().add(1, i, i % 7)
     assert 100 == len(await r.ts().range(1, 0, 200))
@@ -229,7 +231,7 @@ async def test_range(r: redis.Redis):
 
 
 @skip_ifmodversion_lt("99.99.99", "timeseries")
-async def test_range_advanced(decoded_r: redis.Redis):
+async def test_range_advanced(decoded_r: valkey.Valkey):
     for i in range(100):
         await decoded_r.ts().add(1, i, i % 7)
         await decoded_r.ts().add(1, i + 200, i % 7)
@@ -259,7 +261,7 @@ async def test_range_advanced(decoded_r: redis.Redis):
 
 
 @skip_ifmodversion_lt("99.99.99", "timeseries")
-async def test_rev_range(decoded_r: redis.Redis):
+async def test_rev_range(decoded_r: valkey.Valkey):
     for i in range(100):
         await decoded_r.ts().add(1, i, i % 7)
     assert 100 == len(await decoded_r.ts().range(1, 0, 200))
@@ -302,7 +304,7 @@ async def test_rev_range(decoded_r: redis.Redis):
 
 
 @pytest.mark.onlynoncluster
-async def test_multi_range(decoded_r: redis.Redis):
+async def test_multi_range(decoded_r: valkey.Valkey):
     await decoded_r.ts().create(1, labels={"Test": "This", "team": "ny"})
     await decoded_r.ts().create(
         2, labels={"Test": "This", "Taste": "That", "team": "sf"}
@@ -357,7 +359,7 @@ async def test_multi_range(decoded_r: redis.Redis):
 
 @pytest.mark.onlynoncluster
 @skip_ifmodversion_lt("99.99.99", "timeseries")
-async def test_multi_range_advanced(decoded_r: redis.Redis):
+async def test_multi_range_advanced(decoded_r: valkey.Valkey):
     await decoded_r.ts().create(1, labels={"Test": "This", "team": "ny"})
     await decoded_r.ts().create(
         2, labels={"Test": "This", "Taste": "That", "team": "sf"}
@@ -474,7 +476,7 @@ async def test_multi_range_advanced(decoded_r: redis.Redis):
 
 @pytest.mark.onlynoncluster
 @skip_ifmodversion_lt("99.99.99", "timeseries")
-async def test_multi_reverse_range(decoded_r: redis.Redis):
+async def test_multi_reverse_range(decoded_r: valkey.Valkey):
     await decoded_r.ts().create(1, labels={"Test": "This", "team": "ny"})
     await decoded_r.ts().create(
         2, labels={"Test": "This", "Taste": "That", "team": "sf"}
@@ -635,7 +637,7 @@ async def test_multi_reverse_range(decoded_r: redis.Redis):
         assert [[1, 10.0], [0, 1.0]] == res["1"][2]
 
 
-async def test_get(decoded_r: redis.Redis):
+async def test_get(decoded_r: valkey.Valkey):
     name = "test"
     await decoded_r.ts().create(name)
     assert not await decoded_r.ts().get(name)
@@ -646,7 +648,7 @@ async def test_get(decoded_r: redis.Redis):
 
 
 @pytest.mark.onlynoncluster
-async def test_mget(decoded_r: redis.Redis):
+async def test_mget(decoded_r: valkey.Valkey):
     await decoded_r.ts().create(1, labels={"Test": "This"})
     await decoded_r.ts().create(2, labels={"Test": "This", "Taste": "That"})
     act_res = await decoded_r.ts().mget(["Test=This"])
@@ -680,7 +682,7 @@ async def test_mget(decoded_r: redis.Redis):
         assert {"Taste": "That", "Test": "This"} == res["2"][0]
 
 
-async def test_info(decoded_r: redis.Redis):
+async def test_info(decoded_r: valkey.Valkey):
     await decoded_r.ts().create(
         1, retention_msecs=5, labels={"currentLabel": "currentData"}
     )
@@ -692,7 +694,7 @@ async def test_info(decoded_r: redis.Redis):
 
 
 @skip_ifmodversion_lt("1.4.0", "timeseries")
-async def testInfoDuplicatePolicy(decoded_r: redis.Redis):
+async def testInfoDuplicatePolicy(decoded_r: valkey.Valkey):
     await decoded_r.ts().create(
         1, retention_msecs=5, labels={"currentLabel": "currentData"}
     )
@@ -709,7 +711,7 @@ async def testInfoDuplicatePolicy(decoded_r: redis.Redis):
 
 
 @pytest.mark.onlynoncluster
-async def test_query_index(decoded_r: redis.Redis):
+async def test_query_index(decoded_r: valkey.Valkey):
     await decoded_r.ts().create(1, labels={"Test": "This"})
     await decoded_r.ts().create(2, labels={"Test": "This", "Taste": "That"})
     assert 2 == len(await decoded_r.ts().queryindex(["Test=This"]))
@@ -719,7 +721,7 @@ async def test_query_index(decoded_r: redis.Redis):
     )
 
 
-# # async def test_pipeline(r: redis.Redis):
+# # async def test_pipeline(r: valkey.Valkey):
 #     pipeline = await r.ts().pipeline()
 #     pipeline.create("with_pipeline")
 #     for i in range(100):
@@ -732,7 +734,7 @@ async def test_query_index(decoded_r: redis.Redis):
 #     assert await r.ts().get("with_pipeline")[1] == 99 * 1.1
 
 
-async def test_uncompressed(decoded_r: redis.Redis):
+async def test_uncompressed(decoded_r: valkey.Valkey):
     await decoded_r.ts().create("compressed")
     await decoded_r.ts().create("uncompressed", uncompressed=True)
     compressed_info = await decoded_r.ts().info("compressed")

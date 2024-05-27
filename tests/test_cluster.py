@@ -10,42 +10,41 @@ from time import sleep
 from unittest.mock import DEFAULT, Mock, call, patch
 
 import pytest
-import redis
-from redis import Redis
-from redis._parsers import CommandsParser
-from redis.backoff import ExponentialBackoff, NoBackoff, default_backoff
-from redis.cluster import (
+import valkey
+from tests.test_pubsub import wait_for_message
+from valkey import Valkey
+from valkey._parsers import CommandsParser
+from valkey.backoff import ExponentialBackoff, NoBackoff, default_backoff
+from valkey.cluster import (
     PRIMARY,
-    REDIS_CLUSTER_HASH_SLOTS,
     REPLICA,
+    VALKEY_CLUSTER_HASH_SLOTS,
     ClusterNode,
     NodesManager,
-    RedisCluster,
+    ValkeyCluster,
     get_node_name,
 )
-from redis.connection import BlockingConnectionPool, Connection, ConnectionPool
-from redis.crc import key_slot
-from redis.exceptions import (
+from valkey.connection import BlockingConnectionPool, Connection, ConnectionPool
+from valkey.crc import key_slot
+from valkey.exceptions import (
     AskError,
     ClusterDownError,
     ConnectionError,
     DataError,
     MovedError,
     NoPermissionError,
-    RedisClusterException,
-    RedisError,
     ResponseError,
     TimeoutError,
+    ValkeyClusterException,
+    ValkeyError,
 )
-from redis.retry import Retry
-from redis.utils import str_if_bytes
-from tests.test_pubsub import wait_for_message
+from valkey.retry import Retry
+from valkey.utils import str_if_bytes
 
 from .conftest import (
     _get_client,
     assert_resp_response,
     is_resp2_connection,
-    skip_if_redis_enterprise,
     skip_if_server_version_lt,
     skip_unless_arch_bits,
     wait_for_command,
@@ -69,7 +68,7 @@ class ProxyRequestHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
         self.server.proxy.n_connections += 1
-        conn = socket.create_connection(self.server.proxy.redis_addr)
+        conn = socket.create_connection(self.server.proxy.valkey_addr)
         stop = False
 
         def from_server():
@@ -102,9 +101,9 @@ class ProxyRequestHandler(socketserver.BaseRequestHandler):
 class NodeProxy:
     """A class to proxy a node connection to a different port"""
 
-    def __init__(self, addr, redis_addr):
+    def __init__(self, addr, valkey_addr):
         self.addr = addr
-        self.redis_addr = redis_addr
+        self.valkey_addr = valkey_addr
         self.server = socketserver.ThreadingTCPServer(self.addr, ProxyRequestHandler)
         self.server.proxy = self
         self.server.socket_reuse_address = True
@@ -112,8 +111,8 @@ class NodeProxy:
         self.n_connections = 0
 
     def start(self):
-        # test that we can connect to redis
-        s = socket.create_connection(self.redis_addr, timeout=2)
+        # test that we can connect to valkey
+        s = socket.create_connection(self.valkey_addr, timeout=2)
         s.close()
         # Start a thread with the server -- that thread will then start one
         # more thread for each request
@@ -151,18 +150,18 @@ def slowlog(request, r):
     r.config_set("slowlog-max-len", 128)
 
 
-def get_mocked_redis_client(
+def get_mocked_valkey_client(
     func=None, cluster_slots_raise_error=False, *args, **kwargs
 ):
     """
-    Return a stable RedisCluster object that have deterministic
+    Return a stable ValkeyCluster object that have deterministic
     nodes and slots setup to remove the problem of different IP addresses
     on different installations and machines.
     """
     cluster_slots = kwargs.pop("cluster_slots", default_cluster_slots)
     coverage_res = kwargs.pop("coverage_result", "yes")
     cluster_enabled = kwargs.pop("cluster_enabled", True)
-    with patch.object(Redis, "execute_command") as execute_command_mock:
+    with patch.object(Valkey, "execute_command") as execute_command_mock:
 
         def execute_command(*_args, **_kwargs):
             if _args[0] == "CLUSTER SLOTS":
@@ -202,14 +201,14 @@ def get_mocked_redis_client(
 
             cmd_parser_initialize.side_effect = cmd_init_mock
 
-            return RedisCluster(*args, **kwargs)
+            return ValkeyCluster(*args, **kwargs)
 
 
 def mock_node_resp(node, response):
     connection = Mock()
     connection.read_response.return_value = response
     connection._get_from_local_cache.return_value = None
-    node.redis_connection.connection = connection
+    node.valkey_connection.connection = connection
     return node
 
 
@@ -217,7 +216,7 @@ def mock_node_resp_func(node, func):
     connection = Mock()
     connection.read_response.side_effect = func
     connection._get_from_local_cache.return_value = None
-    node.redis_connection.connection = connection
+    node.valkey_connection.connection = connection
     return node
 
 
@@ -250,7 +249,7 @@ def moved_redirection_helper(request, failover=False):
     3. the redirected node's server type updated to 'primary'
     4. the server type of the previous slot owner updated to 'replica'
     """
-    rc = _get_client(RedisCluster, request, flushdb=False)
+    rc = _get_client(ValkeyCluster, request, flushdb=False)
     slot = 12182
     redirect_node = None
     # Get the current primary that holds this slot
@@ -265,7 +264,7 @@ def moved_redirection_helper(request, failover=False):
         redirect_node = rc.get_primaries()[0]
     r_host = redirect_node.host
     r_port = redirect_node.port
-    with patch.object(Redis, "parse_response") as parse_response:
+    with patch.object(Valkey, "parse_response") as parse_response:
 
         def moved_redirect_effect(connection, *args, **options):
             def ok_response(connection, *args, **options):
@@ -287,9 +286,9 @@ def moved_redirection_helper(request, failover=False):
 
 
 @pytest.mark.onlycluster
-class TestRedisClusterObj:
+class TestValkeyClusterObj:
     """
-    Tests for the RedisCluster class
+    Tests for the ValkeyCluster class
     """
 
     def test_host_port_startup_node(self):
@@ -297,7 +296,7 @@ class TestRedisClusterObj:
         Test that it is possible to use host & port arguments as startup node
         args
         """
-        cluster = get_mocked_redis_client(host=default_host, port=default_port)
+        cluster = get_mocked_valkey_client(host=default_host, port=default_port)
         assert cluster.get_node(host=default_host, port=default_port) is not None
 
     def test_startup_nodes(self):
@@ -311,7 +310,7 @@ class TestRedisClusterObj:
             ClusterNode(default_host, port_1),
             ClusterNode(default_host, port_2),
         ]
-        cluster = get_mocked_redis_client(startup_nodes=startup_nodes)
+        cluster = get_mocked_valkey_client(startup_nodes=startup_nodes)
         assert (
             cluster.get_node(host=default_host, port=port_1) is not None
             and cluster.get_node(host=default_host, port=port_2) is not None
@@ -321,32 +320,32 @@ class TestRedisClusterObj:
         """
         Test that exception is raised when empty providing empty startup_nodes
         """
-        with pytest.raises(RedisClusterException) as ex:
-            RedisCluster(startup_nodes=[])
+        with pytest.raises(ValkeyClusterException) as ex:
+            ValkeyCluster(startup_nodes=[])
 
         assert str(ex.value).startswith(
-            "RedisCluster requires at least one node to discover the cluster"
+            "ValkeyCluster requires at least one node to discover the cluster"
         ), str_if_bytes(ex.value)
 
     def test_from_url(self, r):
-        redis_url = f"redis://{default_host}:{default_port}/0"
-        with patch.object(RedisCluster, "from_url") as from_url:
+        valkey_url = f"valkey://{default_host}:{default_port}/0"
+        with patch.object(ValkeyCluster, "from_url") as from_url:
 
             def from_url_mocked(_url, **_kwargs):
-                return get_mocked_redis_client(url=_url, **_kwargs)
+                return get_mocked_valkey_client(url=_url, **_kwargs)
 
             from_url.side_effect = from_url_mocked
-            cluster = RedisCluster.from_url(redis_url)
+            cluster = ValkeyCluster.from_url(valkey_url)
         assert cluster.get_node(host=default_host, port=default_port) is not None
 
     def test_execute_command_errors(self, r):
         """
         Test that if no key is provided then exception should be raised.
         """
-        with pytest.raises(RedisClusterException) as ex:
+        with pytest.raises(ValkeyClusterException) as ex:
             r.execute_command("GET")
         assert str(ex.value).startswith(
-            "No way to dispatch this command to Redis Cluster. Missing key."
+            "No way to dispatch this command to Valkey Cluster. Missing key."
         )
 
     def test_execute_command_node_flag_primaries(self, r):
@@ -356,12 +355,12 @@ class TestRedisClusterObj:
         primaries = r.get_primaries()
         replicas = r.get_replicas()
         mock_all_nodes_resp(r, "PONG")
-        assert r.ping(target_nodes=RedisCluster.PRIMARIES) is True
+        assert r.ping(target_nodes=ValkeyCluster.PRIMARIES) is True
         for primary in primaries:
-            conn = primary.redis_connection.connection
+            conn = primary.valkey_connection.connection
             assert conn.read_response.called is True
         for replica in replicas:
-            conn = replica.redis_connection.connection
+            conn = replica.valkey_connection.connection
             assert conn.read_response.called is not True
 
     def test_execute_command_node_flag_replicas(self, r):
@@ -370,15 +369,15 @@ class TestRedisClusterObj:
         """
         replicas = r.get_replicas()
         if not replicas:
-            r = get_mocked_redis_client(default_host, default_port)
+            r = get_mocked_valkey_client(default_host, default_port)
         primaries = r.get_primaries()
         mock_all_nodes_resp(r, "PONG")
-        assert r.ping(target_nodes=RedisCluster.REPLICAS) is True
+        assert r.ping(target_nodes=ValkeyCluster.REPLICAS) is True
         for replica in replicas:
-            conn = replica.redis_connection.connection
+            conn = replica.valkey_connection.connection
             assert conn.read_response.called is True
         for primary in primaries:
-            conn = primary.redis_connection.connection
+            conn = primary.valkey_connection.connection
             assert conn.read_response.called is not True
 
     def test_execute_command_node_flag_all_nodes(self, r):
@@ -386,9 +385,9 @@ class TestRedisClusterObj:
         Test command execution with nodes flag ALL_NODES
         """
         mock_all_nodes_resp(r, "PONG")
-        assert r.ping(target_nodes=RedisCluster.ALL_NODES) is True
+        assert r.ping(target_nodes=ValkeyCluster.ALL_NODES) is True
         for node in r.get_nodes():
-            conn = node.redis_connection.connection
+            conn = node.valkey_connection.connection
             assert conn.read_response.called is True
 
     def test_execute_command_node_flag_random(self, r):
@@ -396,10 +395,10 @@ class TestRedisClusterObj:
         Test command execution with nodes flag RANDOM
         """
         mock_all_nodes_resp(r, "PONG")
-        assert r.ping(target_nodes=RedisCluster.RANDOM) is True
+        assert r.ping(target_nodes=ValkeyCluster.RANDOM) is True
         called_count = 0
         for node in r.get_nodes():
-            conn = node.redis_connection.connection
+            conn = node.valkey_connection.connection
             if conn.read_response.called is True:
                 called_count += 1
         assert called_count == 1
@@ -412,7 +411,7 @@ class TestRedisClusterObj:
         def_node = r.get_default_node()
         mock_node_resp(def_node, "PONG")
         assert r.ping() is True
-        conn = def_node.redis_connection.connection
+        conn = def_node.valkey_connection.connection
         assert conn.read_response.called
 
     def test_ask_redirection(self, r):
@@ -425,7 +424,7 @@ class TestRedisClusterObj:
         Important thing to verify is that it tries to talk to the second node.
         """
         redirect_node = r.get_nodes()[0]
-        with patch.object(Redis, "parse_response") as parse_response:
+        with patch.object(Valkey, "parse_response") as parse_response:
 
             def ask_redirect_effect(connection, *args, **options):
                 def ok_response(connection, *args, **options):
@@ -448,7 +447,7 @@ class TestRedisClusterObj:
         primary = r.get_node_from_key(key, replica=False)
         assert str_if_bytes(r.get("key")) == "value"
         # Get the current output of cluster slots
-        cluster_slots = primary.redis_connection.execute_command("CLUSTER SLOTS")
+        cluster_slots = primary.valkey_connection.execute_command("CLUSTER SLOTS")
         replica_host = ""
         replica_port = 0
         # Replace one of the replicas to be the new primary based on the
@@ -478,17 +477,17 @@ class TestRedisClusterObj:
 
         # Mock connection error for the current primary
         mock_node_resp_func(primary, raise_connection_error)
-        primary.redis_connection.set_retry(Retry(NoBackoff(), 1))
+        primary.valkey_connection.set_retry(Retry(NoBackoff(), 1))
 
         # Mock the cluster slots response for all other nodes
-        redis_mock_node = Mock()
-        redis_mock_node.execute_command.side_effect = mock_execute_command
+        valkey_mock_node = Mock()
+        valkey_mock_node.execute_command.side_effect = mock_execute_command
         # Mock response value for all other commands
-        redis_mock_node.parse_response.return_value = "MOCK_OK"
-        redis_mock_node.connection._get_from_local_cache.return_value = None
+        valkey_mock_node.parse_response.return_value = "MOCK_OK"
+        valkey_mock_node.connection._get_from_local_cache.return_value = None
         for node in r.get_nodes():
             if node.port != primary.port:
-                node.redis_connection = redis_mock_node
+                node.valkey_connection = valkey_mock_node
 
         assert r.get(key) == "MOCK_OK"
         new_primary = r.get_node_from_key(key, replica=False)
@@ -515,7 +514,7 @@ class TestRedisClusterObj:
         """
         node_7006 = ClusterNode(host=default_host, port=7006, server_type=PRIMARY)
         node_7007 = ClusterNode(host=default_host, port=7007, server_type=PRIMARY)
-        with patch.object(Redis, "parse_response") as parse_response:
+        with patch.object(Valkey, "parse_response") as parse_response:
             with patch.object(NodesManager, "initialize", autospec=True) as initialize:
                 with patch.multiple(
                     Connection, send_command=DEFAULT, connect=DEFAULT, can_read=DEFAULT
@@ -579,7 +578,7 @@ class TestRedisClusterObj:
 
                         cmd_parser_initialize.side_effect = cmd_init_mock
 
-                        rc = _get_client(RedisCluster, request, flushdb=False)
+                        rc = _get_client(ValkeyCluster, request, flushdb=False)
                         assert len(rc.get_nodes()) == 1
                         assert rc.get_node(node_name=node_7006.name) is not None
 
@@ -602,7 +601,7 @@ class TestRedisClusterObj:
             can_read=DEFAULT,
             on_connect=DEFAULT,
         ) as mocks:
-            with patch.object(Redis, "parse_response") as parse_response:
+            with patch.object(Valkey, "parse_response") as parse_response:
 
                 def parse_response_mock_first(connection, *args, **options):
                     # Primary
@@ -622,7 +621,7 @@ class TestRedisClusterObj:
                     return "MOCK_OK"
 
                 # We don't need to create a real cluster connection but we
-                # do want RedisCluster.on_connect function to get called,
+                # do want ValkeyCluster.on_connect function to get called,
                 # so we'll mock some of the Connection's functions to allow it
                 parse_response.side_effect = parse_response_mock_first
                 mocks["send_command"].return_value = True
@@ -632,7 +631,7 @@ class TestRedisClusterObj:
                 mocks["on_connect"].return_value = True
 
                 # Create a cluster with reading from replications
-                read_cluster = get_mocked_redis_client(
+                read_cluster = get_mocked_valkey_client(
                     host=default_host, port=default_port, read_from_replicas=True
                 )
                 assert read_cluster.read_from_replicas is True
@@ -699,14 +698,14 @@ class TestRedisClusterObj:
         for node in r.get_primaries():
             assert node in nodes
 
-    @pytest.mark.parametrize("error", RedisCluster.ERRORS_ALLOW_RETRY)
+    @pytest.mark.parametrize("error", ValkeyCluster.ERRORS_ALLOW_RETRY)
     def test_cluster_down_overreaches_retry_attempts(self, error):
         """
         When error that allows retry is thrown, test that we retry executing
         the command as many times as configured in cluster_error_retry_attempts
         and then raise the exception
         """
-        with patch.object(RedisCluster, "_execute_command") as execute_command:
+        with patch.object(ValkeyCluster, "_execute_command") as execute_command:
 
             def raise_error(target_node, *args, **kwargs):
                 execute_command.failed_calls += 1
@@ -714,7 +713,7 @@ class TestRedisClusterObj:
 
             execute_command.side_effect = raise_error
 
-            rc = get_mocked_redis_client(host=default_host, port=default_port)
+            rc = get_mocked_valkey_client(host=default_host, port=default_port)
 
             with pytest.raises(error):
                 rc.get("bar")
@@ -730,7 +729,7 @@ class TestRedisClusterObj:
 
         mock = Mock(side_effect=on_connect)
 
-        _get_client(RedisCluster, request, redis_connect_func=mock)
+        _get_client(ValkeyCluster, request, valkey_connect_func=mock)
         assert mock.called is True
 
     def test_set_default_node_success(self, r):
@@ -771,7 +770,6 @@ class TestRedisClusterObj:
             assert replica.server_type == REPLICA
             assert replica in slot_nodes
 
-    @skip_if_redis_enterprise()
     def test_not_require_full_coverage_cluster_down_error(self, r):
         """
         When require_full_coverage is set to False (default client config) and not
@@ -809,15 +807,15 @@ class TestRedisClusterObj:
         r.set("key", "value")
         node_conn_origin = {}
         for n in r.get_nodes():
-            node_conn_origin[n.name] = n.redis_connection
-        real_func = r.get_redis_connection(node).parse_response
+            node_conn_origin[n.name] = n.valkey_connection
+        real_func = r.get_valkey_connection(node).parse_response
 
         class counter:
             def __init__(self, val=0):
                 self.val = int(val)
 
         count = counter(0)
-        with patch.object(Redis, "parse_response") as parse_response:
+        with patch.object(Valkey, "parse_response") as parse_response:
 
             def moved_redirect_effect(connection, *args, **options):
                 # raise a timeout for 5 times so we'll need to reinitialize the topology
@@ -830,37 +828,37 @@ class TestRedisClusterObj:
             assert r.get("key") == b"value"
             for node_name, conn in node_conn_origin.items():
                 if node_name == node.name:
-                    # The old redis connection of the timed out node should have been
+                    # The old valkey connection of the timed out node should have been
                     # deleted and replaced
-                    assert conn != r.get_redis_connection(node)
+                    assert conn != r.get_valkey_connection(node)
                 else:
-                    # other nodes' redis connection should have been reused during the
+                    # other nodes' valkey connection should have been reused during the
                     # topology refresh
                     cur_node = r.get_node(node_name=node_name)
-                    assert conn == r.get_redis_connection(cur_node)
+                    assert conn == r.get_valkey_connection(cur_node)
 
     def test_cluster_get_set_retry_object(self, request):
         retry = Retry(NoBackoff(), 2)
-        r = _get_client(RedisCluster, request, retry=retry)
+        r = _get_client(ValkeyCluster, request, retry=retry)
         assert r.get_retry()._retries == retry._retries
         assert isinstance(r.get_retry()._backoff, NoBackoff)
         for node in r.get_nodes():
-            assert node.redis_connection.get_retry()._retries == retry._retries
-            assert isinstance(node.redis_connection.get_retry()._backoff, NoBackoff)
+            assert node.valkey_connection.get_retry()._retries == retry._retries
+            assert isinstance(node.valkey_connection.get_retry()._backoff, NoBackoff)
         rand_node = r.get_random_node()
-        existing_conn = rand_node.redis_connection.connection_pool.get_connection("_")
+        existing_conn = rand_node.valkey_connection.connection_pool.get_connection("_")
         # Change retry policy
         new_retry = Retry(ExponentialBackoff(), 3)
         r.set_retry(new_retry)
         assert r.get_retry()._retries == new_retry._retries
         assert isinstance(r.get_retry()._backoff, ExponentialBackoff)
         for node in r.get_nodes():
-            assert node.redis_connection.get_retry()._retries == new_retry._retries
+            assert node.valkey_connection.get_retry()._retries == new_retry._retries
             assert isinstance(
-                node.redis_connection.get_retry()._backoff, ExponentialBackoff
+                node.valkey_connection.get_retry()._backoff, ExponentialBackoff
             )
         assert existing_conn.retry._retries == new_retry._retries
-        new_conn = rand_node.redis_connection.connection_pool.get_connection("_")
+        new_conn = rand_node.valkey_connection.connection_pool.get_connection("_")
         assert new_conn.retry._retries == new_retry._retries
 
     def test_cluster_retry_object(self, r) -> None:
@@ -869,16 +867,16 @@ class TestRedisClusterObj:
         assert isinstance(retry, Retry)
         assert retry._retries == 0
         assert isinstance(retry._backoff, type(default_backoff()))
-        node1 = r.get_node("127.0.0.1", 16379).redis_connection
-        node2 = r.get_node("127.0.0.1", 16380).redis_connection
+        node1 = r.get_node("127.0.0.1", 16379).valkey_connection
+        node2 = r.get_node("127.0.0.1", 16380).valkey_connection
         assert node1.get_retry()._retries == node2.get_retry()._retries
 
         # Test custom retry
         retry = Retry(ExponentialBackoff(10, 5), 5)
-        rc_custom_retry = RedisCluster("127.0.0.1", 16379, retry=retry)
+        rc_custom_retry = ValkeyCluster("127.0.0.1", 16379, retry=retry)
         assert (
             rc_custom_retry.get_node("127.0.0.1", 16379)
-            .redis_connection.get_retry()
+            .valkey_connection.get_retry()
             ._retries
             == retry._retries
         )
@@ -907,7 +905,7 @@ class TestRedisClusterObj:
         assert r.get_default_node() != curr_default_node
 
     def test_address_remap(self, request, master_host):
-        """Test that we can create a rediscluster object with
+        """Test that we can create a valkeycluster object with
         a host-port remapper and map connections through proxy objects
         """
 
@@ -935,7 +933,7 @@ class TestRedisClusterObj:
         try:
             # create cluster:
             r = _get_client(
-                RedisCluster, request, flushdb=False, address_remap=address_remap
+                ValkeyCluster, request, flushdb=False, address_remap=address_remap
             )
             try:
                 assert r.ping() is True
@@ -953,9 +951,9 @@ class TestRedisClusterObj:
 
 
 @pytest.mark.onlycluster
-class TestClusterRedisCommands:
+class TestClusterValkeyCommands:
     """
-    Tests for RedisCluster unique commands
+    Tests for ValkeyCluster unique commands
     """
 
     def test_case_insensitive_command_names(self, r):
@@ -1010,9 +1008,9 @@ class TestClusterRedisCommands:
 
     def test_client_setname(self, r):
         node = r.get_random_node()
-        r.client_setname("redis_py_test", target_nodes=node)
+        r.client_setname("valkey_py_test", target_nodes=node)
         client_name = r.client_getname(target_nodes=node)
-        assert_resp_response(r, client_name, "redis_py_test", b"redis_py_test")
+        assert_resp_response(r, client_name, "valkey_py_test", b"valkey_py_test")
 
     def test_exists(self, r):
         d = {"a": b"1", "b": b"2", "c": b"3", "d": b"4"}
@@ -1054,11 +1052,11 @@ class TestClusterRedisCommands:
             b_channel = channel.encode("utf-8")
             channels.append(b_channel)
             # Assert that each node returns only the channel it subscribed to
-            sub_channels = node.redis_connection.pubsub_channels()
+            sub_channels = node.valkey_connection.pubsub_channels()
             if not sub_channels:
                 # Try again after a short sleep
                 sleep(0.3)
-                sub_channels = node.redis_connection.pubsub_channels()
+                sub_channels = node.valkey_connection.pubsub_channels()
             assert sub_channels == [b_channel]
             i += 1
         # Assert that the cluster's pubsub_channels function returns ALL of
@@ -1079,10 +1077,10 @@ class TestClusterRedisCommands:
             pubsub_nodes.append(p)
             p.subscribe(channel)
             # Assert that each node returns that only one client is subscribed
-            sub_chann_num = node.redis_connection.pubsub_numsub(channel)
+            sub_chann_num = node.valkey_connection.pubsub_numsub(channel)
             if sub_chann_num == [(b_channel, 0)]:
                 sleep(0.3)
-                sub_chann_num = node.redis_connection.pubsub_numsub(channel)
+                sub_chann_num = node.valkey_connection.pubsub_numsub(channel)
             assert sub_chann_num == [(b_channel, 1)]
         # Assert that the cluster's pubsub_numsub function returns ALL clients
         # subscribed to this channel in the entire cluster
@@ -1099,10 +1097,10 @@ class TestClusterRedisCommands:
             pubsub_nodes.append(p)
             p.psubscribe(pattern)
             # Assert that each node returns that only one client is subscribed
-            sub_num_pat = node.redis_connection.pubsub_numpat()
+            sub_num_pat = node.valkey_connection.pubsub_numpat()
             if sub_num_pat == 0:
                 sleep(0.3)
-                sub_num_pat = node.redis_connection.pubsub_numpat()
+                sub_num_pat = node.valkey_connection.pubsub_numpat()
             assert sub_num_pat == 1
         # Assert that the cluster's pubsub_numsub function returns ALL clients
         # subscribed to this channel in the entire cluster
@@ -1136,13 +1134,11 @@ class TestClusterRedisCommands:
         channels = [(b"foo", 1), (b"bar", 2), (b"baz", 3)]
         assert r.pubsub_numsub("foo", "bar", "baz", target_nodes="all") == channels
 
-    @skip_if_redis_enterprise()
     def test_cluster_myid(self, r):
         node = r.get_random_node()
         myid = r.cluster_myid(node)
         assert len(myid) == 40
 
-    @skip_if_redis_enterprise()
     def test_cluster_slots(self, r):
         mock_all_nodes_resp(r, default_cluster_slots)
         cluster_slots = r.cluster_slots()
@@ -1152,7 +1148,6 @@ class TestClusterRedisCommands:
         assert cluster_slots.get((0, 8191)).get("primary") == ("127.0.0.1", 7000)
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_redis_enterprise()
     def test_cluster_shards(self, r):
         cluster_shards = r.cluster_shards()
         assert isinstance(cluster_shards, list)
@@ -1182,26 +1177,22 @@ class TestClusterRedisCommands:
                     assert attribute in attributes
 
     @skip_if_server_version_lt("7.2.0")
-    @skip_if_redis_enterprise()
     def test_cluster_myshardid(self, r):
         myshardid = r.cluster_myshardid()
         assert isinstance(myshardid, str)
         assert len(myshardid) > 0
 
-    @skip_if_redis_enterprise()
     def test_cluster_addslots(self, r):
         node = r.get_random_node()
         mock_node_resp(node, "OK")
         assert r.cluster_addslots(node, 1, 2, 3) is True
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_redis_enterprise()
     def test_cluster_addslotsrange(self, r):
         node = r.get_random_node()
         mock_node_resp(node, "OK")
         assert r.cluster_addslotsrange(node, 1, 5)
 
-    @skip_if_redis_enterprise()
     def test_cluster_countkeysinslot(self, r):
         node = r.nodes_manager.get_node_from_slot(1)
         mock_node_resp(node, 2)
@@ -1211,24 +1202,22 @@ class TestClusterRedisCommands:
         mock_all_nodes_resp(r, 0)
         assert r.cluster_count_failure_report("node_0") == 0
 
-    @skip_if_redis_enterprise()
     def test_cluster_delslots(self):
         cluster_slots = [
             [0, 8191, ["127.0.0.1", 7000, "node_0"]],
             [8192, 16383, ["127.0.0.1", 7001, "node_1"]],
         ]
-        r = get_mocked_redis_client(
+        r = get_mocked_valkey_client(
             host=default_host, port=default_port, cluster_slots=cluster_slots
         )
         mock_all_nodes_resp(r, "OK")
         node0 = r.get_node(default_host, 7000)
         node1 = r.get_node(default_host, 7001)
         assert r.cluster_delslots(0, 8192) == [True, True]
-        assert node0.redis_connection.connection.read_response.called
-        assert node1.redis_connection.connection.read_response.called
+        assert node0.valkey_connection.connection.read_response.called
+        assert node1.valkey_connection.connection.read_response.called
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_redis_enterprise()
     def test_cluster_delslotsrange(self):
         cluster_slots = [
             [
@@ -1242,7 +1231,7 @@ class TestClusterRedisCommands:
                 ["127.0.0.1", 7001, "node_1"],
             ],
         ]
-        r = get_mocked_redis_client(
+        r = get_mocked_valkey_client(
             host=default_host, port=default_port, cluster_slots=cluster_slots
         )
         mock_all_nodes_resp(r, "OK")
@@ -1250,34 +1239,29 @@ class TestClusterRedisCommands:
         r.cluster_addslots(node, 1, 2, 3, 4, 5)
         assert r.cluster_delslotsrange(1, 5)
 
-    @skip_if_redis_enterprise()
     def test_cluster_failover(self, r):
         node = r.get_random_node()
         mock_node_resp(node, "OK")
         assert r.cluster_failover(node) is True
         assert r.cluster_failover(node, "FORCE") is True
         assert r.cluster_failover(node, "TAKEOVER") is True
-        with pytest.raises(RedisError):
+        with pytest.raises(ValkeyError):
             r.cluster_failover(node, "FORCT")
 
-    @skip_if_redis_enterprise()
     def test_cluster_info(self, r):
         info = r.cluster_info()
         assert isinstance(info, dict)
         assert info["cluster_state"] == "ok"
 
-    @skip_if_redis_enterprise()
     def test_cluster_keyslot(self, r):
         mock_all_nodes_resp(r, 12182)
         assert r.cluster_keyslot("foo") == 12182
 
-    @skip_if_redis_enterprise()
     def test_cluster_meet(self, r):
         node = r.get_default_node()
         mock_node_resp(node, "OK")
         assert r.cluster_meet("127.0.0.1", 6379) is True
 
-    @skip_if_redis_enterprise()
     def test_cluster_nodes(self, r):
         response = (
             "c8253bae761cb1ecb2b61857d85dfe455a0fec8b 172.17.0.7:7006 "
@@ -1306,7 +1290,6 @@ class TestClusterRedisCommands:
             == "c8253bae761cb1ecb2b61857d85dfe455a0fec8b"
         )
 
-    @skip_if_redis_enterprise()
     def test_cluster_nodes_importing_migrating(self, r):
         response = (
             "488ead2fcce24d8c0f158f9172cb1f4a9e040fe5 127.0.0.1:16381@26381 "
@@ -1343,7 +1326,6 @@ class TestClusterRedisCommands:
         assert node_16381.get("slots") == [["10923", "16383"]]
         assert node_16381.get("migrations") == []
 
-    @skip_if_redis_enterprise()
     def test_cluster_replicate(self, r):
         node = r.get_random_node()
         all_replicas = r.get_replicas()
@@ -1356,7 +1338,6 @@ class TestClusterRedisCommands:
         else:
             assert results is True
 
-    @skip_if_redis_enterprise()
     def test_cluster_reset(self, r):
         mock_all_nodes_resp(r, "OK")
         assert r.cluster_reset() is True
@@ -1365,7 +1346,6 @@ class TestClusterRedisCommands:
         for res in all_results.values():
             assert res is True
 
-    @skip_if_redis_enterprise()
     def test_cluster_save_config(self, r):
         node = r.get_random_node()
         all_nodes = r.get_nodes()
@@ -1375,7 +1355,6 @@ class TestClusterRedisCommands:
         for res in all_results.values():
             assert res is True
 
-    @skip_if_redis_enterprise()
     def test_cluster_get_keys_in_slot(self, r):
         response = ["{foo}1", "{foo}2"]
         node = r.nodes_manager.get_node_from_slot(12182)
@@ -1383,7 +1362,6 @@ class TestClusterRedisCommands:
         keys = r.cluster_get_keys_in_slot(12182, 4)
         assert keys == response
 
-    @skip_if_redis_enterprise()
     def test_cluster_set_config_epoch(self, r):
         mock_all_nodes_resp(r, "OK")
         assert r.cluster_set_config_epoch(3) is True
@@ -1391,25 +1369,23 @@ class TestClusterRedisCommands:
         for res in all_results.values():
             assert res is True
 
-    @skip_if_redis_enterprise()
     def test_cluster_setslot(self, r):
         node = r.get_random_node()
         mock_node_resp(node, "OK")
         assert r.cluster_setslot(node, "node_0", 1218, "IMPORTING") is True
         assert r.cluster_setslot(node, "node_0", 1218, "NODE") is True
         assert r.cluster_setslot(node, "node_0", 1218, "MIGRATING") is True
-        with pytest.raises(RedisError):
+        with pytest.raises(ValkeyError):
             r.cluster_failover(node, "STABLE")
-        with pytest.raises(RedisError):
+        with pytest.raises(ValkeyError):
             r.cluster_failover(node, "STATE")
 
     def test_cluster_setslot_stable(self, r):
         node = r.nodes_manager.get_node_from_slot(12182)
         mock_node_resp(node, "OK")
         assert r.cluster_setslot_stable(12182) is True
-        assert node.redis_connection.connection.read_response.called
+        assert node.valkey_connection.connection.read_response.called
 
-    @skip_if_redis_enterprise()
     def test_cluster_replicas(self, r):
         response = [
             b"01eca22229cf3c652b6fca0d09ff6941e0d2e3 "
@@ -1455,29 +1431,26 @@ class TestClusterRedisCommands:
         with pytest.raises(NotImplementedError):
             r.cluster_bumpepoch()
 
-    @skip_if_redis_enterprise()
     def test_readonly(self):
-        r = get_mocked_redis_client(host=default_host, port=default_port)
+        r = get_mocked_valkey_client(host=default_host, port=default_port)
         mock_all_nodes_resp(r, "OK")
         assert r.readonly() is True
         all_replicas_results = r.readonly(target_nodes="replicas")
         for res in all_replicas_results.values():
             assert res is True
         for replica in r.get_replicas():
-            assert replica.redis_connection.connection.read_response.called
+            assert replica.valkey_connection.connection.read_response.called
 
-    @skip_if_redis_enterprise()
     def test_readwrite(self):
-        r = get_mocked_redis_client(host=default_host, port=default_port)
+        r = get_mocked_valkey_client(host=default_host, port=default_port)
         mock_all_nodes_resp(r, "OK")
         assert r.readwrite() is True
         all_replicas_results = r.readwrite(target_nodes="replicas")
         for res in all_replicas_results.values():
             assert res is True
         for replica in r.get_replicas():
-            assert replica.redis_connection.connection.read_response.called
+            assert replica.valkey_connection.connection.read_response.called
 
-    @skip_if_redis_enterprise()
     def test_bgsave(self, r):
         assert r.bgsave()
         sleep(0.3)
@@ -1562,12 +1535,10 @@ class TestClusterRedisCommands:
         assert isinstance(r.memory_usage("foo"), int)
 
     @skip_if_server_version_lt("4.0.0")
-    @skip_if_redis_enterprise()
     def test_memory_malloc_stats(self, r):
         assert r.memory_malloc_stats()
 
     @skip_if_server_version_lt("4.0.0")
-    @skip_if_redis_enterprise()
     def test_memory_stats(self, r):
         # put a key into the current db to make sure that "db.<current-db>"
         # has data
@@ -1589,7 +1560,6 @@ class TestClusterRedisCommands:
         with pytest.raises(NotImplementedError):
             r.memory_doctor()
 
-    @skip_if_redis_enterprise()
     def test_lastsave(self, r):
         node = r.get_primaries()[0]
         assert isinstance(r.lastsave(target_nodes=node), datetime.datetime)
@@ -1628,11 +1598,10 @@ class TestClusterRedisCommands:
         node = r.get_primaries()[0]
         assert r.client_pause(1, target_nodes=node)
         assert r.client_pause(timeout=1, target_nodes=node)
-        with pytest.raises(RedisError):
+        with pytest.raises(ValkeyError):
             r.client_pause(timeout="not an integer", target_nodes=node)
 
     @skip_if_server_version_lt("6.2.0")
-    @skip_if_redis_enterprise()
     def test_client_unpause(self, r):
         assert r.client_unpause()
 
@@ -1665,26 +1634,26 @@ class TestClusterRedisCommands:
     @skip_if_server_version_lt("2.6.9")
     def test_client_kill(self, r, r2):
         node = r.get_primaries()[0]
-        r.client_setname("redis-py-c1", target_nodes="all")
-        r2.client_setname("redis-py-c2", target_nodes="all")
+        r.client_setname("valkey-py-c1", target_nodes="all")
+        r2.client_setname("valkey-py-c2", target_nodes="all")
         clients = [
             client
             for client in r.client_list(target_nodes=node)
-            if client.get("name") in ["redis-py-c1", "redis-py-c2"]
+            if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
         ]
         assert len(clients) == 2
         clients_by_name = {client.get("name"): client for client in clients}
 
-        client_addr = clients_by_name["redis-py-c2"].get("addr")
+        client_addr = clients_by_name["valkey-py-c2"].get("addr")
         assert r.client_kill(client_addr, target_nodes=node) is True
 
         clients = [
             client
             for client in r.client_list(target_nodes=node)
-            if client.get("name") in ["redis-py-c1", "redis-py-c2"]
+            if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
         ]
         assert len(clients) == 1
-        assert clients[0].get("name") == "redis-py-c1"
+        assert clients[0].get("name") == "valkey-py-c1"
 
     @skip_if_server_version_lt("2.6.0")
     def test_cluster_bitop_not_empty_string(self, r):
@@ -2396,11 +2365,10 @@ class TestClusterRedisCommands:
         assert r.randomkey(target_nodes=node) in (b"{foo}a", b"{foo}b", b"{foo}c")
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_redis_enterprise()
     def test_acl_log(self, r, request):
         key = "{cache}:"
         node = r.get_node_from_key(key)
-        username = "redis-py-user"
+        username = "valkey-py-user"
 
         def teardown():
             r.acl_deluser(username, target_nodes="primaries")
@@ -2418,7 +2386,7 @@ class TestClusterRedisCommands:
         r.acl_log_reset(target_nodes=node)
 
         user_client = _get_client(
-            RedisCluster, request, flushdb=False, username=username
+            ValkeyCluster, request, flushdb=False, username=username
         )
 
         # Valid operation and key
@@ -2441,7 +2409,7 @@ class TestClusterRedisCommands:
         assert r.acl_log_reset(target_nodes=node)
 
     def generate_lib_code(self, lib_name):
-        return f"""#!js api_version=1.0 name={lib_name}\n redis.registerFunction('foo', ()=>{{return 'bar'}})"""  # noqa
+        return f"""#!js api_version=1.0 name={lib_name}\n valkey.registerFunction('foo', ()=>{{return 'bar'}})"""  # noqa
 
     def try_delete_libs(self, r, *lib_names):
         for lib_name in lib_names:
@@ -2451,6 +2419,7 @@ class TestClusterRedisCommands:
                 pass
 
     @skip_if_server_version_lt("7.1.140")
+    @pytest.mark.skip
     def test_tfunction_load_delete(self, r):
         r.gears_refresh_cluster()
         self.try_delete_libs(r, "lib1")
@@ -2459,6 +2428,7 @@ class TestClusterRedisCommands:
         assert r.tfunction_delete("lib1")
 
     @skip_if_server_version_lt("7.1.140")
+    @pytest.mark.skip
     def test_tfunction_list(self, r):
         r.gears_refresh_cluster()
         self.try_delete_libs(r, "lib1", "lib2", "lib3")
@@ -2482,6 +2452,7 @@ class TestClusterRedisCommands:
         assert r.tfunction_delete("lib3")
 
     @skip_if_server_version_lt("7.1.140")
+    @pytest.mark.skip
     def test_tfcall(self, r):
         r.gears_refresh_cluster()
         self.try_delete_libs(r, "lib1")
@@ -2540,8 +2511,8 @@ class TestNodesManager:
             [5461, 10922, ["127.0.0.1", 7001], ["127.0.0.1", 7004]],
             [10923, 16383, ["127.0.0.1", 7002], ["127.0.0.1", 7005]],
         ]
-        with pytest.raises(RedisClusterException) as ex:
-            get_mocked_redis_client(
+        with pytest.raises(ValkeyClusterException) as ex:
+            get_mocked_valkey_client(
                 host=default_host,
                 port=default_port,
                 cluster_slots=cluster_slots,
@@ -2563,7 +2534,7 @@ class TestNodesManager:
             [10923, 16383, ["127.0.0.1", 7002], ["127.0.0.1", 7005]],
         ]
 
-        rc = get_mocked_redis_client(
+        rc = get_mocked_valkey_client(
             host=default_host,
             port=default_port,
             cluster_slots=cluster_slots,
@@ -2582,11 +2553,11 @@ class TestNodesManager:
             [10923, 16383, ["127.0.0.1", 7002], ["127.0.0.2", 7005]],
         ]
 
-        rc = get_mocked_redis_client(
+        rc = get_mocked_valkey_client(
             host=default_host, port=default_port, cluster_slots=good_slots_resp
         )
         n_manager = rc.nodes_manager
-        assert len(n_manager.slots_cache) == REDIS_CLUSTER_HASH_SLOTS
+        assert len(n_manager.slots_cache) == VALKEY_CLUSTER_HASH_SLOTS
         for slot_info in good_slots_resp:
             all_hosts = ["127.0.0.1", "127.0.0.2"]
             all_ports = [7000, 7001, 7002, 7003, 7004, 7005]
@@ -2618,7 +2589,7 @@ class TestNodesManager:
             cluster_slots_after_promotion,
         ]
 
-        with patch.object(Redis, "execute_command") as execute_command_mock:
+        with patch.object(Valkey, "execute_command") as execute_command_mock:
 
             def execute_command(*_args, **_kwargs):
                 if _args[0] == "CLUSTER SLOTS":
@@ -2654,11 +2625,11 @@ class TestNodesManager:
 
     def test_init_slots_cache_cluster_mode_disabled(self):
         """
-        Test that creating a RedisCluster failes if one of the startup nodes
+        Test that creating a ValkeyCluster failes if one of the startup nodes
         has cluster mode disabled
         """
-        with pytest.raises(RedisClusterException) as e:
-            get_mocked_redis_client(
+        with pytest.raises(ValkeyClusterException) as e:
+            get_mocked_valkey_client(
                 cluster_slots_raise_error=True,
                 host=default_host,
                 port=default_port,
@@ -2671,7 +2642,7 @@ class TestNodesManager:
         It should not be possible to create a node manager with no nodes
         specified
         """
-        with pytest.raises(RedisClusterException):
+        with pytest.raises(ValkeyClusterException):
             NodesManager([])
 
     def test_wrong_startup_nodes_type(self):
@@ -2679,7 +2650,7 @@ class TestNodesManager:
         If something other then a list type itteratable is provided it should
         fail
         """
-        with pytest.raises(RedisClusterException):
+        with pytest.raises(ValkeyClusterException):
             NodesManager({})
 
     def test_init_slots_cache_slots_collision(self, request):
@@ -2688,12 +2659,12 @@ class TestNodesManager:
         raise an error. In this test both nodes will say that the first
         slots block should be bound to different servers.
         """
-        with patch.object(NodesManager, "create_redis_node") as create_redis_node:
+        with patch.object(NodesManager, "create_valkey_node") as create_valkey_node:
 
-            def create_mocked_redis_node(host, port, **kwargs):
+            def create_mocked_valkey_node(host, port, **kwargs):
                 """
                 Helper function to return custom slots cache data from
-                different redis nodes
+                different valkey nodes
                 """
                 if port == 7000:
                     result = [
@@ -2709,7 +2680,7 @@ class TestNodesManager:
                 else:
                     result = []
 
-                r_node = Redis(host=host, port=port)
+                r_node = Valkey(host=host, port=port)
 
                 orig_execute_command = r_node.execute_command
 
@@ -2726,12 +2697,12 @@ class TestNodesManager:
                 r_node.execute_command = execute_command
                 return r_node
 
-            create_redis_node.side_effect = create_mocked_redis_node
+            create_valkey_node.side_effect = create_mocked_valkey_node
 
-            with pytest.raises(RedisClusterException) as ex:
+            with pytest.raises(ValkeyClusterException) as ex:
                 node_1 = ClusterNode("127.0.0.1", 7000)
                 node_2 = ClusterNode("127.0.0.1", 7001)
-                RedisCluster(startup_nodes=[node_1, node_2])
+                ValkeyCluster(startup_nodes=[node_1, node_2])
             assert str(ex.value).startswith(
                 "startup_nodes could not agree on a valid slots cache"
             ), str(ex.value)
@@ -2743,7 +2714,7 @@ class TestNodesManager:
         """
         node = ClusterNode(default_host, default_port)
         cluster_slots = [[0, 16383, ["", default_port]]]
-        rc = get_mocked_redis_client(startup_nodes=[node], cluster_slots=cluster_slots)
+        rc = get_mocked_valkey_client(startup_nodes=[node], cluster_slots=cluster_slots)
 
         n = rc.nodes_manager
         assert len(n.nodes_cache) == 1
@@ -2751,8 +2722,8 @@ class TestNodesManager:
         assert n_node is not None
         assert n_node == node
         assert n_node.server_type == PRIMARY
-        assert len(n.slots_cache) == REDIS_CLUSTER_HASH_SLOTS
-        for i in range(0, REDIS_CLUSTER_HASH_SLOTS):
+        assert len(n.slots_cache) == VALKEY_CLUSTER_HASH_SLOTS
+        for i in range(0, VALKEY_CLUSTER_HASH_SLOTS):
             assert n.slots_cache[i] == [n_node]
 
     def test_init_with_down_node(self):
@@ -2760,13 +2731,13 @@ class TestNodesManager:
         If I can't connect to one of the nodes, everything should still work.
         But if I can't connect to any of the nodes, exception should be thrown.
         """
-        with patch.object(NodesManager, "create_redis_node") as create_redis_node:
+        with patch.object(NodesManager, "create_valkey_node") as create_valkey_node:
 
-            def create_mocked_redis_node(host, port, **kwargs):
+            def create_mocked_valkey_node(host, port, **kwargs):
                 if port == 7000:
                     raise ConnectionError("mock connection error for 7000")
 
-                r_node = Redis(host=host, port=port, decode_responses=True)
+                r_node = Valkey(host=host, port=port, decode_responses=True)
 
                 def execute_command(*args, **kwargs):
                     if args[0] == "CLUSTER SLOTS":
@@ -2783,16 +2754,16 @@ class TestNodesManager:
 
                 return r_node
 
-            create_redis_node.side_effect = create_mocked_redis_node
+            create_valkey_node.side_effect = create_mocked_valkey_node
 
             node_1 = ClusterNode("127.0.0.1", 7000)
             node_2 = ClusterNode("127.0.0.1", 7001)
 
             # If all startup nodes fail to connect, connection error should be
             # thrown
-            with pytest.raises(RedisClusterException) as e:
-                RedisCluster(startup_nodes=[node_1])
-            assert "Redis Cluster cannot be connected" in str(e.value)
+            with pytest.raises(ValkeyClusterException) as e:
+                ValkeyCluster(startup_nodes=[node_1])
+            assert "Valkey Cluster cannot be connected" in str(e.value)
 
             with patch.object(
                 CommandsParser, "initialize", autospec=True
@@ -2813,13 +2784,13 @@ class TestNodesManager:
                 cmd_parser_initialize.side_effect = cmd_init_mock
                 # When at least one startup node is reachable, the cluster
                 # initialization should succeeds
-                rc = RedisCluster(startup_nodes=[node_1, node_2])
+                rc = ValkeyCluster(startup_nodes=[node_1, node_2])
                 assert rc.get_node(host=default_host, port=7001) is not None
                 assert rc.get_node(host=default_host, port=7002) is not None
 
     @pytest.mark.parametrize("dynamic_startup_nodes", [True, False])
     def test_init_slots_dynamic_startup_nodes(self, dynamic_startup_nodes):
-        rc = get_mocked_redis_client(
+        rc = get_mocked_valkey_client(
             host="my@DNS.com",
             port=7000,
             cluster_slots=default_cluster_slots,
@@ -2842,28 +2813,28 @@ class TestNodesManager:
         "connection_pool_class", [ConnectionPool, BlockingConnectionPool]
     )
     def test_connection_pool_class(self, connection_pool_class):
-        rc = get_mocked_redis_client(
-            url="redis://my@DNS.com:7000",
+        rc = get_mocked_valkey_client(
+            url="valkey://my@DNS.com:7000",
             cluster_slots=default_cluster_slots,
             connection_pool_class=connection_pool_class,
         )
 
         for node in rc.nodes_manager.nodes_cache.values():
             assert isinstance(
-                node.redis_connection.connection_pool, connection_pool_class
+                node.valkey_connection.connection_pool, connection_pool_class
             )
 
     @pytest.mark.parametrize("queue_class", [Queue, LifoQueue])
     def test_allow_custom_queue_class(self, queue_class):
-        rc = get_mocked_redis_client(
-            url="redis://my@DNS.com:7000",
+        rc = get_mocked_valkey_client(
+            url="valkey://my@DNS.com:7000",
             cluster_slots=default_cluster_slots,
             connection_pool_class=BlockingConnectionPool,
             queue_class=queue_class,
         )
 
         for node in rc.nodes_manager.nodes_cache.values():
-            assert node.redis_connection.connection_pool.queue_class == queue_class
+            assert node.valkey_connection.connection_pool.queue_class == queue_class
 
 
 @pytest.mark.onlycluster
@@ -2904,19 +2875,19 @@ class TestClusterPubSubObject:
     def test_init_pubsub_with_a_non_existent_node(self, r):
         """
         Test creation of pubsub instance with node that doesn't exists in the
-        cluster. RedisClusterException should be raised.
+        cluster. ValkeyClusterException should be raised.
         """
         node = ClusterNode("1.1.1.1", 1111)
-        with pytest.raises(RedisClusterException):
+        with pytest.raises(ValkeyClusterException):
             r.pubsub(node)
 
     def test_init_pubsub_with_a_non_existent_host_port(self, r):
         """
         Test creation of pubsub instance with host and port that don't belong
         to a node in the cluster.
-        RedisClusterException should be raised.
+        ValkeyClusterException should be raised.
         """
-        with pytest.raises(RedisClusterException):
+        with pytest.raises(ValkeyClusterException):
             r.pubsub(host="1.1.1.1", port=1111)
 
     def test_init_pubsub_host_or_port(self, r):
@@ -2930,14 +2901,14 @@ class TestClusterPubSubObject:
         with pytest.raises(DataError):
             r.pubsub(port=16379)
 
-    def test_get_redis_connection(self, r):
+    def test_get_valkey_connection(self, r):
         """
-        Test that get_redis_connection() returns the redis connection of the
+        Test that get_valkey_connection() returns the valkey connection of the
         set pubsub node
         """
         node = r.get_default_node()
         p = r.pubsub(node=node)
-        assert p.get_redis_connection() == node.redis_connection
+        assert p.get_valkey_connection() == node.valkey_connection
 
 
 @pytest.mark.onlycluster
@@ -2953,28 +2924,28 @@ class TestClusterPipeline:
         They maybe implemented in the future.
         """
         pipe = r.pipeline()
-        with pytest.raises(RedisClusterException):
+        with pytest.raises(ValkeyClusterException):
             pipe.multi()
 
-        with pytest.raises(RedisClusterException):
+        with pytest.raises(ValkeyClusterException):
             pipe.immediate_execute_command()
 
-        with pytest.raises(RedisClusterException):
+        with pytest.raises(ValkeyClusterException):
             pipe._execute_transaction(None, None, None)
 
-        with pytest.raises(RedisClusterException):
+        with pytest.raises(ValkeyClusterException):
             pipe.load_scripts()
 
-        with pytest.raises(RedisClusterException):
+        with pytest.raises(ValkeyClusterException):
             pipe.watch()
 
-        with pytest.raises(RedisClusterException):
+        with pytest.raises(ValkeyClusterException):
             pipe.unwatch()
 
-        with pytest.raises(RedisClusterException):
+        with pytest.raises(ValkeyClusterException):
             pipe.script_load_for_pipeline(None)
 
-        with pytest.raises(RedisClusterException):
+        with pytest.raises(ValkeyClusterException):
             pipe.eval()
 
     def test_blocked_arguments(self, r):
@@ -2982,7 +2953,7 @@ class TestClusterPipeline:
         Currently some arguments is blocked when using in cluster mode.
         They maybe implemented in the future.
         """
-        with pytest.raises(RedisClusterException) as ex:
+        with pytest.raises(ValkeyClusterException) as ex:
             r.pipeline(transaction=True)
 
         assert (
@@ -2990,16 +2961,16 @@ class TestClusterPipeline:
             is True
         )
 
-        with pytest.raises(RedisClusterException) as ex:
+        with pytest.raises(ValkeyClusterException) as ex:
             r.pipeline(shard_hint=True)
 
         assert (
             str(ex.value).startswith("shard_hint is deprecated in cluster mode") is True
         )
 
-    def test_redis_cluster_pipeline(self, r):
+    def test_valkey_cluster_pipeline(self, r):
         """
-        Test that we can use a pipeline with the RedisCluster class
+        Test that we can use a pipeline with the ValkeyCluster class
         """
         with r.pipeline() as pipe:
             pipe.set("foo", "bar")
@@ -3011,7 +2982,7 @@ class TestClusterPipeline:
         Test that mget is disabled for ClusterPipeline
         """
         with r.pipeline() as pipe:
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.mget(["a"])
 
     def test_mset_disabled(self, r):
@@ -3019,7 +2990,7 @@ class TestClusterPipeline:
         Test that mset is disabled for ClusterPipeline
         """
         with r.pipeline() as pipe:
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.mset({"a": 1, "b": 2})
 
     def test_rename_disabled(self, r):
@@ -3027,7 +2998,7 @@ class TestClusterPipeline:
         Test that rename is disabled for ClusterPipeline
         """
         with r.pipeline(transaction=False) as pipe:
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.rename("a", "b")
 
     def test_renamenx_disabled(self, r):
@@ -3035,7 +3006,7 @@ class TestClusterPipeline:
         Test that renamenx is disabled for ClusterPipeline
         """
         with r.pipeline(transaction=False) as pipe:
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.renamenx("a", "b")
 
     def test_delete_single(self, r):
@@ -3054,7 +3025,7 @@ class TestClusterPipeline:
         with r.pipeline(transaction=False) as pipe:
             r["a"] = 1
             r["b"] = 2
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.delete("a", "b")
 
     def test_unlink_single(self, r):
@@ -3073,7 +3044,7 @@ class TestClusterPipeline:
         with r.pipeline(transaction=False) as pipe:
             r["a"] = 1
             r["b"] = 2
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.unlink("a", "b")
 
     def test_brpoplpush_disabled(self, r):
@@ -3081,7 +3052,7 @@ class TestClusterPipeline:
         Test that brpoplpush is disabled for ClusterPipeline
         """
         with r.pipeline(transaction=False) as pipe:
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.brpoplpush()
 
     def test_rpoplpush_disabled(self, r):
@@ -3089,7 +3060,7 @@ class TestClusterPipeline:
         Test that rpoplpush is disabled for ClusterPipeline
         """
         with r.pipeline(transaction=False) as pipe:
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.rpoplpush()
 
     def test_sort_disabled(self, r):
@@ -3097,7 +3068,7 @@ class TestClusterPipeline:
         Test that sort is disabled for ClusterPipeline
         """
         with r.pipeline(transaction=False) as pipe:
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.sort()
 
     def test_sdiff_disabled(self, r):
@@ -3105,7 +3076,7 @@ class TestClusterPipeline:
         Test that sdiff is disabled for ClusterPipeline
         """
         with r.pipeline(transaction=False) as pipe:
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.sdiff()
 
     def test_sdiffstore_disabled(self, r):
@@ -3113,7 +3084,7 @@ class TestClusterPipeline:
         Test that sdiffstore is disabled for ClusterPipeline
         """
         with r.pipeline(transaction=False) as pipe:
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.sdiffstore()
 
     def test_sinter_disabled(self, r):
@@ -3121,7 +3092,7 @@ class TestClusterPipeline:
         Test that sinter is disabled for ClusterPipeline
         """
         with r.pipeline(transaction=False) as pipe:
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.sinter()
 
     def test_sinterstore_disabled(self, r):
@@ -3129,7 +3100,7 @@ class TestClusterPipeline:
         Test that sinterstore is disabled for ClusterPipeline
         """
         with r.pipeline(transaction=False) as pipe:
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.sinterstore()
 
     def test_smove_disabled(self, r):
@@ -3137,7 +3108,7 @@ class TestClusterPipeline:
         Test that move is disabled for ClusterPipeline
         """
         with r.pipeline(transaction=False) as pipe:
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.smove()
 
     def test_sunion_disabled(self, r):
@@ -3145,7 +3116,7 @@ class TestClusterPipeline:
         Test that sunion is disabled for ClusterPipeline
         """
         with r.pipeline(transaction=False) as pipe:
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.sunion()
 
     def test_sunionstore_disabled(self, r):
@@ -3153,7 +3124,7 @@ class TestClusterPipeline:
         Test that sunionstore is disabled for ClusterPipeline
         """
         with r.pipeline(transaction=False) as pipe:
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.sunionstore()
 
     def test_spfmerge_disabled(self, r):
@@ -3161,7 +3132,7 @@ class TestClusterPipeline:
         Test that spfmerge is disabled for ClusterPipeline
         """
         with r.pipeline(transaction=False) as pipe:
-            with pytest.raises(RedisClusterException):
+            with pytest.raises(ValkeyClusterException):
                 pipe.pfmerge()
 
     def test_multi_key_operation_with_a_single_slot(self, r):
@@ -3212,7 +3183,7 @@ class TestClusterPipeline:
         with r.pipeline() as pipe:
             mock_node_resp_func(node, raise_connection_error)
             res = pipe.get(key).get(key).execute(raise_on_error=False)
-            assert node.redis_connection.connection.read_response.called
+            assert node.valkey_connection.connection.read_response.called
             assert isinstance(res[0], ConnectionError)
 
     def test_connection_error_raised(self, r):
@@ -3255,8 +3226,8 @@ class TestClusterPipeline:
             mock_node_resp_func(first_node, raise_ask_error)
             mock_node_resp(ask_node, "MOCK_OK")
             res = pipe.get(key).execute()
-            assert first_node.redis_connection.connection.read_response.called
-            assert ask_node.redis_connection.connection.read_response.called
+            assert first_node.valkey_connection.connection.read_response.called
+            assert ask_node.valkey_connection.connection.read_response.called
             assert res == ["MOCK_OK"]
 
     def test_return_previously_acquired_connections(self, r):
@@ -3264,8 +3235,8 @@ class TestClusterPipeline:
         #   from different nodes
         assert r.keyslot("a") != r.keyslot("b")
 
-        orig_func = redis.cluster.get_connection
-        with patch("redis.cluster.get_connection") as get_connection:
+        orig_func = valkey.cluster.get_connection
+        with patch("valkey.cluster.get_connection") as get_connection:
 
             def raise_error(target_node, *args, **kwargs):
                 if get_connection.call_count == 2:
@@ -3280,7 +3251,7 @@ class TestClusterPipeline:
         # 4 = 2 get_connections per execution * 2 executions
         assert get_connection.call_count == 4
         for cluster_node in r.nodes_manager.nodes_cache.values():
-            connection_pool = cluster_node.redis_connection.connection_pool
+            connection_pool = cluster_node.valkey_connection.connection_pool
             num_of_conns = len(connection_pool._available_connections)
             assert num_of_conns == connection_pool._created_connections
 
@@ -3346,7 +3317,7 @@ class TestReadOnlyPipeline:
                 # occurred. If MovedError occurs, we should see the
                 # reinitialize_counter increase.
                 assert readwrite_pipe.reinitialize_counter == 1
-                conn = replica.redis_connection.connection
+                conn = replica.valkey_connection.connection
                 assert conn.read_response.called is True
 
     def test_readonly_pipeline_from_readonly_client(self, request):
@@ -3355,7 +3326,7 @@ class TestReadOnlyPipeline:
         has it enabled
         """
         # Create a cluster with reading from replications
-        ro = _get_client(RedisCluster, request, read_from_replicas=True)
+        ro = _get_client(ValkeyCluster, request, read_from_replicas=True)
         key = "bar"
         ro.set(key, "foo")
         import time
@@ -3370,7 +3341,7 @@ class TestReadOnlyPipeline:
                 executed_on_replica = False
                 for node in slot_nodes:
                     if node.server_type == REPLICA:
-                        conn = node.redis_connection.connection
+                        conn = node.valkey_connection.connection
                         executed_on_replica = conn.read_response.called
                         if executed_on_replica:
                             break

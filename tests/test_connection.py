@@ -4,19 +4,19 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-import redis
-from redis import ConnectionPool, Redis
-from redis._parsers import _HiredisParser, _RESP2Parser, _RESP3Parser
-from redis.backoff import NoBackoff
-from redis.connection import (
+import valkey
+from valkey import ConnectionPool, Valkey
+from valkey._parsers import _HiredisParser, _RESP2Parser, _RESP3Parser
+from valkey.backoff import NoBackoff
+from valkey.connection import (
     Connection,
     SSLConnection,
     UnixDomainSocketConnection,
     parse_url,
 )
-from redis.exceptions import ConnectionError, InvalidResponse, TimeoutError
-from redis.retry import Retry
-from redis.utils import HIREDIS_AVAILABLE
+from valkey.exceptions import ConnectionError, InvalidResponse, TimeoutError
+from valkey.retry import Retry
+from valkey.utils import HIREDIS_AVAILABLE
 
 from .conftest import skip_if_server_version_lt
 from .mocks import MockSocket
@@ -34,7 +34,7 @@ def test_invalid_response(r):
 
 
 @skip_if_server_version_lt("4.0.0")
-@pytest.mark.redismod
+@pytest.mark.valkeymod
 def test_loading_external_modules(r):
     def inner():
         pass
@@ -44,9 +44,9 @@ def test_loading_external_modules(r):
     assert isinstance(getattr(r, "myfuncname"), types.FunctionType)
 
     # and call it
-    from redis.commands import RedisModuleCommands
+    from valkey.commands import ValkeyModuleCommands
 
-    j = RedisModuleCommands.json
+    j = ValkeyModuleCommands.json
     r.load_external_module("sometestfuncname", j)
 
     # d = {'hello': 'world!'}
@@ -138,7 +138,7 @@ class TestConnection:
     [_RESP2Parser, _RESP3Parser, _HiredisParser],
     ids=["RESP2Parser", "RESP3Parser", "HiredisParser"],
 )
-def test_connection_parse_response_resume(r: redis.Redis, parser_class):
+def test_connection_parse_response_resume(r: valkey.Valkey, parser_class):
     """
     This test verifies that the Connection parser,
     be that PythonParser or HiredisParser,
@@ -211,46 +211,46 @@ def test_pack_command(Class):
 
 @pytest.mark.onlynoncluster
 def test_create_single_connection_client_from_url():
-    client = redis.Redis.from_url(
-        "redis://localhost:6379/0?", single_connection_client=True
+    client = valkey.Valkey.from_url(
+        "valkey://localhost:6379/0?", single_connection_client=True
     )
     assert client.connection is not None
 
 
 @pytest.mark.parametrize("from_url", (True, False), ids=("from_url", "from_args"))
 def test_pool_auto_close(request, from_url):
-    """Verify that basic Redis instances have auto_close_connection_pool set to True"""
+    """Verify that basic Valkey instances have auto_close_connection_pool set to True"""
 
-    url: str = request.config.getoption("--redis-url")
+    url: str = request.config.getoption("--valkey-url")
     url_args = parse_url(url)
 
-    def get_redis_connection():
+    def get_valkey_connection():
         if from_url:
-            return Redis.from_url(url)
-        return Redis(**url_args)
+            return Valkey.from_url(url)
+        return Valkey(**url_args)
 
-    r1 = get_redis_connection()
+    r1 = get_valkey_connection()
     assert r1.auto_close_connection_pool is True
     r1.close()
 
 
 @pytest.mark.parametrize("from_url", (True, False), ids=("from_url", "from_args"))
-def test_redis_connection_pool(request, from_url):
-    """Verify that basic Redis instances using `connection_pool`
+def test_valkey_connection_pool(request, from_url):
+    """Verify that basic Valkey instances using `connection_pool`
     have auto_close_connection_pool set to False"""
 
-    url: str = request.config.getoption("--redis-url")
+    url: str = request.config.getoption("--valkey-url")
     url_args = parse_url(url)
 
     pool = None
 
-    def get_redis_connection():
+    def get_valkey_connection():
         nonlocal pool
         if from_url:
             pool = ConnectionPool.from_url(url)
         else:
             pool = ConnectionPool(**url_args)
-        return Redis(connection_pool=pool)
+        return Valkey(connection_pool=pool)
 
     called = 0
 
@@ -259,7 +259,7 @@ def test_redis_connection_pool(request, from_url):
         called += 1
 
     with patch.object(ConnectionPool, "disconnect", mock_disconnect):
-        with get_redis_connection() as r1:
+        with get_valkey_connection() as r1:
             assert r1.auto_close_connection_pool is False
 
     assert called == 0
@@ -267,22 +267,22 @@ def test_redis_connection_pool(request, from_url):
 
 
 @pytest.mark.parametrize("from_url", (True, False), ids=("from_url", "from_args"))
-def test_redis_from_pool(request, from_url):
-    """Verify that basic Redis instances created using `from_pool()`
+def test_valkey_from_pool(request, from_url):
+    """Verify that basic Valkey instances created using `from_pool()`
     have auto_close_connection_pool set to True"""
 
-    url: str = request.config.getoption("--redis-url")
+    url: str = request.config.getoption("--valkey-url")
     url_args = parse_url(url)
 
     pool = None
 
-    def get_redis_connection():
+    def get_valkey_connection():
         nonlocal pool
         if from_url:
             pool = ConnectionPool.from_url(url)
         else:
             pool = ConnectionPool(**url_args)
-        return Redis.from_pool(pool)
+        return Valkey.from_pool(pool)
 
     called = 0
 
@@ -291,7 +291,7 @@ def test_redis_from_pool(request, from_url):
         called += 1
 
     with patch.object(ConnectionPool, "disconnect", mock_disconnect):
-        with get_redis_connection() as r1:
+        with get_valkey_connection() as r1:
             assert r1.auto_close_connection_pool is True
 
     assert called == 1

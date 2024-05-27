@@ -2,9 +2,9 @@ import contextlib
 import multiprocessing
 
 import pytest
-import redis
-from redis.connection import Connection, ConnectionPool
-from redis.exceptions import ConnectionError
+import valkey
+from valkey.connection import Connection, ConnectionPool
+from valkey.exceptions import ConnectionError
 
 from .conftest import _get_client
 
@@ -25,7 +25,9 @@ class TestMultiprocessing:
     # actually fork/process-safe
     @pytest.fixture()
     def r(self, request):
-        return _get_client(redis.Redis, request=request, single_connection_client=False)
+        return _get_client(
+            valkey.Valkey, request=request, single_connection_client=False
+        )
 
     def test_close_connection_in_child(self, master_host):
         """
@@ -87,7 +89,7 @@ class TestMultiprocessing:
         by a parent.
         """
         pool = ConnectionPool.from_url(
-            f"redis://{master_host[0]}:{master_host[1]}",
+            f"valkey://{master_host[0]}:{master_host[1]}",
             max_connections=max_connections,
         )
 
@@ -124,7 +126,7 @@ class TestMultiprocessing:
         when the parent disconnects all connections within the pool.
         """
         pool = ConnectionPool.from_url(
-            f"redis://{master_host[0]}:{master_host[1]}",
+            f"valkey://{master_host[0]}:{master_host[1]}",
             max_connections=max_connections,
         )
 
@@ -151,8 +153,8 @@ class TestMultiprocessing:
         proc.join(3)
         assert proc.exitcode == 0
 
-    def test_redis_client(self, r):
-        "A redis client created in a parent can also be used in a child"
+    def test_valkey_client(self, r):
+        "A valkey client created in a parent can also be used in a child"
         assert r.ping() is True
 
         def target(client):

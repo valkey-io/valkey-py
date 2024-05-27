@@ -3,9 +3,9 @@ from unittest import mock
 
 import pytest
 import pytest_asyncio
-import redis.asyncio.sentinel
-from redis import exceptions
-from redis.asyncio.sentinel import (
+import valkey.asyncio.sentinel
+from valkey import exceptions
+from valkey.asyncio.sentinel import (
     MasterNotFoundError,
     Sentinel,
     SentinelConnectionPool,
@@ -37,7 +37,7 @@ class SentinelTestClient:
 
     async def execute_command(self, *args, **kwargs):
         # wrapper purely to validate the calls don't explode
-        from redis.asyncio.client import bool_ok
+        from valkey.asyncio.client import bool_ok
 
         return bool_ok
 
@@ -73,10 +73,10 @@ class SentinelTestCluster:
 @pytest_asyncio.fixture()
 async def cluster(master_ip):
     cluster = SentinelTestCluster(ip=master_ip)
-    saved_Redis = redis.asyncio.sentinel.Redis
-    redis.asyncio.sentinel.Redis = cluster.client
+    saved_Valkey = valkey.asyncio.sentinel.Valkey
+    valkey.asyncio.sentinel.Valkey = cluster.client
     yield cluster
-    redis.asyncio.sentinel.Redis = saved_Redis
+    valkey.asyncio.sentinel.Valkey = saved_Valkey
 
 
 @pytest_asyncio.fixture()

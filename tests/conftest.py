@@ -1,5 +1,4 @@
 import argparse
-import random
 import time
 from typing import Callable, TypeVar
 from unittest import mock
@@ -7,21 +6,21 @@ from unittest.mock import Mock
 from urllib.parse import urlparse
 
 import pytest
-import redis
+import valkey
 from packaging.version import Version
-from redis import Sentinel
-from redis.backoff import NoBackoff
-from redis.connection import Connection, parse_url
-from redis.exceptions import RedisClusterException
-from redis.retry import Retry
+from valkey import Sentinel
+from valkey.backoff import NoBackoff
+from valkey.connection import Connection, parse_url
+from valkey.exceptions import ValkeyClusterException
+from valkey.retry import Retry
 
-REDIS_INFO = {}
-default_redis_url = "redis://localhost:6379/0"
+VALKEY_INFO = {}
+default_valkey_url = "valkey://localhost:6379/0"
 default_protocol = "2"
-default_redismod_url = "redis://localhost:6379"
+default_valkeymod_url = "valkey://localhost:6379"
 
 # default ssl client ignores verification for the purpose of testing
-default_redis_ssl_url = "rediss://localhost:6666"
+default_valkey_ssl_url = "valkeys://localhost:6666"
 default_cluster_nodes = 6
 
 _DecoratedTest = TypeVar("_DecoratedTest", bound="Callable")
@@ -74,10 +73,10 @@ class BooleanOptionalAction(argparse.Action):
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--redis-url",
-        default=default_redis_url,
+        "--valkey-url",
+        default=default_valkey_url,
         action="store",
-        help="Redis connection string, defaults to `%(default)s`",
+        help="Valkey connection string, defaults to `%(default)s`",
     )
 
     parser.addoption(
@@ -87,14 +86,14 @@ def pytest_addoption(parser):
         help="Protocol version, defaults to `%(default)s`",
     )
     parser.addoption(
-        "--redis-ssl-url",
-        default=default_redis_ssl_url,
+        "--valkey-ssl-url",
+        default=default_valkey_ssl_url,
         action="store",
-        help="Redis SSL connection string, defaults to `%(default)s`",
+        help="Valkey SSL connection string, defaults to `%(default)s`",
     )
 
     parser.addoption(
-        "--redis-cluster-nodes",
+        "--valkey-cluster-nodes",
         default=default_cluster_nodes,
         action="store",
         help="The number of cluster nodes that need to be "
@@ -115,19 +114,14 @@ def pytest_addoption(parser):
     parser.addoption(
         "--master-service",
         action="store",
-        default="redis-py-test",
-        help="Name of the Redis master service that the sentinels are monitoring",
+        default="valkey-py-test",
+        help="Name of the Valkey master service that the sentinels are monitoring",
     )
 
 
-def _get_info(redis_url):
-    client = redis.Redis.from_url(redis_url)
+def _get_info(valkey_url):
+    client = valkey.Valkey.from_url(valkey_url)
     info = client.info()
-    try:
-        client.execute_command("DPING")
-        info["enterprise"] = True
-    except redis.ResponseError:
-        info["enterprise"] = False
     client.connection_pool.disconnect()
     return info
 
@@ -135,36 +129,33 @@ def _get_info(redis_url):
 def pytest_sessionstart(session):
     # during test discovery, e.g. with VS Code, we may not
     # have a server running.
-    redis_url = session.config.getoption("--redis-url")
+    valkey_url = session.config.getoption("--valkey-url")
     try:
-        info = _get_info(redis_url)
-        version = info["redis_version"]
+        info = _get_info(valkey_url)
+        version = info["valkey_version"]
         arch_bits = info["arch_bits"]
         cluster_enabled = info["cluster_enabled"]
-        enterprise = info["enterprise"]
-    except redis.ConnectionError:
+    except valkey.ConnectionError:
         # provide optimistic defaults
         info = {}
         version = "10.0.0"
         arch_bits = 64
         cluster_enabled = False
-        enterprise = False
-    REDIS_INFO["version"] = version
-    REDIS_INFO["arch_bits"] = arch_bits
-    REDIS_INFO["cluster_enabled"] = cluster_enabled
-    REDIS_INFO["enterprise"] = enterprise
-    # store REDIS_INFO in config so that it is available from "condition strings"
-    session.config.REDIS_INFO = REDIS_INFO
+    VALKEY_INFO["version"] = version
+    VALKEY_INFO["arch_bits"] = arch_bits
+    VALKEY_INFO["cluster_enabled"] = cluster_enabled
+    # store VALKEY_INFO in config so that it is available from "condition strings"
+    session.config.VALKEY_INFO = VALKEY_INFO
 
     # module info
     try:
-        REDIS_INFO["modules"] = info["modules"]
-    except (KeyError, redis.exceptions.ConnectionError):
+        VALKEY_INFO["modules"] = info["modules"]
+    except (KeyError, valkey.exceptions.ConnectionError):
         pass
 
     if cluster_enabled:
-        cluster_nodes = session.config.getoption("--redis-cluster-nodes")
-        wait_for_cluster_creation(redis_url, cluster_nodes)
+        cluster_nodes = session.config.getoption("--valkey-cluster-nodes")
+        wait_for_cluster_creation(valkey_url, cluster_nodes)
 
     use_uvloop = session.config.getoption("--uvloop")
 
@@ -179,12 +170,12 @@ def pytest_sessionstart(session):
             ) from e
 
 
-def wait_for_cluster_creation(redis_url, cluster_nodes, timeout=60):
+def wait_for_cluster_creation(valkey_url, cluster_nodes, timeout=60):
     """
     Waits for the cluster creation to complete.
     As soon as all :cluster_nodes: nodes become available, the cluster will be
     considered ready.
-    :param redis_url: the cluster's url, e.g. redis://localhost:16379/0
+    :param valkey_url: the cluster's url, e.g. valkey://localhost:16379/0
     :param cluster_nodes: The number of nodes in the cluster
     :param timeout: the amount of time to wait (in seconds)
     """
@@ -194,67 +185,57 @@ def wait_for_cluster_creation(redis_url, cluster_nodes, timeout=60):
     print(f"Waiting for {cluster_nodes} cluster nodes to become available")
     while now < end_time:
         try:
-            client = redis.RedisCluster.from_url(redis_url)
+            client = valkey.ValkeyCluster.from_url(valkey_url)
             if len(client.get_nodes()) == int(cluster_nodes):
                 print("All nodes are available!")
                 break
-        except RedisClusterException:
+        except ValkeyClusterException:
             pass
         time.sleep(1)
         now = time.time()
     if now >= end_time:
         available_nodes = 0 if client is None else len(client.get_nodes())
-        raise RedisClusterException(
+        raise ValkeyClusterException(
             f"The cluster did not become available after {timeout} seconds. "
             f"Only {available_nodes} nodes out of {cluster_nodes} are available"
         )
 
 
 def skip_if_server_version_lt(min_version: str) -> _TestDecorator:
-    redis_version = REDIS_INFO.get("version", "0")
-    check = Version(redis_version) < Version(min_version)
-    return pytest.mark.skipif(check, reason=f"Redis version required >= {min_version}")
+    valkey_version = VALKEY_INFO.get("version", "0")
+    check = Version(valkey_version) < Version(min_version)
+    return pytest.mark.skipif(check, reason=f"Valkey version required >= {min_version}")
 
 
 def skip_if_server_version_gte(min_version: str) -> _TestDecorator:
-    redis_version = REDIS_INFO.get("version", "0")
-    check = Version(redis_version) >= Version(min_version)
-    return pytest.mark.skipif(check, reason=f"Redis version required < {min_version}")
+    valkey_version = VALKEY_INFO.get("version", "0")
+    check = Version(valkey_version) >= Version(min_version)
+    return pytest.mark.skipif(check, reason=f"Valkey version required < {min_version}")
 
 
 def skip_unless_arch_bits(arch_bits: int) -> _TestDecorator:
     return pytest.mark.skipif(
-        REDIS_INFO.get("arch_bits", "") != arch_bits,
+        VALKEY_INFO.get("arch_bits", "") != arch_bits,
         reason=f"server is not {arch_bits}-bit",
     )
 
 
 def skip_ifmodversion_lt(min_version: str, module_name: str):
     try:
-        modules = REDIS_INFO["modules"]
+        modules = VALKEY_INFO["modules"]
     except KeyError:
-        return pytest.mark.skipif(True, reason="Redis server does not have modules")
+        return pytest.mark.skipif(True, reason="Valkey server does not have modules")
     if modules == []:
-        return pytest.mark.skipif(True, reason="No redis modules found")
+        return pytest.mark.skipif(True, reason="No valkey modules found")
 
     for j in modules:
         if module_name == j.get("name"):
             version = j.get("ver")
             mv = int(min_version.replace(".", ""))
             check = version < mv
-            return pytest.mark.skipif(check, reason="Redis module version")
+            return pytest.mark.skipif(check, reason="Valkey module version")
 
-    raise AttributeError(f"No redis module named {module_name}")
-
-
-def skip_if_redis_enterprise() -> _TestDecorator:
-    check = REDIS_INFO.get("enterprise", False) is True
-    return pytest.mark.skipif(check, reason="Redis enterprise")
-
-
-def skip_ifnot_redis_enterprise() -> _TestDecorator:
-    check = REDIS_INFO.get("enterprise", False) is False
-    return pytest.mark.skipif(check, reason="Not running in redis enterprise")
+    raise AttributeError(f"No valkey module named {module_name}")
 
 
 def skip_if_nocryptography() -> _TestDecorator:
@@ -279,27 +260,27 @@ def _get_client(
     cls, request, single_connection_client=True, flushdb=True, from_url=None, **kwargs
 ):
     """
-    Helper for fixtures or tests that need a Redis client
+    Helper for fixtures or tests that need a Valkey client
 
-    Uses the "--redis-url" command line argument for connection info. Unlike
+    Uses the "--valkey-url" command line argument for connection info. Unlike
     ConnectionPool.from_url, keyword arguments to this function override
     values specified in the URL.
     """
     if from_url is None:
-        redis_url = request.config.getoption("--redis-url")
+        valkey_url = request.config.getoption("--valkey-url")
     else:
-        redis_url = from_url
-    if "protocol" not in redis_url and kwargs.get("protocol") is None:
+        valkey_url = from_url
+    if "protocol" not in valkey_url and kwargs.get("protocol") is None:
         kwargs["protocol"] = request.config.getoption("--protocol")
 
-    cluster_mode = REDIS_INFO["cluster_enabled"]
+    cluster_mode = VALKEY_INFO["cluster_enabled"]
     if not cluster_mode:
-        url_options = parse_url(redis_url)
+        url_options = parse_url(valkey_url)
         url_options.update(kwargs)
-        pool = redis.ConnectionPool(**url_options)
+        pool = valkey.ConnectionPool(**url_options)
         client = cls(connection_pool=pool)
     else:
-        client = redis.RedisCluster.from_url(redis_url, **kwargs)
+        client = valkey.ValkeyCluster.from_url(valkey_url, **kwargs)
         single_connection_client = False
     if single_connection_client:
         client = client.client()
@@ -310,7 +291,7 @@ def _get_client(
                 if flushdb:
                     try:
                         client.flushdb()
-                    except redis.ConnectionError:
+                    except valkey.ConnectionError:
                         # handle cases where a test disconnected a client
                         # just manually retry the flushdb
                         client.flushdb()
@@ -327,7 +308,7 @@ def cluster_teardown(client, flushdb):
     if flushdb:
         try:
             client.flushdb(target_nodes="primaries")
-        except redis.ConnectionError:
+        except valkey.ConnectionError:
             # handle cases where a test disconnected a client
             # just manually retry the flushdb
             client.flushdb(target_nodes="primaries")
@@ -337,32 +318,32 @@ def cluster_teardown(client, flushdb):
 
 @pytest.fixture()
 def r(request):
-    with _get_client(redis.Redis, request) as client:
+    with _get_client(valkey.Valkey, request) as client:
         yield client
 
 
 @pytest.fixture()
 def decoded_r(request):
-    with _get_client(redis.Redis, request, decode_responses=True) as client:
+    with _get_client(valkey.Valkey, request, decode_responses=True) as client:
         yield client
 
 
 @pytest.fixture()
 def r_timeout(request):
-    with _get_client(redis.Redis, request, socket_timeout=1) as client:
+    with _get_client(valkey.Valkey, request, socket_timeout=1) as client:
         yield client
 
 
 @pytest.fixture()
 def r2(request):
     "A second client for tests that need multiple"
-    with _get_client(redis.Redis, request) as client:
+    with _get_client(valkey.Valkey, request) as client:
         yield client
 
 
 @pytest.fixture()
 def sslclient(request):
-    with _get_client(redis.Redis, request, ssl=True) as client:
+    with _get_client(valkey.Valkey, request, ssl=True) as client:
         yield client
 
 
@@ -405,19 +386,19 @@ def _gen_cluster_mock_resp(r, response):
 
 @pytest.fixture()
 def mock_cluster_resp_ok(request, **kwargs):
-    r = _get_client(redis.Redis, request, **kwargs)
+    r = _get_client(valkey.Valkey, request, **kwargs)
     yield from _gen_cluster_mock_resp(r, "OK")
 
 
 @pytest.fixture()
 def mock_cluster_resp_int(request, **kwargs):
-    r = _get_client(redis.Redis, request, **kwargs)
+    r = _get_client(valkey.Valkey, request, **kwargs)
     yield from _gen_cluster_mock_resp(r, 2)
 
 
 @pytest.fixture()
 def mock_cluster_resp_info(request, **kwargs):
-    r = _get_client(redis.Redis, request, **kwargs)
+    r = _get_client(valkey.Valkey, request, **kwargs)
     response = (
         "cluster_state:ok\r\ncluster_slots_assigned:16384\r\n"
         "cluster_slots_ok:16384\r\ncluster_slots_pfail:0\r\n"
@@ -431,7 +412,7 @@ def mock_cluster_resp_info(request, **kwargs):
 
 @pytest.fixture()
 def mock_cluster_resp_nodes(request, **kwargs):
-    r = _get_client(redis.Redis, request, **kwargs)
+    r = _get_client(valkey.Valkey, request, **kwargs)
     response = (
         "c8253bae761cb1ecb2b61857d85dfe455a0fec8b 172.17.0.7:7006 "
         "slave aa90da731f673a99617dfe930306549a09f83a6b 0 "
@@ -455,7 +436,7 @@ def mock_cluster_resp_nodes(request, **kwargs):
 
 @pytest.fixture()
 def mock_cluster_resp_slaves(request, **kwargs):
-    r = _get_client(redis.Redis, request, **kwargs)
+    r = _get_client(valkey.Valkey, request, **kwargs)
     response = (
         "['1df047e5a594f945d82fc140be97a1452bcbf93e 172.17.0.7:7007 "
         "slave 19efe5a631f3296fdf21a5441680f893e8cc96ec 0 "
@@ -466,7 +447,7 @@ def mock_cluster_resp_slaves(request, **kwargs):
 
 @pytest.fixture(scope="session")
 def master_host(request):
-    url = request.config.getoption("--redis-url")
+    url = request.config.getoption("--valkey-url")
     parts = urlparse(url)
     return parts.hostname, (parts.port or 6379)
 
@@ -477,12 +458,8 @@ def wait_for_command(client, monitor, command, key=None):
     # for, something went wrong
     if key is None:
         # generate key
-        redis_version = REDIS_INFO["version"]
-        if Version(redis_version) >= Version("5.0.0"):
-            id_str = str(client.client_id())
-        else:
-            id_str = f"{random.randrange(2 ** 32):08x}"
-        key = f"__REDIS-PY-{id_str}__"
+        id_str = str(client.client_id())
+        key = f"__VALKEY-PY-{id_str}__"
     client.get(key)
     while True:
         monitor_response = monitor.next_command()
@@ -493,17 +470,17 @@ def wait_for_command(client, monitor, command, key=None):
 
 
 def is_resp2_connection(r):
-    if isinstance(r, redis.Redis) or isinstance(r, redis.asyncio.Redis):
+    if isinstance(r, valkey.Valkey) or isinstance(r, valkey.asyncio.Valkey):
         protocol = r.connection_pool.connection_kwargs.get("protocol")
-    elif isinstance(r, redis.cluster.AbstractRedisCluster):
+    elif isinstance(r, valkey.cluster.AbstractValkeyCluster):
         protocol = r.nodes_manager.connection_kwargs.get("protocol")
     return protocol in ["2", 2, None]
 
 
 def get_protocol_version(r):
-    if isinstance(r, redis.Redis) or isinstance(r, redis.asyncio.Redis):
+    if isinstance(r, valkey.Valkey) or isinstance(r, valkey.asyncio.Valkey):
         return r.connection_pool.connection_kwargs.get("protocol")
-    elif isinstance(r, redis.cluster.AbstractRedisCluster):
+    elif isinstance(r, valkey.cluster.AbstractValkeyCluster):
         return r.nodes_manager.connection_kwargs.get("protocol")
 
 

@@ -9,14 +9,21 @@ from urllib.parse import urlparse
 import pytest
 import pytest_asyncio
 from _pytest.fixtures import FixtureRequest
-from redis._parsers import AsyncCommandsParser
-from redis.asyncio.cluster import ClusterNode, NodesManager, RedisCluster
-from redis.asyncio.connection import Connection, SSLConnection, async_timeout
-from redis.asyncio.retry import Retry
-from redis.backoff import ExponentialBackoff, NoBackoff, default_backoff
-from redis.cluster import PIPELINE_BLOCKED_COMMANDS, PRIMARY, REPLICA, get_node_name
-from redis.crc import REDIS_CLUSTER_HASH_SLOTS, key_slot
-from redis.exceptions import (
+from tests.conftest import (
+    assert_resp_response,
+    is_resp2_connection,
+    skip_if_server_version_gte,
+    skip_if_server_version_lt,
+    skip_unless_arch_bits,
+)
+from valkey._parsers import AsyncCommandsParser
+from valkey.asyncio.cluster import ClusterNode, NodesManager, ValkeyCluster
+from valkey.asyncio.connection import Connection, SSLConnection, async_timeout
+from valkey.asyncio.retry import Retry
+from valkey.backoff import ExponentialBackoff, NoBackoff, default_backoff
+from valkey.cluster import PIPELINE_BLOCKED_COMMANDS, PRIMARY, REPLICA, get_node_name
+from valkey.crc import VALKEY_CLUSTER_HASH_SLOTS, key_slot
+from valkey.exceptions import (
     AskError,
     ClusterDownError,
     ConnectionError,
@@ -24,19 +31,11 @@ from redis.exceptions import (
     MaxConnectionsError,
     MovedError,
     NoPermissionError,
-    RedisClusterException,
-    RedisError,
     ResponseError,
+    ValkeyClusterException,
+    ValkeyError,
 )
-from redis.utils import str_if_bytes
-from tests.conftest import (
-    assert_resp_response,
-    is_resp2_connection,
-    skip_if_redis_enterprise,
-    skip_if_server_version_gte,
-    skip_if_server_version_lt,
-    skip_unless_arch_bits,
-)
+from valkey.utils import str_if_bytes
 
 from ..ssl_utils import get_ssl_filename
 from .compat import aclosing, mock
@@ -55,34 +54,34 @@ default_cluster_slots = [
 class NodeProxy:
     """A class to proxy a node connection to a different port"""
 
-    def __init__(self, addr, redis_addr):
+    def __init__(self, addr, valkey_addr):
         self.addr = addr
-        self.redis_addr = redis_addr
+        self.valkey_addr = valkey_addr
         self.send_event = asyncio.Event()
         self.server = None
         self.task = None
         self.n_connections = 0
 
     async def start(self):
-        # test that we can connect to redis
+        # test that we can connect to valkey
         async with async_timeout(2):
-            _, redis_writer = await asyncio.open_connection(*self.redis_addr)
-        redis_writer.close()
+            _, valkey_writer = await asyncio.open_connection(*self.valkey_addr)
+        valkey_writer.close()
         self.server = await asyncio.start_server(
             self.handle, *self.addr, reuse_address=True
         )
         self.task = asyncio.create_task(self.server.serve_forever())
 
     async def handle(self, reader, writer):
-        # establish connection to redis
-        redis_reader, redis_writer = await asyncio.open_connection(*self.redis_addr)
+        # establish connection to valkey
+        valkey_reader, valkey_writer = await asyncio.open_connection(*self.valkey_addr)
         try:
             self.n_connections += 1
-            pipe1 = asyncio.create_task(self.pipe(reader, redis_writer))
-            pipe2 = asyncio.create_task(self.pipe(redis_reader, writer))
+            pipe1 = asyncio.create_task(self.pipe(reader, valkey_writer))
+            pipe2 = asyncio.create_task(self.pipe(valkey_reader, writer))
             await asyncio.gather(pipe1, pipe2)
         finally:
-            redis_writer.close()
+            valkey_writer.close()
 
     async def aclose(self):
         self.task.cancel()
@@ -106,7 +105,7 @@ class NodeProxy:
 
 
 @pytest_asyncio.fixture()
-async def slowlog(r: RedisCluster) -> None:
+async def slowlog(r: ValkeyCluster) -> None:
     """
     Set the slowlog threshold to 0, and the
     max length to 128. This will force every
@@ -128,11 +127,11 @@ async def slowlog(r: RedisCluster) -> None:
     await r.config_set("slowlog-max-len", old_max_length_value)
 
 
-async def get_mocked_redis_client(
+async def get_mocked_valkey_client(
     cluster_slots_raise_error=False, *args, **kwargs
-) -> RedisCluster:
+) -> ValkeyCluster:
     """
-    Return a stable RedisCluster object that have deterministic
+    Return a stable ValkeyCluster object that have deterministic
     nodes and slots setup to remove the problem of different IP addresses
     on different installations and machines.
     """
@@ -178,7 +177,7 @@ async def get_mocked_redis_client(
 
             cmd_parser_initialize.side_effect = cmd_init_mock
 
-            return await RedisCluster(*args, **kwargs)
+            return await ValkeyCluster(*args, **kwargs)
 
 
 def mock_node_resp(node: ClusterNode, response: Any) -> ClusterNode:
@@ -203,14 +202,14 @@ def mock_node_resp_exc(node: ClusterNode, exc: Exception) -> ClusterNode:
     return node
 
 
-def mock_all_nodes_resp(rc: RedisCluster, response: Any) -> RedisCluster:
+def mock_all_nodes_resp(rc: ValkeyCluster, response: Any) -> ValkeyCluster:
     for node in rc.get_nodes():
         mock_node_resp(node, response)
     return rc
 
 
 async def moved_redirection_helper(
-    create_redis: Callable[..., RedisCluster], failover: bool = False
+    create_valkey: Callable[..., ValkeyCluster], failover: bool = False
 ) -> None:
     """
     Test that the client handles MOVED response after a failover.
@@ -228,7 +227,7 @@ async def moved_redirection_helper(
     3. the redirected node's server type updated to 'primary'
     4. the server type of the previous slot owner updated to 'replica'
     """
-    rc = await create_redis(cls=RedisCluster, flushdb=False)
+    rc = await create_valkey(cls=ValkeyCluster, flushdb=False)
     slot = 12182
     redirect_node = None
     # Get the current primary that holds this slot
@@ -266,9 +265,9 @@ async def moved_redirection_helper(
             assert prev_primary.server_type == REPLICA
 
 
-class TestRedisClusterObj:
+class TestValkeyClusterObj:
     """
-    Tests for the RedisCluster class
+    Tests for the ValkeyCluster class
     """
 
     async def test_host_port_startup_node(self) -> None:
@@ -276,13 +275,13 @@ class TestRedisClusterObj:
         Test that it is possible to use host & port arguments as startup node
         args
         """
-        cluster = await get_mocked_redis_client(host=default_host, port=default_port)
+        cluster = await get_mocked_valkey_client(host=default_host, port=default_port)
         assert cluster.get_node(host=default_host, port=default_port) is not None
 
         await cluster.aclose()
 
     async def test_aclosing(self) -> None:
-        cluster = await get_mocked_redis_client(host=default_host, port=default_port)
+        cluster = await get_mocked_valkey_client(host=default_host, port=default_port)
         called = 0
 
         async def mock_aclose():
@@ -300,7 +299,7 @@ class TestRedisClusterObj:
         Test that it is possible to use host & port arguments as startup node
         args
         """
-        cluster = await get_mocked_redis_client(host=default_host, port=default_port)
+        cluster = await get_mocked_valkey_client(host=default_host, port=default_port)
         called = 0
 
         async def mock_aclose():
@@ -323,7 +322,7 @@ class TestRedisClusterObj:
             ClusterNode(default_host, port_1),
             ClusterNode(default_host, port_2),
         ]
-        cluster = await get_mocked_redis_client(startup_nodes=startup_nodes)
+        cluster = await get_mocked_valkey_client(startup_nodes=startup_nodes)
         assert (
             cluster.get_node(host=default_host, port=port_1) is not None
             and cluster.get_node(host=default_host, port=port_2) is not None
@@ -332,7 +331,9 @@ class TestRedisClusterObj:
         await cluster.aclose()
 
         startup_node = ClusterNode("127.0.0.1", 16379)
-        async with RedisCluster(startup_nodes=[startup_node], client_name="test") as rc:
+        async with ValkeyCluster(
+            startup_nodes=[startup_node], client_name="test"
+        ) as rc:
             assert await rc.set("A", 1)
             assert await rc.get("A") == b"1"
             assert all(
@@ -346,8 +347,8 @@ class TestRedisClusterObj:
 
     async def test_cluster_set_get_retry_object(self, request: FixtureRequest):
         retry = Retry(NoBackoff(), 2)
-        url = request.config.getoption("--redis-url")
-        async with RedisCluster.from_url(url, retry=retry) as r:
+        url = request.config.getoption("--valkey-url")
+        async with ValkeyCluster.from_url(url, retry=retry) as r:
             assert r.get_retry()._retries == retry._retries
             assert isinstance(r.get_retry()._backoff, NoBackoff)
             for node in r.get_nodes():
@@ -372,8 +373,8 @@ class TestRedisClusterObj:
             assert new_conn.retry._retries == new_retry._retries
 
     async def test_cluster_retry_object(self, request: FixtureRequest) -> None:
-        url = request.config.getoption("--redis-url")
-        async with RedisCluster.from_url(url) as rc_default:
+        url = request.config.getoption("--valkey-url")
+        async with ValkeyCluster.from_url(url) as rc_default:
             # Test default retry
             retry = rc_default.connection_kwargs.get("retry")
             assert isinstance(retry, Retry)
@@ -384,7 +385,7 @@ class TestRedisClusterObj:
             ) == rc_default.get_node("127.0.0.1", 16380).connection_kwargs.get("retry")
 
         retry = Retry(ExponentialBackoff(10, 5), 5)
-        async with RedisCluster.from_url(url, retry=retry) as rc_custom_retry:
+        async with ValkeyCluster.from_url(url, retry=retry) as rc_custom_retry:
             # Test custom retry
             assert (
                 rc_custom_retry.get_node("127.0.0.1", 16379).connection_kwargs.get(
@@ -393,7 +394,7 @@ class TestRedisClusterObj:
                 == retry
             )
 
-        async with RedisCluster.from_url(
+        async with ValkeyCluster.from_url(
             url, connection_error_retry_attempts=0
         ) as rc_no_retries:
             # Test no connection retries
@@ -404,7 +405,7 @@ class TestRedisClusterObj:
                 is None
             )
 
-        async with RedisCluster.from_url(
+        async with ValkeyCluster.from_url(
             url, retry=Retry(NoBackoff(), 0)
         ) as rc_no_retries:
             assert (
@@ -418,27 +419,27 @@ class TestRedisClusterObj:
         """
         Test that exception is raised when empty providing empty startup_nodes
         """
-        with pytest.raises(RedisClusterException) as ex:
-            RedisCluster(startup_nodes=[])
+        with pytest.raises(ValkeyClusterException) as ex:
+            ValkeyCluster(startup_nodes=[])
 
         assert str(ex.value).startswith(
-            "RedisCluster requires at least one node to discover the cluster"
+            "ValkeyCluster requires at least one node to discover the cluster"
         ), str_if_bytes(ex.value)
 
     async def test_from_url(self, request: FixtureRequest) -> None:
-        url = request.config.getoption("--redis-url")
+        url = request.config.getoption("--valkey-url")
 
-        async with RedisCluster.from_url(url) as rc:
+        async with ValkeyCluster.from_url(url) as rc:
             await rc.set("a", 1)
             await rc.get("a") == 1
 
-        rc = RedisCluster.from_url("rediss://localhost:16379")
+        rc = ValkeyCluster.from_url("valkeys://localhost:16379")
         assert rc.connection_kwargs["connection_class"] is SSLConnection
 
     async def test_max_connections(
-        self, create_redis: Callable[..., RedisCluster]
+        self, create_valkey: Callable[..., ValkeyCluster]
     ) -> None:
-        rc = await create_redis(cls=RedisCluster, max_connections=10)
+        rc = await create_valkey(cls=ValkeyCluster, max_connections=10)
         for node in rc.get_nodes():
             assert node.max_connections == 10
 
@@ -452,31 +453,31 @@ class TestRedisClusterObj:
             with pytest.raises(MaxConnectionsError):
                 await asyncio.gather(
                     *(
-                        rc.ping(target_nodes=RedisCluster.DEFAULT_NODE)
+                        rc.ping(target_nodes=ValkeyCluster.DEFAULT_NODE)
                         for _ in range(11)
                     )
                 )
 
         await rc.aclose()
 
-    async def test_execute_command_errors(self, r: RedisCluster) -> None:
+    async def test_execute_command_errors(self, r: ValkeyCluster) -> None:
         """
         Test that if no key is provided then exception should be raised.
         """
-        with pytest.raises(RedisClusterException) as ex:
+        with pytest.raises(ValkeyClusterException) as ex:
             await r.execute_command("GET")
         assert str(ex.value).startswith(
-            "No way to dispatch this command to Redis Cluster. Missing key."
+            "No way to dispatch this command to Valkey Cluster. Missing key."
         )
 
-    async def test_execute_command_node_flag_primaries(self, r: RedisCluster) -> None:
+    async def test_execute_command_node_flag_primaries(self, r: ValkeyCluster) -> None:
         """
         Test command execution with nodes flag PRIMARIES
         """
         primaries = r.get_primaries()
         replicas = r.get_replicas()
         mock_all_nodes_resp(r, "PONG")
-        assert await r.ping(target_nodes=RedisCluster.PRIMARIES) is True
+        assert await r.ping(target_nodes=ValkeyCluster.PRIMARIES) is True
         for primary in primaries:
             conn = primary._free.pop()
             assert conn.read_response.called is True
@@ -484,16 +485,16 @@ class TestRedisClusterObj:
             conn = replica._free.pop()
             assert conn.read_response.called is not True
 
-    async def test_execute_command_node_flag_replicas(self, r: RedisCluster) -> None:
+    async def test_execute_command_node_flag_replicas(self, r: ValkeyCluster) -> None:
         """
         Test command execution with nodes flag REPLICAS
         """
         replicas = r.get_replicas()
         if not replicas:
-            r = await get_mocked_redis_client(default_host, default_port)
+            r = await get_mocked_valkey_client(default_host, default_port)
         primaries = r.get_primaries()
         mock_all_nodes_resp(r, "PONG")
-        assert await r.ping(target_nodes=RedisCluster.REPLICAS) is True
+        assert await r.ping(target_nodes=ValkeyCluster.REPLICAS) is True
         for replica in replicas:
             conn = replica._free.pop()
             assert conn.read_response.called is True
@@ -503,22 +504,22 @@ class TestRedisClusterObj:
 
         await r.aclose()
 
-    async def test_execute_command_node_flag_all_nodes(self, r: RedisCluster) -> None:
+    async def test_execute_command_node_flag_all_nodes(self, r: ValkeyCluster) -> None:
         """
         Test command execution with nodes flag ALL_NODES
         """
         mock_all_nodes_resp(r, "PONG")
-        assert await r.ping(target_nodes=RedisCluster.ALL_NODES) is True
+        assert await r.ping(target_nodes=ValkeyCluster.ALL_NODES) is True
         for node in r.get_nodes():
             conn = node._free.pop()
             assert conn.read_response.called is True
 
-    async def test_execute_command_node_flag_random(self, r: RedisCluster) -> None:
+    async def test_execute_command_node_flag_random(self, r: ValkeyCluster) -> None:
         """
         Test command execution with nodes flag RANDOM
         """
         mock_all_nodes_resp(r, "PONG")
-        assert await r.ping(target_nodes=RedisCluster.RANDOM) is True
+        assert await r.ping(target_nodes=ValkeyCluster.RANDOM) is True
         called_count = 0
         for node in r.get_nodes():
             conn = node._free.pop()
@@ -526,7 +527,7 @@ class TestRedisClusterObj:
                 called_count += 1
         assert called_count == 1
 
-    async def test_execute_command_default_node(self, r: RedisCluster) -> None:
+    async def test_execute_command_default_node(self, r: ValkeyCluster) -> None:
         """
         Test command execution without node flag is being executed on the
         default node
@@ -537,7 +538,7 @@ class TestRedisClusterObj:
         conn = def_node._free.pop()
         assert conn.read_response.called
 
-    async def test_ask_redirection(self, r: RedisCluster) -> None:
+    async def test_ask_redirection(self, r: ValkeyCluster) -> None:
         """
         Test that the server handles ASK response.
 
@@ -566,23 +567,23 @@ class TestRedisClusterObj:
             assert await r.execute_command("SET", "foo", "bar") == "MOCK_OK"
 
     async def test_moved_redirection(
-        self, create_redis: Callable[..., RedisCluster]
+        self, create_valkey: Callable[..., ValkeyCluster]
     ) -> None:
         """
         Test that the client handles MOVED response.
         """
-        await moved_redirection_helper(create_redis, failover=False)
+        await moved_redirection_helper(create_valkey, failover=False)
 
     async def test_moved_redirection_after_failover(
-        self, create_redis: Callable[..., RedisCluster]
+        self, create_valkey: Callable[..., ValkeyCluster]
     ) -> None:
         """
         Test that the client handles MOVED response after a failover.
         """
-        await moved_redirection_helper(create_redis, failover=True)
+        await moved_redirection_helper(create_valkey, failover=True)
 
     async def test_refresh_using_specific_nodes(
-        self, create_redis: Callable[..., RedisCluster]
+        self, create_valkey: Callable[..., ValkeyCluster]
     ) -> None:
         """
         Test making calls on specific nodes when the cluster has failed over to
@@ -661,7 +662,7 @@ class TestRedisClusterObj:
 
                         cmd_parser_initialize.side_effect = cmd_init_mock
 
-                        rc = await create_redis(cls=RedisCluster, flushdb=False)
+                        rc = await create_valkey(cls=ValkeyCluster, flushdb=False)
                         assert len(rc.get_nodes()) == 1
                         assert rc.get_node(node_name=node_7006.name) is not None
 
@@ -707,7 +708,7 @@ class TestRedisClusterObj:
                     return "MOCK_OK"
 
                 # We don't need to create a real cluster connection but we
-                # do want RedisCluster.on_connect function to get called,
+                # do want ValkeyCluster.on_connect function to get called,
                 # so we'll mock some of the Connection's functions to allow it
                 execute_command.side_effect = execute_command_mock_first
                 mocks["send_command"].return_value = True
@@ -717,7 +718,7 @@ class TestRedisClusterObj:
                 mocks["on_connect"].return_value = True
 
                 # Create a cluster with reading from replications
-                read_cluster = await get_mocked_redis_client(
+                read_cluster = await get_mocked_valkey_client(
                     host=default_host, port=default_port, read_from_replicas=True
                 )
                 assert read_cluster.read_from_replicas is True
@@ -732,7 +733,7 @@ class TestRedisClusterObj:
 
                 await read_cluster.aclose()
 
-    async def test_keyslot(self, r: RedisCluster) -> None:
+    async def test_keyslot(self, r: ValkeyCluster) -> None:
         """
         Test that method will compute correct key in all supported cases
         """
@@ -755,7 +756,7 @@ class TestRedisClusterObj:
             == f"{default_host}:{default_port}"
         )
 
-    async def test_all_nodes(self, r: RedisCluster) -> None:
+    async def test_all_nodes(self, r: ValkeyCluster) -> None:
         """
         Set a list of nodes and it should be possible to iterate over all
         """
@@ -764,7 +765,7 @@ class TestRedisClusterObj:
         for i, node in enumerate(r.get_nodes()):
             assert node in nodes
 
-    async def test_all_nodes_masters(self, r: RedisCluster) -> None:
+    async def test_all_nodes_masters(self, r: ValkeyCluster) -> None:
         """
         Set a list of nodes with random primaries/replicas config and it shold
         be possible to iterate over all of them.
@@ -778,7 +779,7 @@ class TestRedisClusterObj:
         for node in r.get_primaries():
             assert node in nodes
 
-    @pytest.mark.parametrize("error", RedisCluster.ERRORS_ALLOW_RETRY)
+    @pytest.mark.parametrize("error", ValkeyCluster.ERRORS_ALLOW_RETRY)
     async def test_cluster_down_overreaches_retry_attempts(
         self,
         error: Union[Type[TimeoutError], Type[ClusterDownError], Type[ConnectionError]],
@@ -788,7 +789,7 @@ class TestRedisClusterObj:
         the command as many times as configured in cluster_error_retry_attempts
         and then raise the exception
         """
-        with mock.patch.object(RedisCluster, "_execute_command") as execute_command:
+        with mock.patch.object(ValkeyCluster, "_execute_command") as execute_command:
 
             def raise_error(target_node, *args, **kwargs):
                 execute_command.failed_calls += 1
@@ -796,7 +797,7 @@ class TestRedisClusterObj:
 
             execute_command.side_effect = raise_error
 
-            rc = await get_mocked_redis_client(host=default_host, port=default_port)
+            rc = await get_mocked_valkey_client(host=default_host, port=default_port)
 
             with pytest.raises(error):
                 await rc.get("bar")
@@ -804,7 +805,7 @@ class TestRedisClusterObj:
 
             await rc.aclose()
 
-    async def test_set_default_node_success(self, r: RedisCluster) -> None:
+    async def test_set_default_node_success(self, r: ValkeyCluster) -> None:
         """
         test successful replacement of the default cluster node
         """
@@ -818,7 +819,7 @@ class TestRedisClusterObj:
         r.set_default_node(new_def_node)
         assert r.get_default_node() == new_def_node
 
-    async def test_set_default_node_failure(self, r: RedisCluster) -> None:
+    async def test_set_default_node_failure(self, r: ValkeyCluster) -> None:
         """
         test failed replacement of the default cluster node
         """
@@ -830,7 +831,7 @@ class TestRedisClusterObj:
             r.set_default_node(new_def_node)
         assert r.get_default_node() == default_node
 
-    async def test_get_node_from_key(self, r: RedisCluster) -> None:
+    async def test_get_node_from_key(self, r: ValkeyCluster) -> None:
         """
         Test that get_node_from_key function returns the correct node
         """
@@ -844,9 +845,8 @@ class TestRedisClusterObj:
             assert replica.server_type == REPLICA
             assert replica in slot_nodes
 
-    @skip_if_redis_enterprise()
     async def test_not_require_full_coverage_cluster_down_error(
-        self, r: RedisCluster
+        self, r: ValkeyCluster
     ) -> None:
         """
         When require_full_coverage is set to False (default client config) and not
@@ -876,16 +876,19 @@ class TestRedisClusterObj:
                     raise e
 
     async def test_can_run_concurrent_commands(self, request: FixtureRequest) -> None:
-        url = request.config.getoption("--redis-url")
-        rc = RedisCluster.from_url(url)
+        url = request.config.getoption("--valkey-url")
+        rc = ValkeyCluster.from_url(url)
         assert all(
             await asyncio.gather(
-                *(rc.echo("i", target_nodes=RedisCluster.ALL_NODES) for i in range(100))
+                *(
+                    rc.echo("i", target_nodes=ValkeyCluster.ALL_NODES)
+                    for i in range(100)
+                )
             )
         )
         await rc.aclose()
 
-    def test_replace_cluster_node(self, r: RedisCluster) -> None:
+    def test_replace_cluster_node(self, r: ValkeyCluster) -> None:
         prev_default_node = r.get_default_node()
         r.replace_default_node()
         assert r.get_default_node() != prev_default_node
@@ -906,8 +909,8 @@ class TestRedisClusterObj:
         # Rollback to the old default node
         r.replace_default_node(curr_default_node)
 
-    async def test_address_remap(self, create_redis, master_host):
-        """Test that we can create a rediscluster object with
+    async def test_address_remap(self, create_valkey, master_host):
+        """Test that we can create a valkeycluster object with
         a host-port remapper and map connections through proxy objects
         """
 
@@ -933,8 +936,8 @@ class TestRedisClusterObj:
         await asyncio.gather(*[p.start() for p in proxies])
         try:
             # create cluster:
-            r = await create_redis(
-                cls=RedisCluster, flushdb=False, address_remap=address_remap
+            r = await create_valkey(
+                cls=ValkeyCluster, flushdb=False, address_remap=address_remap
             )
             try:
                 assert await r.ping() is True
@@ -950,12 +953,12 @@ class TestRedisClusterObj:
         assert n_used > 1
 
 
-class TestClusterRedisCommands:
+class TestClusterValkeyCommands:
     """
-    Tests for RedisCluster unique commands
+    Tests for ValkeyCluster unique commands
     """
 
-    async def test_get_and_set(self, r: RedisCluster) -> None:
+    async def test_get_and_set(self, r: ValkeyCluster) -> None:
         # get and set can't be tested independently of each other
         assert await r.get("a") is None
         byte_string = b"value"
@@ -968,7 +971,7 @@ class TestClusterRedisCommands:
         assert await r.get("integer") == str(integer).encode()
         assert (await r.get("unicode_string")).decode("utf-8") == unicode_string
 
-    async def test_mget_nonatomic(self, r: RedisCluster) -> None:
+    async def test_mget_nonatomic(self, r: ValkeyCluster) -> None:
         assert await r.mget_nonatomic([]) == []
         assert await r.mget_nonatomic(["a", "b"]) == [None, None]
         await r.set("a", "1")
@@ -982,16 +985,16 @@ class TestClusterRedisCommands:
             b"3",
         ]
 
-    async def test_mset_nonatomic(self, r: RedisCluster) -> None:
+    async def test_mset_nonatomic(self, r: ValkeyCluster) -> None:
         d = {"a": b"1", "b": b"2", "c": b"3", "d": b"4"}
         assert await r.mset_nonatomic(d)
         for k, v in d.items():
             assert await r.get(k) == v
 
-    async def test_config_set(self, r: RedisCluster) -> None:
+    async def test_config_set(self, r: ValkeyCluster) -> None:
         assert await r.config_set("slowlog-log-slower-than", 0)
 
-    async def test_cluster_config_resetstat(self, r: RedisCluster) -> None:
+    async def test_cluster_config_resetstat(self, r: ValkeyCluster) -> None:
         await r.ping(target_nodes="all")
         all_info = await r.info(target_nodes="all")
         prior_commands_processed = -1
@@ -1004,29 +1007,29 @@ class TestClusterRedisCommands:
             reset_commands_processed = node_info["total_commands_processed"]
             assert reset_commands_processed < prior_commands_processed
 
-    async def test_client_setname(self, r: RedisCluster) -> None:
+    async def test_client_setname(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
-        await r.client_setname("redis_py_test", target_nodes=node)
+        await r.client_setname("valkey_py_test", target_nodes=node)
         client_name = await r.client_getname(target_nodes=node)
-        assert_resp_response(r, client_name, "redis_py_test", b"redis_py_test")
+        assert_resp_response(r, client_name, "valkey_py_test", b"valkey_py_test")
 
-    async def test_exists(self, r: RedisCluster) -> None:
+    async def test_exists(self, r: ValkeyCluster) -> None:
         d = {"a": b"1", "b": b"2", "c": b"3", "d": b"4"}
         await r.mset_nonatomic(d)
         assert await r.exists(*d.keys()) == len(d)
 
-    async def test_delete(self, r: RedisCluster) -> None:
+    async def test_delete(self, r: ValkeyCluster) -> None:
         d = {"a": b"1", "b": b"2", "c": b"3", "d": b"4"}
         await r.mset_nonatomic(d)
         assert await r.delete(*d.keys()) == len(d)
         assert await r.delete(*d.keys()) == 0
 
-    async def test_touch(self, r: RedisCluster) -> None:
+    async def test_touch(self, r: ValkeyCluster) -> None:
         d = {"a": b"1", "b": b"2", "c": b"3", "d": b"4"}
         await r.mset_nonatomic(d)
         assert await r.touch(*d.keys()) == len(d)
 
-    async def test_unlink(self, r: RedisCluster) -> None:
+    async def test_unlink(self, r: ValkeyCluster) -> None:
         d = {"a": b"1", "b": b"2", "c": b"3", "d": b"4"}
         await r.mset_nonatomic(d)
         assert await r.unlink(*d.keys()) == len(d)
@@ -1039,26 +1042,23 @@ class TestClusterRedisCommands:
         self, request: FixtureRequest
     ) -> None:
         # Test for issue https://github.com/redis/redis-py/issues/2437
-        url = request.config.getoption("--redis-url")
-        r = RedisCluster.from_url(url)
+        url = request.config.getoption("--valkey-url")
+        r = ValkeyCluster.from_url(url)
         assert 0 == await r.exists("a", "b", "c")
         await r.aclose()
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_myid(self, r: RedisCluster) -> None:
+    async def test_cluster_myid(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
         myid = await r.cluster_myid(node)
         assert len(myid) == 40
 
     @skip_if_server_version_lt("7.2.0")
-    @skip_if_redis_enterprise()
-    async def test_cluster_myshardid(self, r: RedisCluster) -> None:
+    async def test_cluster_myshardid(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
         myshardid = await r.cluster_myshardid(node)
         assert len(myshardid) == 40
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_slots(self, r: RedisCluster) -> None:
+    async def test_cluster_slots(self, r: ValkeyCluster) -> None:
         mock_all_nodes_resp(r, default_cluster_slots)
         cluster_slots = await r.cluster_slots()
         assert isinstance(cluster_slots, dict)
@@ -1066,36 +1066,32 @@ class TestClusterRedisCommands:
         assert cluster_slots.get((0, 8191)) is not None
         assert cluster_slots.get((0, 8191)).get("primary") == ("127.0.0.1", 7000)
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_addslots(self, r: RedisCluster) -> None:
+    async def test_cluster_addslots(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
         mock_node_resp(node, "OK")
         assert await r.cluster_addslots(node, 1, 2, 3) is True
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_redis_enterprise()
-    async def test_cluster_addslotsrange(self, r: RedisCluster):
+    async def test_cluster_addslotsrange(self, r: ValkeyCluster):
         node = r.get_random_node()
         mock_node_resp(node, "OK")
         assert await r.cluster_addslotsrange(node, 1, 5)
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_countkeysinslot(self, r: RedisCluster) -> None:
+    async def test_cluster_countkeysinslot(self, r: ValkeyCluster) -> None:
         node = r.nodes_manager.get_node_from_slot(1)
         mock_node_resp(node, 2)
         assert await r.cluster_countkeysinslot(1) == 2
 
-    async def test_cluster_count_failure_report(self, r: RedisCluster) -> None:
+    async def test_cluster_count_failure_report(self, r: ValkeyCluster) -> None:
         mock_all_nodes_resp(r, 0)
         assert await r.cluster_count_failure_report("node_0") == 0
 
-    @skip_if_redis_enterprise()
     async def test_cluster_delslots(self) -> None:
         cluster_slots = [
             [0, 8191, ["127.0.0.1", 7000, "node_0"]],
             [8192, 16383, ["127.0.0.1", 7001, "node_1"]],
         ]
-        r = await get_mocked_redis_client(
+        r = await get_mocked_valkey_client(
             host=default_host, port=default_port, cluster_slots=cluster_slots
         )
         mock_all_nodes_resp(r, "OK")
@@ -1108,9 +1104,8 @@ class TestClusterRedisCommands:
         await r.aclose()
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_redis_enterprise()
     async def test_cluster_delslotsrange(self):
-        r = await get_mocked_redis_client(host=default_host, port=default_port)
+        r = await get_mocked_valkey_client(host=default_host, port=default_port)
         mock_all_nodes_resp(r, "OK")
         node = r.get_random_node()
         await r.cluster_addslots(node, 1, 2, 3, 4, 5)
@@ -1118,35 +1113,30 @@ class TestClusterRedisCommands:
         assert node._free.pop().read_response.called
         await r.aclose()
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_failover(self, r: RedisCluster) -> None:
+    async def test_cluster_failover(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
         mock_node_resp(node, "OK")
         assert await r.cluster_failover(node) is True
         assert await r.cluster_failover(node, "FORCE") is True
         assert await r.cluster_failover(node, "TAKEOVER") is True
-        with pytest.raises(RedisError):
+        with pytest.raises(ValkeyError):
             await r.cluster_failover(node, "FORCT")
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_info(self, r: RedisCluster) -> None:
+    async def test_cluster_info(self, r: ValkeyCluster) -> None:
         info = await r.cluster_info()
         assert isinstance(info, dict)
         assert info["cluster_state"] == "ok"
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_keyslot(self, r: RedisCluster) -> None:
+    async def test_cluster_keyslot(self, r: ValkeyCluster) -> None:
         mock_all_nodes_resp(r, 12182)
         assert await r.cluster_keyslot("foo") == 12182
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_meet(self, r: RedisCluster) -> None:
+    async def test_cluster_meet(self, r: ValkeyCluster) -> None:
         node = r.get_default_node()
         mock_node_resp(node, "OK")
         assert await r.cluster_meet("127.0.0.1", 6379) is True
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_nodes(self, r: RedisCluster) -> None:
+    async def test_cluster_nodes(self, r: ValkeyCluster) -> None:
         response = (
             "c8253bae761cb1ecb2b61857d85dfe455a0fec8b 172.17.0.7:7006 "
             "slave aa90da731f673a99617dfe930306549a09f83a6b 0 "
@@ -1174,8 +1164,7 @@ class TestClusterRedisCommands:
             == "c8253bae761cb1ecb2b61857d85dfe455a0fec8b"
         )
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_nodes_importing_migrating(self, r: RedisCluster) -> None:
+    async def test_cluster_nodes_importing_migrating(self, r: ValkeyCluster) -> None:
         response = (
             "488ead2fcce24d8c0f158f9172cb1f4a9e040fe5 127.0.0.1:16381@26381 "
             "master - 0 1648975557664 3 connected 10923-16383\n"
@@ -1211,8 +1200,7 @@ class TestClusterRedisCommands:
         assert node_16381.get("slots") == [["10923", "16383"]]
         assert node_16381.get("migrations") == []
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_replicate(self, r: RedisCluster) -> None:
+    async def test_cluster_replicate(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
         all_replicas = r.get_replicas()
         mock_all_nodes_resp(r, "OK")
@@ -1224,8 +1212,7 @@ class TestClusterRedisCommands:
         else:
             assert results is True
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_reset(self, r: RedisCluster) -> None:
+    async def test_cluster_reset(self, r: ValkeyCluster) -> None:
         mock_all_nodes_resp(r, "OK")
         assert await r.cluster_reset() is True
         assert await r.cluster_reset(False) is True
@@ -1233,8 +1220,7 @@ class TestClusterRedisCommands:
         for res in all_results.values():
             assert res is True
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_save_config(self, r: RedisCluster) -> None:
+    async def test_cluster_save_config(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
         all_nodes = r.get_nodes()
         mock_all_nodes_resp(r, "OK")
@@ -1243,42 +1229,38 @@ class TestClusterRedisCommands:
         for res in all_results.values():
             assert res is True
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_get_keys_in_slot(self, r: RedisCluster) -> None:
+    async def test_cluster_get_keys_in_slot(self, r: ValkeyCluster) -> None:
         response = ["{foo}1", "{foo}2"]
         node = r.nodes_manager.get_node_from_slot(12182)
         mock_node_resp(node, response)
         keys = await r.cluster_get_keys_in_slot(12182, 4)
         assert keys == response
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_set_config_epoch(self, r: RedisCluster) -> None:
+    async def test_cluster_set_config_epoch(self, r: ValkeyCluster) -> None:
         mock_all_nodes_resp(r, "OK")
         assert await r.cluster_set_config_epoch(3) is True
         all_results = await r.cluster_set_config_epoch(3, target_nodes="all")
         for res in all_results.values():
             assert res is True
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_setslot(self, r: RedisCluster) -> None:
+    async def test_cluster_setslot(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
         mock_node_resp(node, "OK")
         assert await r.cluster_setslot(node, "node_0", 1218, "IMPORTING") is True
         assert await r.cluster_setslot(node, "node_0", 1218, "NODE") is True
         assert await r.cluster_setslot(node, "node_0", 1218, "MIGRATING") is True
-        with pytest.raises(RedisError):
+        with pytest.raises(ValkeyError):
             await r.cluster_failover(node, "STABLE")
-        with pytest.raises(RedisError):
+        with pytest.raises(ValkeyError):
             await r.cluster_failover(node, "STATE")
 
-    async def test_cluster_setslot_stable(self, r: RedisCluster) -> None:
+    async def test_cluster_setslot_stable(self, r: ValkeyCluster) -> None:
         node = r.nodes_manager.get_node_from_slot(12182)
         mock_node_resp(node, "OK")
         assert await r.cluster_setslot_stable(12182) is True
         assert node._free.pop().read_response.called
 
-    @skip_if_redis_enterprise()
-    async def test_cluster_replicas(self, r: RedisCluster) -> None:
+    async def test_cluster_replicas(self, r: ValkeyCluster) -> None:
         response = [
             b"01eca22229cf3c652b6fca0d09ff6941e0d2e3 "
             b"127.0.0.1:6377@16377 slave "
@@ -1299,7 +1281,7 @@ class TestClusterRedisCommands:
         )
 
     @skip_if_server_version_lt("7.0.0")
-    async def test_cluster_links(self, r: RedisCluster):
+    async def test_cluster_links(self, r: ValkeyCluster):
         node = r.get_random_node()
         res = await r.cluster_links(node)
         if is_resp2_connection(r):
@@ -1315,9 +1297,8 @@ class TestClusterRedisCommands:
             for i in range(0, len(res) - 1, 2):
                 assert res[i][b"node"] == res[i + 1][b"node"]
 
-    @skip_if_redis_enterprise()
     async def test_readonly(self) -> None:
-        r = await get_mocked_redis_client(host=default_host, port=default_port)
+        r = await get_mocked_valkey_client(host=default_host, port=default_port)
         mock_all_nodes_resp(r, "OK")
         assert await r.readonly() is True
         all_replicas_results = await r.readonly(target_nodes="replicas")
@@ -1328,9 +1309,8 @@ class TestClusterRedisCommands:
 
         await r.aclose()
 
-    @skip_if_redis_enterprise()
     async def test_readwrite(self) -> None:
-        r = await get_mocked_redis_client(host=default_host, port=default_port)
+        r = await get_mocked_valkey_client(host=default_host, port=default_port)
         mock_all_nodes_resp(r, "OK")
         assert await r.readwrite() is True
         all_replicas_results = await r.readwrite(target_nodes="replicas")
@@ -1341,8 +1321,7 @@ class TestClusterRedisCommands:
 
         await r.aclose()
 
-    @skip_if_redis_enterprise()
-    async def test_bgsave(self, r: RedisCluster) -> None:
+    async def test_bgsave(self, r: ValkeyCluster) -> None:
         try:
             assert await r.bgsave()
             await asyncio.sleep(0.3)
@@ -1351,7 +1330,7 @@ class TestClusterRedisCommands:
             if "Background save already in progress" not in e.__str__():
                 raise
 
-    async def test_info(self, r: RedisCluster) -> None:
+    async def test_info(self, r: ValkeyCluster) -> None:
         # Map keys to same slot
         await r.set("x{1}", 1)
         await r.set("y{1}", 2)
@@ -1364,7 +1343,7 @@ class TestClusterRedisCommands:
         assert isinstance(info, dict)
         assert info["db0"]["keys"] == 3
 
-    async def _init_slowlog_test(self, r: RedisCluster, node: ClusterNode) -> str:
+    async def _init_slowlog_test(self, r: ValkeyCluster, node: ClusterNode) -> str:
         slowlog_lim = await r.config_get("slowlog-log-slower-than", target_nodes=node)
         assert (
             await r.config_set("slowlog-log-slower-than", 0, target_nodes=node) is True
@@ -1372,7 +1351,7 @@ class TestClusterRedisCommands:
         return slowlog_lim["slowlog-log-slower-than"]
 
     async def _teardown_slowlog_test(
-        self, r: RedisCluster, node: ClusterNode, prev_limit: str
+        self, r: ValkeyCluster, node: ClusterNode, prev_limit: str
     ) -> None:
         assert (
             await r.config_set("slowlog-log-slower-than", prev_limit, target_nodes=node)
@@ -1380,7 +1359,7 @@ class TestClusterRedisCommands:
         )
 
     async def test_slowlog_get(
-        self, r: RedisCluster, slowlog: Optional[List[Dict[str, Union[int, bytes]]]]
+        self, r: ValkeyCluster, slowlog: Optional[List[Dict[str, Union[int, bytes]]]]
     ) -> None:
         unicode_string = chr(3456) + "abcd" + chr(3421)
         node = r.get_node_from_key(unicode_string)
@@ -1408,7 +1387,7 @@ class TestClusterRedisCommands:
         await self._teardown_slowlog_test(r, node, slowlog_limit)
 
     async def test_slowlog_get_limit(
-        self, r: RedisCluster, slowlog: Optional[List[Dict[str, Union[int, bytes]]]]
+        self, r: ValkeyCluster, slowlog: Optional[List[Dict[str, Union[int, bytes]]]]
     ) -> None:
         assert await r.slowlog_reset()
         node = r.get_node_from_key("foo")
@@ -1420,31 +1399,29 @@ class TestClusterRedisCommands:
         assert len(slowlog) == 1
         await self._teardown_slowlog_test(r, node, slowlog_limit)
 
-    async def test_slowlog_length(self, r: RedisCluster, slowlog: None) -> None:
+    async def test_slowlog_length(self, r: ValkeyCluster, slowlog: None) -> None:
         await r.get("foo")
         node = r.nodes_manager.get_node_from_slot(key_slot(b"foo"))
         slowlog_len = await r.slowlog_len(target_nodes=node)
         assert isinstance(slowlog_len, int)
 
-    async def test_time(self, r: RedisCluster) -> None:
+    async def test_time(self, r: ValkeyCluster) -> None:
         t = await r.time(target_nodes=r.get_primaries()[0])
         assert len(t) == 2
         assert isinstance(t[0], int)
         assert isinstance(t[1], int)
 
     @skip_if_server_version_lt("4.0.0")
-    async def test_memory_usage(self, r: RedisCluster) -> None:
+    async def test_memory_usage(self, r: ValkeyCluster) -> None:
         await r.set("foo", "bar")
         assert isinstance(await r.memory_usage("foo"), int)
 
     @skip_if_server_version_lt("4.0.0")
-    @skip_if_redis_enterprise()
-    async def test_memory_malloc_stats(self, r: RedisCluster) -> None:
+    async def test_memory_malloc_stats(self, r: ValkeyCluster) -> None:
         assert await r.memory_malloc_stats()
 
     @skip_if_server_version_lt("4.0.0")
-    @skip_if_redis_enterprise()
-    async def test_memory_stats(self, r: RedisCluster) -> None:
+    async def test_memory_stats(self, r: ValkeyCluster) -> None:
         # put a key into the current db to make sure that "db.<current-db>"
         # has data
         await r.set("foo", "bar")
@@ -1456,30 +1433,29 @@ class TestClusterRedisCommands:
                 assert isinstance(value, dict)
 
     @skip_if_server_version_lt("4.0.0")
-    async def test_memory_help(self, r: RedisCluster) -> None:
+    async def test_memory_help(self, r: ValkeyCluster) -> None:
         with pytest.raises(NotImplementedError):
             await r.memory_help()
 
     @skip_if_server_version_lt("4.0.0")
-    async def test_memory_doctor(self, r: RedisCluster) -> None:
+    async def test_memory_doctor(self, r: ValkeyCluster) -> None:
         with pytest.raises(NotImplementedError):
             await r.memory_doctor()
 
-    @skip_if_redis_enterprise()
-    async def test_lastsave(self, r: RedisCluster) -> None:
+    async def test_lastsave(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         assert isinstance(await r.lastsave(target_nodes=node), datetime.datetime)
 
-    async def test_cluster_echo(self, r: RedisCluster) -> None:
+    async def test_cluster_echo(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         assert await r.echo("foo bar", target_nodes=node) == b"foo bar"
 
     @skip_if_server_version_lt("1.0.0")
-    async def test_debug_segfault(self, r: RedisCluster) -> None:
+    async def test_debug_segfault(self, r: ValkeyCluster) -> None:
         with pytest.raises(NotImplementedError):
             await r.debug_segfault()
 
-    async def test_config_resetstat(self, r: RedisCluster) -> None:
+    async def test_config_resetstat(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         await r.ping(target_nodes=node)
         prior_commands_processed = int(
@@ -1493,32 +1469,31 @@ class TestClusterRedisCommands:
         assert reset_commands_processed < prior_commands_processed
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_client_trackinginfo(self, r: RedisCluster) -> None:
+    async def test_client_trackinginfo(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         res = await r.client_trackinginfo(target_nodes=node)
         assert len(res) > 2
         assert "prefixes" in res or b"prefixes" in res
 
     @skip_if_server_version_lt("2.9.50")
-    async def test_client_pause(self, r: RedisCluster) -> None:
+    async def test_client_pause(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         assert await r.client_pause(1, target_nodes=node)
         assert await r.client_pause(timeout=1, target_nodes=node)
-        with pytest.raises(RedisError):
+        with pytest.raises(ValkeyError):
             await r.client_pause(timeout="not an integer", target_nodes=node)
 
     @skip_if_server_version_lt("6.2.0")
-    @skip_if_redis_enterprise()
-    async def test_client_unpause(self, r: RedisCluster) -> None:
+    async def test_client_unpause(self, r: ValkeyCluster) -> None:
         assert await r.client_unpause()
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_client_id(self, r: RedisCluster) -> None:
+    async def test_client_id(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         assert await r.client_id(target_nodes=node) > 0
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_client_unblock(self, r: RedisCluster) -> None:
+    async def test_client_unblock(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         myid = await r.client_id(target_nodes=node)
         assert not await r.client_unblock(myid, target_nodes=node)
@@ -1526,13 +1501,13 @@ class TestClusterRedisCommands:
         assert not await r.client_unblock(myid, error=False, target_nodes=node)
 
     @skip_if_server_version_lt("6.0.0")
-    async def test_client_getredir(self, r: RedisCluster) -> None:
+    async def test_client_getredir(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         assert isinstance(await r.client_getredir(target_nodes=node), int)
         assert await r.client_getredir(target_nodes=node) == -1
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_client_info(self, r: RedisCluster) -> None:
+    async def test_client_info(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         info = await r.client_info(target_nodes=node)
         assert isinstance(info, dict)
@@ -1540,40 +1515,40 @@ class TestClusterRedisCommands:
 
     @skip_if_server_version_lt("2.6.9")
     async def test_client_kill(
-        self, r: RedisCluster, create_redis: Callable[..., RedisCluster]
+        self, r: ValkeyCluster, create_valkey: Callable[..., ValkeyCluster]
     ) -> None:
         node = r.get_primaries()[0]
-        r2 = await create_redis(cls=RedisCluster, flushdb=False)
-        await r.client_setname("redis-py-c1", target_nodes="all")
-        await r2.client_setname("redis-py-c2", target_nodes="all")
+        r2 = await create_valkey(cls=ValkeyCluster, flushdb=False)
+        await r.client_setname("valkey-py-c1", target_nodes="all")
+        await r2.client_setname("valkey-py-c2", target_nodes="all")
         clients = [
             client
             for client in await r.client_list(target_nodes=node)
-            if client.get("name") in ["redis-py-c1", "redis-py-c2"]
+            if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
         ]
         assert len(clients) == 2
         clients_by_name = {client.get("name"): client for client in clients}
 
-        client_addr = clients_by_name["redis-py-c2"].get("addr")
+        client_addr = clients_by_name["valkey-py-c2"].get("addr")
         assert await r.client_kill(client_addr, target_nodes=node) is True
 
         clients = [
             client
             for client in await r.client_list(target_nodes=node)
-            if client.get("name") in ["redis-py-c1", "redis-py-c2"]
+            if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
         ]
         assert len(clients) == 1
-        assert clients[0].get("name") == "redis-py-c1"
+        assert clients[0].get("name") == "valkey-py-c1"
         await r2.aclose()
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_cluster_bitop_not_empty_string(self, r: RedisCluster) -> None:
+    async def test_cluster_bitop_not_empty_string(self, r: ValkeyCluster) -> None:
         await r.set("{foo}a", "")
         await r.bitop("not", "{foo}r", "{foo}a")
         assert await r.get("{foo}r") is None
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_cluster_bitop_not(self, r: RedisCluster) -> None:
+    async def test_cluster_bitop_not(self, r: ValkeyCluster) -> None:
         test_str = b"\xAA\x00\xFF\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
         await r.set("{foo}a", test_str)
@@ -1581,7 +1556,7 @@ class TestClusterRedisCommands:
         assert int(binascii.hexlify(await r.get("{foo}r")), 16) == correct
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_cluster_bitop_not_in_place(self, r: RedisCluster) -> None:
+    async def test_cluster_bitop_not_in_place(self, r: ValkeyCluster) -> None:
         test_str = b"\xAA\x00\xFF\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
         await r.set("{foo}a", test_str)
@@ -1589,7 +1564,7 @@ class TestClusterRedisCommands:
         assert int(binascii.hexlify(await r.get("{foo}a")), 16) == correct
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_cluster_bitop_single_string(self, r: RedisCluster) -> None:
+    async def test_cluster_bitop_single_string(self, r: ValkeyCluster) -> None:
         test_str = b"\x01\x02\xFF"
         await r.set("{foo}a", test_str)
         await r.bitop("and", "{foo}res1", "{foo}a")
@@ -1600,7 +1575,7 @@ class TestClusterRedisCommands:
         assert await r.get("{foo}res3") == test_str
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_cluster_bitop_string_operands(self, r: RedisCluster) -> None:
+    async def test_cluster_bitop_string_operands(self, r: ValkeyCluster) -> None:
         await r.set("{foo}a", b"\x01\x02\xFF\xFF")
         await r.set("{foo}b", b"\x01\x02\xFF")
         await r.bitop("and", "{foo}res1", "{foo}a", "{foo}b")
@@ -1611,7 +1586,7 @@ class TestClusterRedisCommands:
         assert int(binascii.hexlify(await r.get("{foo}res3")), 16) == 0x000000FF
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_cluster_copy(self, r: RedisCluster) -> None:
+    async def test_cluster_copy(self, r: ValkeyCluster) -> None:
         assert await r.copy("{foo}a", "{foo}b") == 0
         await r.set("{foo}a", "bar")
         assert await r.copy("{foo}a", "{foo}b") == 1
@@ -1619,25 +1594,25 @@ class TestClusterRedisCommands:
         assert await r.get("{foo}b") == b"bar"
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_cluster_copy_and_replace(self, r: RedisCluster) -> None:
+    async def test_cluster_copy_and_replace(self, r: ValkeyCluster) -> None:
         await r.set("{foo}a", "foo1")
         await r.set("{foo}b", "foo2")
         assert await r.copy("{foo}a", "{foo}b") == 0
         assert await r.copy("{foo}a", "{foo}b", replace=True) == 1
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_cluster_lmove(self, r: RedisCluster) -> None:
+    async def test_cluster_lmove(self, r: ValkeyCluster) -> None:
         await r.rpush("{foo}a", "one", "two", "three", "four")
         assert await r.lmove("{foo}a", "{foo}b")
         assert await r.lmove("{foo}a", "{foo}b", "right", "left")
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_cluster_blmove(self, r: RedisCluster) -> None:
+    async def test_cluster_blmove(self, r: ValkeyCluster) -> None:
         await r.rpush("{foo}a", "one", "two", "three", "four")
         assert await r.blmove("{foo}a", "{foo}b", 5)
         assert await r.blmove("{foo}a", "{foo}b", 1, "RIGHT", "LEFT")
 
-    async def test_cluster_msetnx(self, r: RedisCluster) -> None:
+    async def test_cluster_msetnx(self, r: ValkeyCluster) -> None:
         d = {"{foo}a": b"1", "{foo}b": b"2", "{foo}c": b"3"}
         assert await r.msetnx(d)
         d2 = {"{foo}a": b"x", "{foo}d": b"4"}
@@ -1646,13 +1621,13 @@ class TestClusterRedisCommands:
             assert await r.get(k) == v
         assert await r.get("{foo}d") is None
 
-    async def test_cluster_rename(self, r: RedisCluster) -> None:
+    async def test_cluster_rename(self, r: ValkeyCluster) -> None:
         await r.set("{foo}a", "1")
         assert await r.rename("{foo}a", "{foo}b")
         assert await r.get("{foo}a") is None
         assert await r.get("{foo}b") == b"1"
 
-    async def test_cluster_renamenx(self, r: RedisCluster) -> None:
+    async def test_cluster_renamenx(self, r: ValkeyCluster) -> None:
         await r.set("{foo}a", "1")
         await r.set("{foo}b", "2")
         assert not await r.renamenx("{foo}a", "{foo}b")
@@ -1660,7 +1635,7 @@ class TestClusterRedisCommands:
         assert await r.get("{foo}b") == b"2"
 
     # LIST COMMANDS
-    async def test_cluster_blpop(self, r: RedisCluster) -> None:
+    async def test_cluster_blpop(self, r: ValkeyCluster) -> None:
         await r.rpush("{foo}a", "1", "2")
         await r.rpush("{foo}b", "3", "4")
         assert_resp_response(
@@ -1693,7 +1668,7 @@ class TestClusterRedisCommands:
             r, await r.blpop("{foo}c", timeout=1), (b"{foo}c", b"1"), [b"{foo}c", b"1"]
         )
 
-    async def test_cluster_brpop(self, r: RedisCluster) -> None:
+    async def test_cluster_brpop(self, r: ValkeyCluster) -> None:
         await r.rpush("{foo}a", "1", "2")
         await r.rpush("{foo}b", "3", "4")
         assert_resp_response(
@@ -1726,7 +1701,7 @@ class TestClusterRedisCommands:
             r, await r.brpop("{foo}c", timeout=1), (b"{foo}c", b"1"), [b"{foo}c", b"1"]
         )
 
-    async def test_cluster_brpoplpush(self, r: RedisCluster) -> None:
+    async def test_cluster_brpoplpush(self, r: ValkeyCluster) -> None:
         await r.rpush("{foo}a", "1", "2")
         await r.rpush("{foo}b", "3", "4")
         assert await r.brpoplpush("{foo}a", "{foo}b") == b"2"
@@ -1735,24 +1710,24 @@ class TestClusterRedisCommands:
         assert await r.lrange("{foo}a", 0, -1) == []
         assert await r.lrange("{foo}b", 0, -1) == [b"1", b"2", b"3", b"4"]
 
-    async def test_cluster_brpoplpush_empty_string(self, r: RedisCluster) -> None:
+    async def test_cluster_brpoplpush_empty_string(self, r: ValkeyCluster) -> None:
         await r.rpush("{foo}a", "")
         assert await r.brpoplpush("{foo}a", "{foo}b") == b""
 
-    async def test_cluster_rpoplpush(self, r: RedisCluster) -> None:
+    async def test_cluster_rpoplpush(self, r: ValkeyCluster) -> None:
         await r.rpush("{foo}a", "a1", "a2", "a3")
         await r.rpush("{foo}b", "b1", "b2", "b3")
         assert await r.rpoplpush("{foo}a", "{foo}b") == b"a3"
         assert await r.lrange("{foo}a", 0, -1) == [b"a1", b"a2"]
         assert await r.lrange("{foo}b", 0, -1) == [b"a3", b"b1", b"b2", b"b3"]
 
-    async def test_cluster_sdiff(self, r: RedisCluster) -> None:
+    async def test_cluster_sdiff(self, r: ValkeyCluster) -> None:
         await r.sadd("{foo}a", "1", "2", "3")
         assert await r.sdiff("{foo}a", "{foo}b") == {b"1", b"2", b"3"}
         await r.sadd("{foo}b", "2", "3")
         assert await r.sdiff("{foo}a", "{foo}b") == {b"1"}
 
-    async def test_cluster_sdiffstore(self, r: RedisCluster) -> None:
+    async def test_cluster_sdiffstore(self, r: ValkeyCluster) -> None:
         await r.sadd("{foo}a", "1", "2", "3")
         assert await r.sdiffstore("{foo}c", "{foo}a", "{foo}b") == 3
         assert await r.smembers("{foo}c") == {b"1", b"2", b"3"}
@@ -1760,13 +1735,13 @@ class TestClusterRedisCommands:
         assert await r.sdiffstore("{foo}c", "{foo}a", "{foo}b") == 1
         assert await r.smembers("{foo}c") == {b"1"}
 
-    async def test_cluster_sinter(self, r: RedisCluster) -> None:
+    async def test_cluster_sinter(self, r: ValkeyCluster) -> None:
         await r.sadd("{foo}a", "1", "2", "3")
         assert await r.sinter("{foo}a", "{foo}b") == set()
         await r.sadd("{foo}b", "2", "3")
         assert await r.sinter("{foo}a", "{foo}b") == {b"2", b"3"}
 
-    async def test_cluster_sinterstore(self, r: RedisCluster) -> None:
+    async def test_cluster_sinterstore(self, r: ValkeyCluster) -> None:
         await r.sadd("{foo}a", "1", "2", "3")
         assert await r.sinterstore("{foo}c", "{foo}a", "{foo}b") == 0
         assert await r.smembers("{foo}c") == set()
@@ -1774,26 +1749,26 @@ class TestClusterRedisCommands:
         assert await r.sinterstore("{foo}c", "{foo}a", "{foo}b") == 2
         assert await r.smembers("{foo}c") == {b"2", b"3"}
 
-    async def test_cluster_smove(self, r: RedisCluster) -> None:
+    async def test_cluster_smove(self, r: ValkeyCluster) -> None:
         await r.sadd("{foo}a", "a1", "a2")
         await r.sadd("{foo}b", "b1", "b2")
         assert await r.smove("{foo}a", "{foo}b", "a1")
         assert await r.smembers("{foo}a") == {b"a2"}
         assert await r.smembers("{foo}b") == {b"b1", b"b2", b"a1"}
 
-    async def test_cluster_sunion(self, r: RedisCluster) -> None:
+    async def test_cluster_sunion(self, r: ValkeyCluster) -> None:
         await r.sadd("{foo}a", "1", "2")
         await r.sadd("{foo}b", "2", "3")
         assert await r.sunion("{foo}a", "{foo}b") == {b"1", b"2", b"3"}
 
-    async def test_cluster_sunionstore(self, r: RedisCluster) -> None:
+    async def test_cluster_sunionstore(self, r: ValkeyCluster) -> None:
         await r.sadd("{foo}a", "1", "2")
         await r.sadd("{foo}b", "2", "3")
         assert await r.sunionstore("{foo}c", "{foo}a", "{foo}b") == 3
         assert await r.smembers("{foo}c") == {b"1", b"2", b"3"}
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_cluster_zdiff(self, r: RedisCluster) -> None:
+    async def test_cluster_zdiff(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 2, "a3": 3})
         await r.zadd("{foo}b", {"a1": 1, "a2": 2})
         assert await r.zdiff(["{foo}a", "{foo}b"]) == [b"a3"]
@@ -1801,7 +1776,7 @@ class TestClusterRedisCommands:
         assert_resp_response(r, response, [b"a3", b"3"], [[b"a3", 3.0]])
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_cluster_zdiffstore(self, r: RedisCluster) -> None:
+    async def test_cluster_zdiffstore(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 2, "a3": 3})
         await r.zadd("{foo}b", {"a1": 1, "a2": 2})
         assert await r.zdiffstore("{foo}out", ["{foo}a", "{foo}b"])
@@ -1810,7 +1785,7 @@ class TestClusterRedisCommands:
         assert_resp_response(r, response, [(b"a3", 3.0)], [[b"a3", 3.0]])
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_cluster_zinter(self, r: RedisCluster) -> None:
+    async def test_cluster_zinter(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 2, "a3": 1})
         await r.zadd("{foo}b", {"a1": 2, "a2": 2, "a3": 2})
         await r.zadd("{foo}c", {"a1": 6, "a3": 5, "a4": 4})
@@ -1845,7 +1820,7 @@ class TestClusterRedisCommands:
             r, res, [(b"a3", 20), (b"a1", 23)], [[b"a3", 20], [b"a1", 23]]
         )
 
-    async def test_cluster_zinterstore_sum(self, r: RedisCluster) -> None:
+    async def test_cluster_zinterstore_sum(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 1, "a3": 1})
         await r.zadd("{foo}b", {"a1": 2, "a2": 2, "a3": 2})
         await r.zadd("{foo}c", {"a1": 6, "a3": 5, "a4": 4})
@@ -1857,7 +1832,7 @@ class TestClusterRedisCommands:
             [[b"a3", 8.0], [b"a1", 9.0]],
         )
 
-    async def test_cluster_zinterstore_max(self, r: RedisCluster) -> None:
+    async def test_cluster_zinterstore_max(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 1, "a3": 1})
         await r.zadd("{foo}b", {"a1": 2, "a2": 2, "a3": 2})
         await r.zadd("{foo}c", {"a1": 6, "a3": 5, "a4": 4})
@@ -1874,7 +1849,7 @@ class TestClusterRedisCommands:
             [[b"a3", 5.0], [b"a1", 6.0]],
         )
 
-    async def test_cluster_zinterstore_min(self, r: RedisCluster) -> None:
+    async def test_cluster_zinterstore_min(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 2, "a3": 3})
         await r.zadd("{foo}b", {"a1": 2, "a2": 3, "a3": 5})
         await r.zadd("{foo}c", {"a1": 6, "a3": 5, "a4": 4})
@@ -1891,7 +1866,7 @@ class TestClusterRedisCommands:
             [[b"a1", 1.0], [b"a3", 3.0]],
         )
 
-    async def test_cluster_zinterstore_with_weight(self, r: RedisCluster) -> None:
+    async def test_cluster_zinterstore_with_weight(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 1, "a3": 1})
         await r.zadd("{foo}b", {"a1": 2, "a2": 2, "a3": 2})
         await r.zadd("{foo}c", {"a1": 6, "a3": 5, "a4": 4})
@@ -1906,7 +1881,7 @@ class TestClusterRedisCommands:
         )
 
     @skip_if_server_version_lt("4.9.0")
-    async def test_cluster_bzpopmax(self, r: RedisCluster) -> None:
+    async def test_cluster_bzpopmax(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 2})
         await r.zadd("{foo}b", {"b1": 10, "b2": 20})
         assert_resp_response(
@@ -1943,7 +1918,7 @@ class TestClusterRedisCommands:
         )
 
     @skip_if_server_version_lt("4.9.0")
-    async def test_cluster_bzpopmin(self, r: RedisCluster) -> None:
+    async def test_cluster_bzpopmin(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 2})
         await r.zadd("{foo}b", {"b1": 10, "b2": 20})
         assert_resp_response(
@@ -1980,7 +1955,7 @@ class TestClusterRedisCommands:
         )
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_cluster_zrangestore(self, r: RedisCluster) -> None:
+    async def test_cluster_zrangestore(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 2, "a3": 3})
         assert await r.zrangestore("{foo}b", "{foo}a", 0, 1)
         assert await r.zrange("{foo}b", 0, -1) == [b"a1", b"a2"]
@@ -2007,7 +1982,7 @@ class TestClusterRedisCommands:
         assert await r.zrange("{foo}b", 0, -1) == [b"a2"]
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_cluster_zunion(self, r: RedisCluster) -> None:
+    async def test_cluster_zunion(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 1, "a3": 1})
         await r.zadd("{foo}b", {"a1": 2, "a2": 2, "a3": 2})
         await r.zadd("{foo}c", {"a1": 6, "a3": 5, "a4": 4})
@@ -2050,7 +2025,7 @@ class TestClusterRedisCommands:
             [[b"a2", 5.0], [b"a4", 12.0], [b"a3", 20.0], [b"a1", 23.0]],
         )
 
-    async def test_cluster_zunionstore_sum(self, r: RedisCluster) -> None:
+    async def test_cluster_zunionstore_sum(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 1, "a3": 1})
         await r.zadd("{foo}b", {"a1": 2, "a2": 2, "a3": 2})
         await r.zadd("{foo}c", {"a1": 6, "a3": 5, "a4": 4})
@@ -2062,7 +2037,7 @@ class TestClusterRedisCommands:
             [[b"a2", 3.0], [b"a4", 4.0], [b"a3", 8.0], [b"a1", 9.0]],
         )
 
-    async def test_cluster_zunionstore_max(self, r: RedisCluster) -> None:
+    async def test_cluster_zunionstore_max(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 1, "a3": 1})
         await r.zadd("{foo}b", {"a1": 2, "a2": 2, "a3": 2})
         await r.zadd("{foo}c", {"a1": 6, "a3": 5, "a4": 4})
@@ -2079,7 +2054,7 @@ class TestClusterRedisCommands:
             [[b"a2", 2.0], [b"a4", 4.0], [b"a3", 5.0], [b"a1", 6.0]],
         )
 
-    async def test_cluster_zunionstore_min(self, r: RedisCluster) -> None:
+    async def test_cluster_zunionstore_min(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 2, "a3": 3})
         await r.zadd("{foo}b", {"a1": 2, "a2": 2, "a3": 4})
         await r.zadd("{foo}c", {"a1": 6, "a3": 5, "a4": 4})
@@ -2096,7 +2071,7 @@ class TestClusterRedisCommands:
             [[b"a1", 1.0], [b"a2", 2.0], [b"a3", 3.0], [b"a4", 4.0]],
         )
 
-    async def test_cluster_zunionstore_with_weight(self, r: RedisCluster) -> None:
+    async def test_cluster_zunionstore_with_weight(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 1, "a3": 1})
         await r.zadd("{foo}b", {"a1": 2, "a2": 2, "a3": 2})
         await r.zadd("{foo}c", {"a1": 6, "a3": 5, "a4": 4})
@@ -2111,7 +2086,7 @@ class TestClusterRedisCommands:
         )
 
     @skip_if_server_version_lt("2.8.9")
-    async def test_cluster_pfcount(self, r: RedisCluster) -> None:
+    async def test_cluster_pfcount(self, r: ValkeyCluster) -> None:
         members = {b"1", b"2", b"3"}
         await r.pfadd("{foo}a", *members)
         assert await r.pfcount("{foo}a") == len(members)
@@ -2121,7 +2096,7 @@ class TestClusterRedisCommands:
         assert await r.pfcount("{foo}a", "{foo}b") == len(members_b.union(members))
 
     @skip_if_server_version_lt("2.8.9")
-    async def test_cluster_pfmerge(self, r: RedisCluster) -> None:
+    async def test_cluster_pfmerge(self, r: ValkeyCluster) -> None:
         mema = {b"1", b"2", b"3"}
         memb = {b"2", b"3", b"4"}
         memc = {b"5", b"6", b"7"}
@@ -2133,14 +2108,14 @@ class TestClusterRedisCommands:
         await r.pfmerge("{foo}d", "{foo}b")
         assert await r.pfcount("{foo}d") == 7
 
-    async def test_cluster_sort_store(self, r: RedisCluster) -> None:
+    async def test_cluster_sort_store(self, r: ValkeyCluster) -> None:
         await r.rpush("{foo}a", "2", "3", "1")
         assert await r.sort("{foo}a", store="{foo}sorted_values") == 3
         assert await r.lrange("{foo}sorted_values", 0, -1) == [b"1", b"2", b"3"]
 
     # GEO COMMANDS
     @skip_if_server_version_lt("6.2.0")
-    async def test_cluster_geosearchstore(self, r: RedisCluster) -> None:
+    async def test_cluster_geosearchstore(self, r: ValkeyCluster) -> None:
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2159,7 +2134,7 @@ class TestClusterRedisCommands:
 
     @skip_unless_arch_bits(64)
     @skip_if_server_version_lt("6.2.0")
-    async def test_geosearchstore_dist(self, r: RedisCluster) -> None:
+    async def test_geosearchstore_dist(self, r: ValkeyCluster) -> None:
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2179,7 +2154,7 @@ class TestClusterRedisCommands:
         assert await r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
 
     @skip_if_server_version_lt("3.2.0")
-    async def test_cluster_georadius_store(self, r: RedisCluster) -> None:
+    async def test_cluster_georadius_store(self, r: ValkeyCluster) -> None:
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2194,7 +2169,7 @@ class TestClusterRedisCommands:
 
     @skip_unless_arch_bits(64)
     @skip_if_server_version_lt("3.2.0")
-    async def test_cluster_georadius_store_dist(self, r: RedisCluster) -> None:
+    async def test_cluster_georadius_store_dist(self, r: ValkeyCluster) -> None:
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2208,12 +2183,12 @@ class TestClusterRedisCommands:
         # instead of save the geo score, the distance is saved.
         assert await r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
 
-    async def test_cluster_dbsize(self, r: RedisCluster) -> None:
+    async def test_cluster_dbsize(self, r: ValkeyCluster) -> None:
         d = {"a": b"1", "b": b"2", "c": b"3", "d": b"4"}
         assert await r.mset_nonatomic(d)
         assert await r.dbsize(target_nodes="primaries") == len(d)
 
-    async def test_cluster_keys(self, r: RedisCluster) -> None:
+    async def test_cluster_keys(self, r: ValkeyCluster) -> None:
         assert await r.keys() == []
         keys_with_underscores = {b"test_a", b"test_b"}
         keys = keys_with_underscores.union({b"testc"})
@@ -2227,7 +2202,7 @@ class TestClusterRedisCommands:
 
     # SCAN COMMANDS
     @skip_if_server_version_lt("2.8.0")
-    async def test_cluster_scan(self, r: RedisCluster) -> None:
+    async def test_cluster_scan(self, r: ValkeyCluster) -> None:
         await r.set("a", 1)
         await r.set("b", 2)
         await r.set("c", 3)
@@ -2246,7 +2221,7 @@ class TestClusterRedisCommands:
             assert all(cursor == 0 for cursor in cursors.values())
 
     @skip_if_server_version_lt("6.0.0")
-    async def test_cluster_scan_type(self, r: RedisCluster) -> None:
+    async def test_cluster_scan_type(self, r: ValkeyCluster) -> None:
         await r.sadd("a-set", 1)
         await r.sadd("b-set", 1)
         await r.sadd("c-set", 1)
@@ -2269,7 +2244,7 @@ class TestClusterRedisCommands:
             assert all(cursor == 0 for cursor in cursors.values())
 
     @skip_if_server_version_lt("2.8.0")
-    async def test_cluster_scan_iter(self, r: RedisCluster) -> None:
+    async def test_cluster_scan_iter(self, r: ValkeyCluster) -> None:
         keys_all = []
         keys_1 = []
         for i in range(100):
@@ -2290,7 +2265,7 @@ class TestClusterRedisCommands:
             ]
             assert sorted(keys) == keys_1
 
-    async def test_cluster_randomkey(self, r: RedisCluster) -> None:
+    async def test_cluster_randomkey(self, r: ValkeyCluster) -> None:
         node = r.get_node_from_key("{foo}")
         assert await r.randomkey(target_nodes=node) is None
         for key in ("{foo}a", "{foo}b", "{foo}c"):
@@ -2298,13 +2273,12 @@ class TestClusterRedisCommands:
         assert await r.randomkey(target_nodes=node) in (b"{foo}a", b"{foo}b", b"{foo}c")
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_redis_enterprise()
     async def test_acl_log(
-        self, r: RedisCluster, create_redis: Callable[..., RedisCluster]
+        self, r: ValkeyCluster, create_valkey: Callable[..., ValkeyCluster]
     ) -> None:
         key = "{cache}:"
         node = r.get_node_from_key(key)
-        username = "redis-py-user"
+        username = "valkey-py-user"
 
         await r.acl_setuser(
             username,
@@ -2317,8 +2291,8 @@ class TestClusterRedisCommands:
         )
         await r.acl_log_reset(target_nodes=node)
 
-        user_client = await create_redis(
-            cls=RedisCluster, flushdb=False, username=username
+        user_client = await create_valkey(
+            cls=ValkeyCluster, flushdb=False, username=username
         )
 
         # Valid operation and key
@@ -2350,7 +2324,7 @@ class TestNodesManager:
     Tests for the NodesManager class
     """
 
-    async def test_load_balancer(self, r: RedisCluster) -> None:
+    async def test_load_balancer(self, r: ValkeyCluster) -> None:
         n_manager = r.nodes_manager
         lb = n_manager.read_load_balancer
         slot_1 = 1257
@@ -2392,8 +2366,8 @@ class TestNodesManager:
             [5461, 10922, ["127.0.0.1", 7001], ["127.0.0.1", 7004]],
             [10923, 16383, ["127.0.0.1", 7002], ["127.0.0.1", 7005]],
         ]
-        with pytest.raises(RedisClusterException) as ex:
-            rc = await get_mocked_redis_client(
+        with pytest.raises(ValkeyClusterException) as ex:
+            rc = await get_mocked_valkey_client(
                 host=default_host,
                 port=default_port,
                 cluster_slots=cluster_slots,
@@ -2416,7 +2390,7 @@ class TestNodesManager:
             [10923, 16383, ["127.0.0.1", 7002], ["127.0.0.1", 7005]],
         ]
 
-        rc = await get_mocked_redis_client(
+        rc = await get_mocked_valkey_client(
             host=default_host,
             port=default_port,
             cluster_slots=cluster_slots,
@@ -2437,11 +2411,11 @@ class TestNodesManager:
             [10923, 16383, ["127.0.0.1", 7002], ["127.0.0.2", 7005]],
         ]
 
-        rc = await get_mocked_redis_client(
+        rc = await get_mocked_valkey_client(
             host=default_host, port=default_port, cluster_slots=good_slots_resp
         )
         n_manager = rc.nodes_manager
-        assert len(n_manager.slots_cache) == REDIS_CLUSTER_HASH_SLOTS
+        assert len(n_manager.slots_cache) == VALKEY_CLUSTER_HASH_SLOTS
         for slot_info in good_slots_resp:
             all_hosts = ["127.0.0.1", "127.0.0.2"]
             all_ports = [7000, 7001, 7002, 7003, 7004, 7005]
@@ -2460,11 +2434,11 @@ class TestNodesManager:
 
     async def test_init_slots_cache_cluster_mode_disabled(self) -> None:
         """
-        Test that creating a RedisCluster failes if one of the startup nodes
+        Test that creating a ValkeyCluster failes if one of the startup nodes
         has cluster mode disabled
         """
-        with pytest.raises(RedisClusterException) as e:
-            rc = await get_mocked_redis_client(
+        with pytest.raises(ValkeyClusterException) as e:
+            rc = await get_mocked_valkey_client(
                 cluster_slots_raise_error=True,
                 host=default_host,
                 port=default_port,
@@ -2478,7 +2452,7 @@ class TestNodesManager:
         It should not be possible to create a node manager with no nodes
         specified
         """
-        with pytest.raises(RedisClusterException):
+        with pytest.raises(ValkeyClusterException):
             await NodesManager([], False, {}).initialize()
 
     async def test_wrong_startup_nodes_type(self) -> None:
@@ -2486,7 +2460,7 @@ class TestNodesManager:
         If something other then a list type itteratable is provided it should
         fail
         """
-        with pytest.raises(RedisClusterException):
+        with pytest.raises(ValkeyClusterException):
             await NodesManager({}, False, {}).initialize()
 
     async def test_init_slots_cache_slots_collision(self) -> None:
@@ -2502,7 +2476,7 @@ class TestNodesManager:
             async def mocked_execute_command(self, *args, **kwargs):
                 """
                 Helper function to return custom slots cache data from
-                different redis nodes
+                different valkey nodes
                 """
                 if self.port == 7000:
                     result = [
@@ -2527,10 +2501,10 @@ class TestNodesManager:
 
             execute_command.side_effect = mocked_execute_command
 
-            with pytest.raises(RedisClusterException) as ex:
+            with pytest.raises(ValkeyClusterException) as ex:
                 node_1 = ClusterNode("127.0.0.1", 7000)
                 node_2 = ClusterNode("127.0.0.1", 7001)
-                async with RedisCluster(startup_nodes=[node_1, node_2]):
+                async with ValkeyCluster(startup_nodes=[node_1, node_2]):
                     ...
             assert str(ex.value).startswith(
                 "startup_nodes could not agree on a valid slots cache"
@@ -2543,7 +2517,7 @@ class TestNodesManager:
         """
         node = ClusterNode(default_host, default_port)
         cluster_slots = [[0, 16383, ["", default_port]]]
-        rc = await get_mocked_redis_client(
+        rc = await get_mocked_valkey_client(
             startup_nodes=[node], cluster_slots=cluster_slots
         )
 
@@ -2553,8 +2527,8 @@ class TestNodesManager:
         assert n_node is not None
         assert n_node == node
         assert n_node.server_type == PRIMARY
-        assert len(n.slots_cache) == REDIS_CLUSTER_HASH_SLOTS
-        for i in range(0, REDIS_CLUSTER_HASH_SLOTS):
+        assert len(n.slots_cache) == VALKEY_CLUSTER_HASH_SLOTS
+        for i in range(0, VALKEY_CLUSTER_HASH_SLOTS):
             assert n.slots_cache[i] == [n_node]
 
         await rc.aclose()
@@ -2589,10 +2563,10 @@ class TestNodesManager:
 
             # If all startup nodes fail to connect, connection error should be
             # thrown
-            with pytest.raises(RedisClusterException) as e:
-                async with RedisCluster(startup_nodes=[node_1]):
+            with pytest.raises(ValkeyClusterException) as e:
+                async with ValkeyCluster(startup_nodes=[node_1]):
                     ...
-            assert "Redis Cluster cannot be connected" in str(e.value)
+            assert "Valkey Cluster cannot be connected" in str(e.value)
 
             with mock.patch.object(
                 AsyncCommandsParser, "initialize", autospec=True
@@ -2613,7 +2587,7 @@ class TestNodesManager:
                 cmd_parser_initialize.side_effect = cmd_init_mock
                 # When at least one startup node is reachable, the cluster
                 # initialization should succeeds
-                async with RedisCluster(startup_nodes=[node_1, node_2]) as rc:
+                async with ValkeyCluster(startup_nodes=[node_1, node_2]) as rc:
                     assert rc.get_node(host=default_host, port=7001) is not None
                     assert rc.get_node(host=default_host, port=7002) is not None
 
@@ -2621,19 +2595,19 @@ class TestNodesManager:
 class TestClusterPipeline:
     """Tests for the ClusterPipeline class."""
 
-    async def test_blocked_arguments(self, r: RedisCluster) -> None:
+    async def test_blocked_arguments(self, r: ValkeyCluster) -> None:
         """Test handling for blocked pipeline arguments."""
-        with pytest.raises(RedisClusterException) as ex:
+        with pytest.raises(ValkeyClusterException) as ex:
             r.pipeline(transaction=True)
 
         assert str(ex.value) == "transaction is deprecated in cluster mode"
 
-        with pytest.raises(RedisClusterException) as ex:
+        with pytest.raises(ValkeyClusterException) as ex:
             r.pipeline(shard_hint=True)
 
         assert str(ex.value) == "shard_hint is deprecated in cluster mode"
 
-    async def test_blocked_methods(self, r: RedisCluster) -> None:
+    async def test_blocked_methods(self, r: ValkeyCluster) -> None:
         """Test handling for blocked pipeline commands."""
         pipeline = r.pipeline()
         for command in PIPELINE_BLOCKED_COMMANDS:
@@ -2641,22 +2615,22 @@ class TestClusterPipeline:
             if command == "mset_nonatomic":
                 continue
 
-            with pytest.raises(RedisClusterException) as exc:
+            with pytest.raises(ValkeyClusterException) as exc:
                 getattr(pipeline, command)()
 
             assert str(exc.value) == (
                 f"ERROR: Calling pipelined function {command} is blocked "
-                "when running redis in cluster mode..."
+                "when running valkey in cluster mode..."
             )
 
-    async def test_empty_stack(self, r: RedisCluster) -> None:
+    async def test_empty_stack(self, r: ValkeyCluster) -> None:
         """If a pipeline is executed with no commands it should return a empty list."""
         p = r.pipeline()
         result = await p.execute()
         assert result == []
 
-    async def test_redis_cluster_pipeline(self, r: RedisCluster) -> None:
-        """Test that we can use a pipeline with the RedisCluster class"""
+    async def test_valkey_cluster_pipeline(self, r: ValkeyCluster) -> None:
+        """Test that we can use a pipeline with the ValkeyCluster class"""
         result = await (
             r.pipeline()
             .set("A", 1)
@@ -2672,7 +2646,7 @@ class TestClusterPipeline:
         assert result == [True, b"1", 1, {b"F": b"V"}, True, True, b"2", b"3", 1, 1, 1]
 
     async def test_multi_key_operation_with_a_single_slot(
-        self, r: RedisCluster
+        self, r: ValkeyCluster
     ) -> None:
         """Test multi key operation with a single slot."""
         pipe = r.pipeline()
@@ -2686,7 +2660,7 @@ class TestClusterPipeline:
         res = await pipe.execute()
         assert res == [True, True, True, b"1", b"2", b"3"]
 
-    async def test_multi_key_operation_with_multi_slots(self, r: RedisCluster) -> None:
+    async def test_multi_key_operation_with_multi_slots(self, r: ValkeyCluster) -> None:
         """Test multi key operation with more than one slot."""
         pipe = r.pipeline()
         pipe.set("a{foo}", 1)
@@ -2702,7 +2676,7 @@ class TestClusterPipeline:
         res = await pipe.execute()
         assert res == [True, True, True, True, True, b"1", b"2", b"3", b"4", b"5"]
 
-    async def test_cluster_down_error(self, r: RedisCluster) -> None:
+    async def test_cluster_down_error(self, r: ValkeyCluster) -> None:
         """
         Test that the pipeline retries cluster_error_retry_attempts times before raising
         an error.
@@ -2734,7 +2708,7 @@ class TestClusterPipeline:
                     == 3 * r.cluster_error_retry_attempts - 2
                 )
 
-    async def test_connection_error_not_raised(self, r: RedisCluster) -> None:
+    async def test_connection_error_not_raised(self, r: ValkeyCluster) -> None:
         """Test ConnectionError handling with raise_on_error=False."""
         key = "foo"
         node = r.get_node_from_key(key, False)
@@ -2758,7 +2732,7 @@ class TestClusterPipeline:
                 assert node.parse_response.await_count
                 assert isinstance(res[0], ConnectionError)
 
-    async def test_connection_error_raised(self, r: RedisCluster) -> None:
+    async def test_connection_error_raised(self, r: ValkeyCluster) -> None:
         """Test ConnectionError handling with raise_on_error=True."""
         key = "foo"
         node = r.get_node_from_key(key, False)
@@ -2781,7 +2755,7 @@ class TestClusterPipeline:
                 with pytest.raises(ConnectionError):
                     await pipe.get(key).get(key).execute(raise_on_error=True)
 
-    async def test_asking_error(self, r: RedisCluster) -> None:
+    async def test_asking_error(self, r: ValkeyCluster) -> None:
         """Test AskError handling."""
         key = "foo"
         first_node = r.get_node_from_key(key, False)
@@ -2802,7 +2776,7 @@ class TestClusterPipeline:
 
     @skip_if_server_version_gte("7.0.0")
     async def test_moved_redirection_on_slave_with_default(
-        self, r: RedisCluster
+        self, r: ValkeyCluster
     ) -> None:
         """Test MovedError handling."""
         key = "foo"
@@ -2838,7 +2812,7 @@ class TestClusterPipeline:
                 assert await readwrite_pipe.execute() == [b"bar", b"bar"]
 
     async def test_readonly_pipeline_from_readonly_client(
-        self, r: RedisCluster
+        self, r: ValkeyCluster
     ) -> None:
         """Test that the pipeline uses replicas for read_from_replicas clients."""
         # Create a cluster with reading from replications
@@ -2858,20 +2832,20 @@ class TestClusterPipeline:
                         break
             assert executed_on_replica
 
-    async def test_can_run_concurrent_pipelines(self, r: RedisCluster) -> None:
+    async def test_can_run_concurrent_pipelines(self, r: ValkeyCluster) -> None:
         """Test that the pipeline can be used concurrently."""
         await asyncio.gather(
-            *(self.test_redis_cluster_pipeline(r) for i in range(100)),
+            *(self.test_valkey_cluster_pipeline(r) for i in range(100)),
             *(self.test_multi_key_operation_with_a_single_slot(r) for i in range(100)),
             *(self.test_multi_key_operation_with_multi_slots(r) for i in range(100)),
         )
 
     @pytest.mark.onlycluster
-    async def test_pipeline_with_default_node_error_command(self, create_redis):
+    async def test_pipeline_with_default_node_error_command(self, create_valkey):
         """
         Test that the default node is being replaced when it raises a relevant exception
         """
-        r = await create_redis(cls=RedisCluster, flushdb=False)
+        r = await create_valkey(cls=ValkeyCluster, flushdb=False)
         curr_default_node = r.get_default_node()
         err = ConnectionError("error")
         cmd_count = await r.command_count()
@@ -2891,7 +2865,7 @@ class TestSSL:
     """
     Tests for SSL connections.
 
-    This relies on the --redis-ssl-url for building the client and connecting to the
+    This relies on the --valkey-ssl-url for building the client and connecting to the
     appropriate port.
     """
 
@@ -2900,11 +2874,11 @@ class TestSSL:
     CLIENT_KEY = get_ssl_filename("client-key.pem")
 
     @pytest_asyncio.fixture()
-    def create_client(self, request: FixtureRequest) -> Callable[..., RedisCluster]:
-        ssl_url = request.config.option.redis_ssl_url
+    def create_client(self, request: FixtureRequest) -> Callable[..., ValkeyCluster]:
+        ssl_url = request.config.option.valkey_ssl_url
         ssl_host, ssl_port = urlparse(ssl_url)[1].split(":")
 
-        async def _create_client(mocked: bool = True, **kwargs: Any) -> RedisCluster:
+        async def _create_client(mocked: bool = True, **kwargs: Any) -> ValkeyCluster:
             if mocked:
                 with mock.patch.object(
                     ClusterNode, "execute_command", autospec=True
@@ -2930,35 +2904,35 @@ class TestSSL:
 
                     execute_command_mock.side_effect = execute_command
 
-                    rc = await RedisCluster(host=ssl_host, port=ssl_port, **kwargs)
+                    rc = await ValkeyCluster(host=ssl_host, port=ssl_port, **kwargs)
 
                 assert len(rc.get_nodes()) == 1
                 node = rc.get_default_node()
                 assert node.port == int(ssl_port)
                 return rc
 
-            return await RedisCluster(host=ssl_host, port=ssl_port, **kwargs)
+            return await ValkeyCluster(host=ssl_host, port=ssl_port, **kwargs)
 
         return _create_client
 
     async def test_ssl_connection_without_ssl(
-        self, create_client: Callable[..., Awaitable[RedisCluster]]
+        self, create_client: Callable[..., Awaitable[ValkeyCluster]]
     ) -> None:
-        with pytest.raises(RedisClusterException) as e:
+        with pytest.raises(ValkeyClusterException) as e:
             await create_client(mocked=False, ssl=False)
         e = e.value.__cause__
         assert "Connection closed by server" in str(e)
 
     async def test_ssl_with_invalid_cert(
-        self, create_client: Callable[..., Awaitable[RedisCluster]]
+        self, create_client: Callable[..., Awaitable[ValkeyCluster]]
     ) -> None:
-        with pytest.raises(RedisClusterException) as e:
+        with pytest.raises(ValkeyClusterException) as e:
             await create_client(mocked=False, ssl=True)
         e = e.value.__cause__.__context__
         assert "SSL: CERTIFICATE_VERIFY_FAILED" in str(e)
 
     async def test_ssl_connection(
-        self, create_client: Callable[..., Awaitable[RedisCluster]]
+        self, create_client: Callable[..., Awaitable[ValkeyCluster]]
     ) -> None:
         async with await create_client(ssl=True, ssl_cert_reqs="none") as rc:
             assert await rc.ping()
@@ -2972,7 +2946,7 @@ class TestSSL:
         ],
     )
     async def test_ssl_connection_tls12_custom_ciphers(
-        self, ssl_ciphers, create_client: Callable[..., Awaitable[RedisCluster]]
+        self, ssl_ciphers, create_client: Callable[..., Awaitable[ValkeyCluster]]
     ) -> None:
         async with await create_client(
             ssl=True,
@@ -2983,7 +2957,7 @@ class TestSSL:
             assert await rc.ping()
 
     async def test_ssl_connection_tls12_custom_ciphers_invalid(
-        self, create_client: Callable[..., Awaitable[RedisCluster]]
+        self, create_client: Callable[..., Awaitable[ValkeyCluster]]
     ) -> None:
         async with await create_client(
             ssl=True,
@@ -2991,9 +2965,9 @@ class TestSSL:
             ssl_min_version=ssl.TLSVersion.TLSv1_2,
             ssl_ciphers="foo:bar",
         ) as rc:
-            with pytest.raises(RedisClusterException) as e:
+            with pytest.raises(ValkeyClusterException) as e:
                 assert await rc.ping()
-            assert "Redis Cluster cannot be connected" in str(e.value)
+            assert "Valkey Cluster cannot be connected" in str(e.value)
 
     @pytest.mark.parametrize(
         "ssl_ciphers",
@@ -3003,7 +2977,7 @@ class TestSSL:
         ],
     )
     async def test_ssl_connection_tls13_custom_ciphers(
-        self, ssl_ciphers, create_client: Callable[..., Awaitable[RedisCluster]]
+        self, ssl_ciphers, create_client: Callable[..., Awaitable[ValkeyCluster]]
     ) -> None:
         # TLSv1.3 does not support changing the ciphers
         async with await create_client(
@@ -3012,12 +2986,12 @@ class TestSSL:
             ssl_min_version=ssl.TLSVersion.TLSv1_2,
             ssl_ciphers=ssl_ciphers,
         ) as rc:
-            with pytest.raises(RedisClusterException) as e:
+            with pytest.raises(ValkeyClusterException) as e:
                 assert await rc.ping()
-            assert "Redis Cluster cannot be connected" in str(e.value)
+            assert "Valkey Cluster cannot be connected" in str(e.value)
 
     async def test_validating_self_signed_certificate(
-        self, create_client: Callable[..., Awaitable[RedisCluster]]
+        self, create_client: Callable[..., Awaitable[ValkeyCluster]]
     ) -> None:
         async with await create_client(
             ssl=True,
@@ -3029,7 +3003,7 @@ class TestSSL:
             assert await rc.ping()
 
     async def test_validating_self_signed_string_certificate(
-        self, create_client: Callable[..., Awaitable[RedisCluster]]
+        self, create_client: Callable[..., Awaitable[ValkeyCluster]]
     ) -> None:
         with open(self.CA_CERT) as f:
             cert_data = f.read()

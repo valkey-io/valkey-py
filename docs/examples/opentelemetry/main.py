@@ -2,10 +2,10 @@
 
 import time
 
-import redis
+import valkey
 import uptrace
 from opentelemetry import trace
-from opentelemetry.instrumentation.redis import RedisInstrumentor
+from opentelemetry.instrumentation.valkey import ValkeyInstrumentor
 
 tracer = trace.get_tracer("app_or_package_name", "1.0.0")
 
@@ -16,9 +16,9 @@ def main():
         service_name="myservice",
         service_version="1.0.0",
     )
-    RedisInstrumentor().instrument()
+    ValkeyInstrumentor().instrument()
 
-    client = redis.StrictRedis(host="localhost", port=6379)
+    client = valkey.StrictValkey(host="localhost", port=6379)
 
     span = handle_request(client)
     print("trace:", uptrace.trace_url(span))

@@ -2,9 +2,9 @@ import socket
 from unittest import mock
 
 import pytest
-import redis.sentinel
-from redis import exceptions
-from redis.sentinel import (
+import valkey.sentinel
+from valkey import exceptions
+from valkey.sentinel import (
     MasterNotFoundError,
     Sentinel,
     SentinelConnectionPool,
@@ -36,7 +36,7 @@ class SentinelTestClient:
 
     def execute_command(self, *args, **kwargs):
         # wrapper  purely to validate the calls don't explode
-        from redis.client import bool_ok
+        from valkey.client import bool_ok
 
         return bool_ok
 
@@ -72,11 +72,11 @@ class SentinelTestCluster:
 @pytest.fixture()
 def cluster(request, master_ip):
     def teardown():
-        redis.sentinel.Redis = saved_Redis
+        valkey.sentinel.Valkey = saved_Valkey
 
     cluster = SentinelTestCluster(ip=master_ip)
-    saved_Redis = redis.sentinel.Redis
-    redis.sentinel.Redis = cluster.client
+    saved_Valkey = valkey.sentinel.Valkey
+    valkey.sentinel.Valkey = cluster.client
     request.addfinalizer(teardown)
     return cluster
 

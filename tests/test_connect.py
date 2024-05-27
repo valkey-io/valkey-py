@@ -6,8 +6,8 @@ import ssl
 import threading
 
 import pytest
-from redis.connection import Connection, SSLConnection, UnixDomainSocketConnection
-from redis.exceptions import ConnectionError
+from valkey.connection import Connection, SSLConnection, UnixDomainSocketConnection
+from valkey.exceptions import ConnectionError
 
 from .ssl_utils import get_ssl_filename
 
@@ -124,11 +124,11 @@ def test_tcp_ssl_version_mismatch(tcp_address):
 
 def _assert_connect(conn, server_address, **tcp_kw):
     if isinstance(server_address, str):
-        if not _RedisUDSServer:
+        if not _ValkeyUDSServer:
             pytest.skip("Unix domain sockets are not supported on this platform")
-        server = _RedisUDSServer(server_address, _RedisRequestHandler)
+        server = _ValkeyUDSServer(server_address, _ValkeyRequestHandler)
     else:
-        server = _RedisTCPServer(server_address, _RedisRequestHandler, **tcp_kw)
+        server = _ValkeyTCPServer(server_address, _ValkeyRequestHandler, **tcp_kw)
     with server as aserver:
         t = threading.Thread(target=aserver.serve_forever)
         t.start()
@@ -141,7 +141,7 @@ def _assert_connect(conn, server_address, **tcp_kw):
             t.join(timeout=5)
 
 
-class _RedisTCPServer(socketserver.TCPServer):
+class _ValkeyTCPServer(socketserver.TCPServer):
     def __init__(
         self,
         *args,
@@ -186,7 +186,7 @@ class _RedisTCPServer(socketserver.TCPServer):
 
 if hasattr(socketserver, "UnixStreamServer"):
 
-    class _RedisUDSServer(socketserver.UnixStreamServer):
+    class _ValkeyUDSServer(socketserver.UnixStreamServer):
         def __init__(self, *args, **kw) -> None:
             self._ready_event = threading.Event()
             self._stop_requested = False
@@ -206,10 +206,10 @@ if hasattr(socketserver, "UnixStreamServer"):
             return not self._stop_requested
 
 else:
-    _RedisUDSServer = None
+    _ValkeyUDSServer = None
 
 
-class _RedisRequestHandler(socketserver.StreamRequestHandler):
+class _ValkeyRequestHandler(socketserver.StreamRequestHandler):
     def setup(self):
         _logger.info("%s connected", self.client_address)
 

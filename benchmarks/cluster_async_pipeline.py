@@ -2,11 +2,11 @@ import asyncio
 import functools
 import time
 
-import aioredis_cluster
-import aredis
+import aiovalkey_cluster
+import avalkey
 import uvloop
 
-import redis.asyncio as redispy
+import valkey.asyncio as valkeypy
 
 
 def timer(func):
@@ -50,7 +50,7 @@ async def run(client):
 
 
 async def main(loop):
-    arc = aredis.StrictRedisCluster(
+    arc = avalkey.StrictValkeyCluster(
         host=host,
         port=port,
         password=password,
@@ -63,23 +63,23 @@ async def main(loop):
         max_idle_time=count,
         idle_check_interval=count,
     )
-    print(f"{loop} {await warmup(arc)} aredis")
+    print(f"{loop} {await warmup(arc)} avalkey")
     print(await run(arc))
     arc.connection_pool.disconnect()
 
-    aiorc = await aioredis_cluster.create_redis_cluster(
+    aiorc = await aiovalkey_cluster.create_valkey_cluster(
         [(host, port)],
         password=password,
         state_reload_interval=count,
         idle_connection_timeout=count,
         pool_maxsize=2**31,
     )
-    print(f"{loop} {await warmup(aiorc)} aioredis-cluster")
+    print(f"{loop} {await warmup(aiorc)} aiovalkey-cluster")
     print(await run(aiorc))
     aiorc.close()
     await aiorc.wait_closed()
 
-    async with redispy.RedisCluster(
+    async with valkeypy.ValkeyCluster(
         host=host,
         port=port,
         password=password,
@@ -88,7 +88,7 @@ async def main(loop):
         decode_responses=False,
         max_connections=2**31,
     ) as rca:
-        print(f"{loop} {await warmup(rca)} redispy")
+        print(f"{loop} {await warmup(rca)} valkeypy")
         print(await run(rca))
 
 

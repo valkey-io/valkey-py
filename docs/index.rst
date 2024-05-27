@@ -1,63 +1,63 @@
-.. redis-py documentation master file, created by
+.. valkey-py documentation master file, created by
    sphinx-quickstart on Thu Jul 28 13:55:57 2011.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-redis-py - Python Client for Redis
+valkey-py - Python Client for Valkey
 ====================================
 
 Getting Started
 ****************
 
-`redis-py <https://pypi.org/project/redis>`_ requires a running Redis server, and Python 3.7+. See the `Redis
-quickstart <https://redis.io/topics/quickstart>`_ for Redis installation instructions.
+`valkey-py <https://pypi.org/project/valkey>`_ requires a running Valkey server, and Python 3.7+. See the `Valkey
+quickstart <https://valkey.io/topics/quickstart>`_ for Valkey installation instructions.
 
-redis-py can be installed using pip via ``pip install redis``.
+valkey-py can be installed using pip via ``pip install valkey``.
 
 
-Quickly connecting to redis
+Quickly connecting to valkey
 ***************************
 
-There are two quick ways to connect to Redis.
+There are two quick ways to connect to Valkey.
 
-**Assuming you run Redis on localhost:6379 (the default)**
+**Assuming you run Valkey on localhost:6379 (the default)**
 
 .. code-block:: python
 
-   import redis
-   r = redis.Redis()
+   import valkey
+   r = valkey.Valkey()
    r.ping()
 
-**Running redis on foo.bar.com, port 12345**
+**Running valkey on foo.bar.com, port 12345**
 
 .. code-block:: python
 
-   import redis
-   r = redis.Redis(host='foo.bar.com', port=12345)
+   import valkey
+   r = valkey.Valkey(host='foo.bar.com', port=12345)
    r.ping()
 
 **Another example with foo.bar.com, port 12345**
 
 .. code-block:: python
 
-   import redis
-   r = redis.from_url('redis://foo.bar.com:12345')
+   import valkey
+   r = valkey.from_url('valkey://foo.bar.com:12345')
    r.ping()
 
-After that, you probably want to `run redis commands <commands.html>`_.
+After that, you probably want to `run valkey commands <commands.html>`_.
 
 .. toctree::
    :hidden:
 
    genindex
 
-Redis Command Functions
+Valkey Command Functions
 ***********************
 .. toctree::
    :maxdepth: 2
 
    commands
-   redismodules
+   valkeymodules
 
 Module Documentation
 ********************
@@ -79,12 +79,12 @@ Module Documentation
 Contributing
 *************
 
-- `How to contribute <https://github.com/redis/redis-py/blob/master/CONTRIBUTING.md>`_
-- `Issue Tracker <https://github.com/redis/redis-py/issues>`_
-- `Source Code <https://github.com/redis/redis-py/>`_
-- `Release History <https://github.com/redis/redis-py/releases/>`_
+- `How to contribute <https://github.com/valkey-io/valkey-py/blob/master/CONTRIBUTING.md>`_
+- `Issue Tracker <https://github.com/valkey-io/valkey-py/issues>`_
+- `Source Code <https://github.com/valkey-io/valkey-py/>`_
+- `Release History <https://github.com/valkey-io/valkey-py/releases/>`_
 
 License
 *******
 
-This project is licensed under the `MIT license <https://github.com/redis/redis-py/blob/master/LICENSE>`_.
+This project is licensed under the `MIT license <https://github.com/valkey-io/valkey-py/blob/master/LICENSE>`_.

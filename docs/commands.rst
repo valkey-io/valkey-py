@@ -1,30 +1,30 @@
-Redis Commands
+Valkey Commands
 ##############
 
 Core Commands
 *************
 
-The following functions can be used to replicate their equivalent `Redis command <https://redis.io/commands>`_.  Generally they can be used as functions on your redis connection.  For the simplest example, see below:
+The following functions can be used to replicate their equivalent `Valkey command <https://valkey.io/commands>`_.  Generally they can be used as functions on your valkey connection.  For the simplest example, see below:
 
-Getting and settings data in redis::
+Getting and settings data in valkey::
 
-   import redis
-   r = redis.Redis(decode_responses=True)
+   import valkey
+   r = valkey.Valkey(decode_responses=True)
    r.set('mykey', 'thevalueofmykey')
    r.get('mykey')
 
-.. autoclass:: redis.commands.core.CoreCommands
+.. autoclass:: valkey.commands.core.CoreCommands
    :inherited-members:
 
 Sentinel Commands
 *****************
-.. autoclass:: redis.commands.sentinel.SentinelCommands
+.. autoclass:: valkey.commands.sentinel.SentinelCommands
    :inherited-members:
 
-Redis Cluster Commands
+Valkey Cluster Commands
 **********************
 
-The following `Redis commands <https://redis.io/commands>`_ are available within a `Redis Cluster <https://redis.io/topics/cluster-tutorial>`_.  Generally they can be used as functions on your redis connection.
+The following `Valkey commands <https://valkey.io/commands>`_ are available within a `Valkey Cluster <https://valkey.io/topics/cluster-tutorial>`_.  Generally they can be used as functions on your valkey connection.
 
-.. autoclass:: redis.commands.cluster.RedisClusterCommands
+.. autoclass:: valkey.commands.cluster.ValkeyClusterCommands
    :inherited-members:

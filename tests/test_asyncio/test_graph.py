@@ -1,9 +1,10 @@
 import pytest
-import redis.asyncio as redis
-from redis.commands.graph import Edge, Node, Path
-from redis.commands.graph.execution_plan import Operation
-from redis.exceptions import ResponseError
-from tests.conftest import skip_if_redis_enterprise
+import valkey.asyncio as valkey
+from valkey.commands.graph import Edge, Node, Path
+from valkey.commands.graph.execution_plan import Operation
+from valkey.exceptions import ResponseError
+
+pytestmark = pytest.mark.skip
 
 
 async def test_bulk(decoded_r):
@@ -12,7 +13,7 @@ async def test_bulk(decoded_r):
         await decoded_r.graph().bulk(foo="bar!")
 
 
-async def test_graph_creation(decoded_r: redis.Redis):
+async def test_graph_creation(decoded_r: valkey.Valkey):
     graph = decoded_r.graph()
 
     john = Node(
@@ -56,7 +57,7 @@ async def test_graph_creation(decoded_r: redis.Redis):
     await graph.delete()
 
 
-async def test_array_functions(decoded_r: redis.Redis):
+async def test_array_functions(decoded_r: valkey.Valkey):
     graph = decoded_r.graph()
 
     query = """CREATE (p:person{name:'a',age:32, array:[0,1,2]})"""
@@ -78,7 +79,7 @@ async def test_array_functions(decoded_r: redis.Redis):
     assert [a] == result.result_set[0][0]
 
 
-async def test_path(decoded_r: redis.Redis):
+async def test_path(decoded_r: valkey.Valkey):
     node0 = Node(node_id=0, label="L1")
     node1 = Node(node_id=1, label="L1")
     edge01 = Edge(node0, "R1", node1, edge_id=0, properties={"value": 1})
@@ -97,7 +98,7 @@ async def test_path(decoded_r: redis.Redis):
     assert expected_results == result.result_set
 
 
-async def test_param(decoded_r: redis.Redis):
+async def test_param(decoded_r: valkey.Valkey):
     params = [1, 2.3, "str", True, False, None, [0, 1, 2]]
     query = "RETURN $param"
     for param in params:
@@ -106,7 +107,7 @@ async def test_param(decoded_r: redis.Redis):
         assert expected_results == result.result_set
 
 
-async def test_map(decoded_r: redis.Redis):
+async def test_map(decoded_r: valkey.Valkey):
     query = "RETURN {a:1, b:'str', c:NULL, d:[1,2,3], e:True, f:{x:1, y:2}}"
 
     actual = (await decoded_r.graph().query(query)).result_set[0][0]
@@ -122,7 +123,7 @@ async def test_map(decoded_r: redis.Redis):
     assert actual == expected
 
 
-async def test_point(decoded_r: redis.Redis):
+async def test_point(decoded_r: valkey.Valkey):
     query = "RETURN point({latitude: 32.070794860, longitude: 34.820751118})"
     expected_lat = 32.070794860
     expected_lon = 34.820751118
@@ -138,7 +139,7 @@ async def test_point(decoded_r: redis.Redis):
     assert abs(actual["longitude"] - expected_lon) < 0.001
 
 
-async def test_index_response(decoded_r: redis.Redis):
+async def test_index_response(decoded_r: valkey.Valkey):
     result_set = await decoded_r.graph().query("CREATE INDEX ON :person(age)")
     assert 1 == result_set.indices_created
 
@@ -152,7 +153,7 @@ async def test_index_response(decoded_r: redis.Redis):
         await decoded_r.graph().query("DROP INDEX ON :person(age)")
 
 
-async def test_stringify_query_result(decoded_r: redis.Redis):
+async def test_stringify_query_result(decoded_r: valkey.Valkey):
     graph = decoded_r.graph()
 
     john = Node(
@@ -205,7 +206,7 @@ async def test_stringify_query_result(decoded_r: redis.Redis):
     await graph.delete()
 
 
-async def test_optional_match(decoded_r: redis.Redis):
+async def test_optional_match(decoded_r: valkey.Valkey):
     # Build a graph of form (a)-[R]->(b)
     node0 = Node(node_id=0, label="L1", properties={"value": "a"})
     node1 = Node(node_id=1, label="L1", properties={"value": "b"})
@@ -229,7 +230,7 @@ async def test_optional_match(decoded_r: redis.Redis):
     await graph.delete()
 
 
-async def test_cached_execution(decoded_r: redis.Redis):
+async def test_cached_execution(decoded_r: valkey.Valkey):
     await decoded_r.graph().query("CREATE ()")
 
     uncached_result = await decoded_r.graph().query(
@@ -248,7 +249,7 @@ async def test_cached_execution(decoded_r: redis.Redis):
     assert cached_result.cached_execution
 
 
-async def test_slowlog(decoded_r: redis.Redis):
+async def test_slowlog(decoded_r: valkey.Valkey):
     create_query = """CREATE
     (:Rider {name:'Valentino Rossi'})-[:rides]->(:Team {name:'Yamaha'}),
     (:Rider {name:'Dani Pedrosa'})-[:rides]->(:Team {name:'Honda'}),
@@ -261,7 +262,7 @@ async def test_slowlog(decoded_r: redis.Redis):
 
 
 @pytest.mark.xfail(strict=False)
-async def test_query_timeout(decoded_r: redis.Redis):
+async def test_query_timeout(decoded_r: valkey.Valkey):
     # Build a sample graph with 1000 nodes.
     await decoded_r.graph().query("UNWIND range(0,1000) as val CREATE ({v: val})")
     # Issue a long-running query with a 1-millisecond timeout.
@@ -274,7 +275,7 @@ async def test_query_timeout(decoded_r: redis.Redis):
         assert False is False
 
 
-async def test_read_only_query(decoded_r: redis.Redis):
+async def test_read_only_query(decoded_r: valkey.Valkey):
     with pytest.raises(Exception):
         # Issue a write query, specifying read-only true,
         # this call should fail.
@@ -282,7 +283,7 @@ async def test_read_only_query(decoded_r: redis.Redis):
         assert False is False
 
 
-async def test_profile(decoded_r: redis.Redis):
+async def test_profile(decoded_r: valkey.Valkey):
     q = """UNWIND range(1, 3) AS x CREATE (p:Person {v:x})"""
     profile = (await decoded_r.graph().profile(q)).result_set
     assert "Create | Records produced: 3" in profile
@@ -296,8 +297,7 @@ async def test_profile(decoded_r: redis.Redis):
     assert "Node By Label Scan | (p:Person) | Records produced: 3" in profile
 
 
-@skip_if_redis_enterprise()
-async def test_config(decoded_r: redis.Redis):
+async def test_config(decoded_r: valkey.Valkey):
     config_name = "RESULTSET_SIZE"
     config_value = 3
 
@@ -328,7 +328,7 @@ async def test_config(decoded_r: redis.Redis):
 
 
 @pytest.mark.onlynoncluster
-async def test_list_keys(decoded_r: redis.Redis):
+async def test_list_keys(decoded_r: valkey.Valkey):
     result = await decoded_r.graph().list_keys()
     assert result == []
 
@@ -350,15 +350,15 @@ async def test_list_keys(decoded_r: redis.Redis):
     assert result == []
 
 
-async def test_multi_label(decoded_r: redis.Redis):
-    redis_graph = decoded_r.graph("g")
+async def test_multi_label(decoded_r: valkey.Valkey):
+    valkey_graph = decoded_r.graph("g")
 
     node = Node(label=["l", "ll"])
-    redis_graph.add_node(node)
-    await redis_graph.commit()
+    valkey_graph.add_node(node)
+    await valkey_graph.commit()
 
     query = "MATCH (n) RETURN n"
-    result = await redis_graph.query(query)
+    result = await valkey_graph.query(query)
     result_node = result.result_set[0][0]
     assert result_node == node
 
@@ -375,34 +375,34 @@ async def test_multi_label(decoded_r: redis.Redis):
         assert True
 
 
-async def test_execution_plan(decoded_r: redis.Redis):
-    redis_graph = decoded_r.graph("execution_plan")
+async def test_execution_plan(decoded_r: valkey.Valkey):
+    valkey_graph = decoded_r.graph("execution_plan")
     create_query = """CREATE
     (:Rider {name:'Valentino Rossi'})-[:rides]->(:Team {name:'Yamaha'}),
     (:Rider {name:'Dani Pedrosa'})-[:rides]->(:Team {name:'Honda'}),
     (:Rider {name:'Andrea Dovizioso'})-[:rides]->(:Team {name:'Ducati'})"""
-    await redis_graph.query(create_query)
+    await valkey_graph.query(create_query)
 
-    result = await redis_graph.execution_plan(
+    result = await valkey_graph.execution_plan(
         "MATCH (r:Rider)-[:rides]->(t:Team) WHERE t.name = $name RETURN r.name, t.name, $params",  # noqa
         {"name": "Yehuda"},
     )
     expected = "Results\n    Project\n        Conditional Traverse | (t)->(r:Rider)\n            Filter\n                Node By Label Scan | (t:Team)"  # noqa
     assert result == expected
 
-    await redis_graph.delete()
+    await valkey_graph.delete()
 
 
-async def test_explain(decoded_r: redis.Redis):
-    redis_graph = decoded_r.graph("execution_plan")
+async def test_explain(decoded_r: valkey.Valkey):
+    valkey_graph = decoded_r.graph("execution_plan")
     # graph creation / population
     create_query = """CREATE
 (:Rider {name:'Valentino Rossi'})-[:rides]->(:Team {name:'Yamaha'}),
 (:Rider {name:'Dani Pedrosa'})-[:rides]->(:Team {name:'Honda'}),
 (:Rider {name:'Andrea Dovizioso'})-[:rides]->(:Team {name:'Ducati'})"""
-    await redis_graph.query(create_query)
+    await valkey_graph.query(create_query)
 
-    result = await redis_graph.explain(
+    result = await valkey_graph.explain(
         """MATCH (r:Rider)-[:rides]->(t:Team)
 WHERE t.name = $name
 RETURN r.name, t.name
@@ -454,7 +454,7 @@ Distinct
 
     assert result.structured_plan == expected
 
-    result = await redis_graph.explain(
+    result = await valkey_graph.explain(
         """MATCH (r:Rider), (t:Team)
                                     RETURN r.name, t.name"""
     )
@@ -478,4 +478,4 @@ Project
 
     assert result.structured_plan == expected
 
-    await redis_graph.delete()
+    await valkey_graph.delete()

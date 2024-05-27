@@ -1,24 +1,24 @@
-Connecting to Redis
+Connecting to Valkey
 ###################
 
 
 Generic Client
 **************
 
-This is the client used to connect directly to a standard Redis node.
+This is the client used to connect directly to a standard Valkey node.
 
-.. autoclass:: redis.Redis
+.. autoclass:: valkey.Valkey
    :members:
 
 
 Sentinel Client
 ***************
 
-Redis `Sentinel <https://redis.io/topics/sentinel>`_ provides high availability for Redis. There are commands that can only be executed against a Redis node running in sentinel mode. Connecting to those nodes, and executing commands against them requires a Sentinel connection.
+Valkey `Sentinel <https://valkey.io/topics/sentinel>`_ provides high availability for Valkey. There are commands that can only be executed against a Valkey node running in sentinel mode. Connecting to those nodes, and executing commands against them requires a Sentinel connection.
 
-Connection example (assumes Redis exists on the ports listed below):
+Connection example (assumes Valkey exists on the ports listed below):
 
-   >>> from redis import Sentinel
+   >>> from valkey import Sentinel
    >>> sentinel = Sentinel([('localhost', 26379)], socket_timeout=0.1)
    >>> sentinel.discover_master('mymaster')
    ('127.0.0.1', 6379)
@@ -27,28 +27,28 @@ Connection example (assumes Redis exists on the ports listed below):
 
 Sentinel
 ========
-.. autoclass:: redis.sentinel.Sentinel
+.. autoclass:: valkey.sentinel.Sentinel
     :members:
 
 SentinelConnectionPool
 ======================
-.. autoclass:: redis.sentinel.SentinelConnectionPool
+.. autoclass:: valkey.sentinel.SentinelConnectionPool
     :members:
 
 
 Cluster Client
 **************
 
-This client is used for connecting to a Redis Cluster.
+This client is used for connecting to a Valkey Cluster.
 
-RedisCluster
+ValkeyCluster
 ============
-.. autoclass:: redis.cluster.RedisCluster
+.. autoclass:: valkey.cluster.ValkeyCluster
     :members:
 
 ClusterNode
 ===========
-.. autoclass:: redis.cluster.ClusterNode
+.. autoclass:: valkey.cluster.ClusterNode
     :members:
 
 
@@ -57,30 +57,30 @@ Async Client
 
 See complete example: `here <examples/asyncio_examples.html>`_
 
-This client is used for communicating with Redis, asynchronously.
+This client is used for communicating with Valkey, asynchronously.
 
-.. autoclass:: redis.asyncio.client.Redis
+.. autoclass:: valkey.asyncio.client.Valkey
     :members:
 
 
 Async Cluster Client
 ********************
 
-RedisCluster (Async)
+ValkeyCluster (Async)
 ====================
-.. autoclass:: redis.asyncio.cluster.RedisCluster
+.. autoclass:: valkey.asyncio.cluster.ValkeyCluster
     :members:
     :member-order: bysource
 
 ClusterNode (Async)
 ===================
-.. autoclass:: redis.asyncio.cluster.ClusterNode
+.. autoclass:: valkey.asyncio.cluster.ClusterNode
     :members:
     :member-order: bysource
 
 ClusterPipeline (Async)
 =======================
-.. autoclass:: redis.asyncio.cluster.ClusterPipeline
+.. autoclass:: valkey.asyncio.cluster.ClusterPipeline
     :members: execute_command, execute
     :member-order: bysource
 
@@ -92,12 +92,12 @@ See complete example: `here <examples/connection_examples.html>`_
 
 Connection
 ==========
-.. autoclass:: redis.connection.Connection
+.. autoclass:: valkey.connection.Connection
     :members:
 
 Connection (Async)
 ==================
-.. autoclass:: redis.asyncio.connection.Connection
+.. autoclass:: valkey.asyncio.connection.Connection
     :members:
 
 
@@ -108,10 +108,10 @@ See complete example: `here <examples/connection_examples.html>`_
 
 ConnectionPool
 ==============
-.. autoclass:: redis.connection.ConnectionPool
+.. autoclass:: valkey.connection.ConnectionPool
     :members:
 
 ConnectionPool (Async)
 ======================
-.. autoclass:: redis.asyncio.connection.ConnectionPool
+.. autoclass:: valkey.asyncio.connection.ConnectionPool
     :members:

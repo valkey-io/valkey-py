@@ -2,7 +2,7 @@
 
 ## Introduction
 
-We appreciate your interest in considering contributing to redis-py.
+We appreciate your interest in considering contributing to valkey-py.
 Community contributions mean a lot to us.
 
 ## Contributions we need
@@ -18,7 +18,7 @@ helpful contributions that mean less work for you.
 
 Unsure where to begin contributing? You can start by looking through
 [help-wanted
-issues](https://github.com/andymccurdy/redis-py/issues?q=is%3Aopen+is%3Aissue+label%3ahelp-wanted).
+issues](https://github.com/valkey-io/valkey-py/issues?q=is%3Aopen+is%3Aissue+label%3ahelp-wanted).
 
 Never contributed to open source before? Here are a couple of friendly
 tutorials:
@@ -30,7 +30,7 @@ tutorials:
 
 Here's how to get started with your code contribution:
 
-1.  Create your own fork of redis-py
+1.  Create your own fork of valkey-py
 2.  Do the changes in your fork
 3.
     *Create a virtualenv and install the development dependencies from the dev_requirements.txt file:*
@@ -55,11 +55,11 @@ project, and leaves them running. These can be easily cleaned up with
 `invoke clean`. NOTE: it is assumed that the user running these tests,
 can execute docker and its various commands.
 
--   A master Redis node
--   A Redis replica node
--   Three sentinel Redis nodes
--   A redis cluster
--   An stunnel docker, fronting the master Redis node
+-   A master Valkey node
+-   A Valkey replica node
+-   Three sentinel Valkey nodes
+-   A valkey cluster
+-   An stunnel docker, fronting the master Valkey node
 
 The replica node, is a replica of the master node, using the
 [leader-follower replication](https://redis.io/topics/replication)
@@ -71,11 +71,11 @@ configuration](https://redis.io/topics/sentinel).
 ## Testing
 
 Call `invoke tests` to run all tests, or `invoke all-tests` to run linters
-tests as well. With the 'tests' and 'all-tests' targets, all Redis and
-RedisCluster tests will be run.
+tests as well. With the 'tests' and 'all-tests' targets, all Valkey and
+ValkeyCluster tests will be run.
 
-It is possible to run only Redis client tests (with cluster mode disabled) by
-using `invoke standalone-tests`; similarly, RedisCluster tests can be run by using
+It is possible to run only Valkey client tests (with cluster mode disabled) by
+using `invoke standalone-tests`; similarly, ValkeyCluster tests can be run by using
 `invoke cluster-tests`.
 
 Each run of tests starts and stops the various dockers required. Sometimes
@@ -127,7 +127,7 @@ Please try at least versions of Docker.
 ### Security Vulnerabilities
 
 **NOTE**: If you find a security vulnerability, do NOT open an issue.
-Email [Redis Open Source (<oss@redis.com>)](mailto:oss@redis.com) instead.
+Email [Salvatore Mesoraca (<salvatore.mesoraca@aiven.io>)](mailto:salvatore.mesoraca@aiven.io) instead.
 
 In order to determine whether you are dealing with a security issue, ask
 yourself these two questions:
@@ -139,14 +139,14 @@ yourself these two questions:
 If the answer to either of those two questions are *yes*, then you're
 probably dealing with a security issue. Note that even if you answer
 *no*  to both questions, you may still be dealing with a security
-issue, so if you're unsure, just email [us](mailto:oss@redis.com).
+issue, so if you're unsure, just email [us](mailto:salvatore.mesoraca@aiven.io).
 
 ### Everything Else
 
 When filing an issue, make sure to answer these five questions:
 
-1.  What version of redis-py are you using?
-2.  What version of redis are you using?
+1.  What version of valkey-py are you using?
+2.  What version of valkey are you using?
 3.  What did you do?
 4.  What did you expect to see?
 5.  What did you see instead?

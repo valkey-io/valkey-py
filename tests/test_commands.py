@@ -9,22 +9,21 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-import redis
-from redis import exceptions
-from redis._parsers.helpers import (
-    _RedisCallbacks,
-    _RedisCallbacksRESP2,
-    _RedisCallbacksRESP3,
+import valkey
+from valkey import exceptions
+from valkey._parsers.helpers import (
+    _ValkeyCallbacks,
+    _ValkeyCallbacksRESP2,
+    _ValkeyCallbacksRESP3,
     parse_info,
 )
-from redis.client import EMPTY_RESPONSE, NEVER_DECODE
+from valkey.client import EMPTY_RESPONSE, NEVER_DECODE
 
 from .conftest import (
     _get_client,
     assert_resp_response,
     assert_resp_response_in,
     is_resp2_connection,
-    skip_if_redis_enterprise,
     skip_if_server_version_gte,
     skip_if_server_version_lt,
     skip_unless_arch_bits,
@@ -47,7 +46,7 @@ def slowlog(request, r):
     r.config_set("slowlog-max-len", 128)
 
 
-def redis_server_time(client):
+def valkey_server_time(client):
     seconds, milliseconds = client.time()
     timestamp = float(f"{seconds}.{milliseconds}")
     return datetime.datetime.fromtimestamp(timestamp)
@@ -66,13 +65,13 @@ class TestResponseCallbacks:
     "Tests for the response callback system"
 
     def test_response_callbacks(self, r):
-        callbacks = _RedisCallbacks
+        callbacks = _ValkeyCallbacks
         if is_resp2_connection(r):
-            callbacks.update(_RedisCallbacksRESP2)
+            callbacks.update(_ValkeyCallbacksRESP2)
         else:
-            callbacks.update(_RedisCallbacksRESP3)
+            callbacks.update(_ValkeyCallbacksRESP3)
         assert r.response_callbacks == callbacks
-        assert id(r.response_callbacks) != id(_RedisCallbacks)
+        assert id(r.response_callbacks) != id(_ValkeyCallbacks)
         r.set_response_callback("GET", lambda x: "static")
         r["a"] = "foo"
         assert r["a"] == "static"
@@ -81,9 +80,8 @@ class TestResponseCallbacks:
         assert r.response_callbacks["ping"] == r.response_callbacks["PING"]
 
 
-class TestRedisCommands:
+class TestValkeyCommands:
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_auth(self, r, request):
         # sending an AUTH command before setting a user/password on the
         # server should return an AuthenticationError
@@ -102,7 +100,7 @@ class TestRedisCommands:
         assert r.auth(temp_pass) is True
 
         # test for other users
-        username = "redis-py-auth"
+        username = "valkey-py-auth"
 
         def teardown():
             try:
@@ -114,8 +112,8 @@ class TestRedisCommands:
                 # authentication in the connection's `on_connect` method
                 r.connection.password = temp_pass
             except AttributeError:
-                # connection field is not set in Redis Cluster, but that's ok
-                # because the problem discussed above does not apply to Redis Cluster
+                # connection field is not set in Valkey Cluster, but that's ok
+                # because the problem discussed above does not apply to Valkey Cluster
                 pass
             r.auth(temp_pass)
             r.config_set("requirepass", "")
@@ -134,7 +132,7 @@ class TestRedisCommands:
 
     def test_command_on_invalid_key_type(self, r):
         r.lpush("a", "1")
-        with pytest.raises(redis.ResponseError):
+        with pytest.raises(valkey.ResponseError):
             r["a"]
 
     # SERVER INFORMATION
@@ -151,9 +149,8 @@ class TestRedisCommands:
         assert "get" in commands or b"get" in commands
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_redis_enterprise()
     def test_acl_dryrun(self, r, request):
-        username = "redis-py-user"
+        username = "valkey-py-user"
 
         def teardown():
             r.acl_deluser(username)
@@ -166,9 +163,8 @@ class TestRedisCommands:
         assert no_permissions_message in r.acl_dryrun(username, "get", "key")
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_redis_enterprise()
     def test_acl_deluser(self, r, request):
-        username = "redis-py-user"
+        username = "valkey-py-user"
 
         def teardown():
             r.acl_deluser(username)
@@ -191,7 +187,6 @@ class TestRedisCommands:
         assert r.acl_getuser(users[4]) is None
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_redis_enterprise()
     def test_acl_genpass(self, r):
         password = r.acl_genpass()
         assert isinstance(password, (str, bytes))
@@ -206,10 +201,9 @@ class TestRedisCommands:
         assert len(password) == 139
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_redis_enterprise()
     def test_acl_getuser_setuser(self, r, request):
         r.flushall()
-        username = "redis-py-user"
+        username = "valkey-py-user"
 
         def teardown():
             r.acl_deluser(username)
@@ -346,9 +340,8 @@ class TestRedisCommands:
         assert len(res) != 0
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_redis_enterprise()
     def test_acl_list(self, r, request):
-        username = "redis-py-user"
+        username = "valkey-py-user"
         start = r.acl_list()
 
         def teardown():
@@ -361,10 +354,9 @@ class TestRedisCommands:
         assert len(users) == len(start) + 1
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_redis_enterprise()
     @pytest.mark.onlynoncluster
     def test_acl_log(self, r, request):
-        username = "redis-py-user"
+        username = "valkey-py-user"
 
         def teardown():
             r.acl_deluser(username)
@@ -381,7 +373,7 @@ class TestRedisCommands:
         r.acl_log_reset()
 
         user_client = _get_client(
-            redis.Redis, request, flushdb=False, username=username
+            valkey.Valkey, request, flushdb=False, username=username
         )
 
         # Valid operation and key
@@ -409,9 +401,8 @@ class TestRedisCommands:
         )
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_redis_enterprise()
     def test_acl_setuser_categories_without_prefix_fails(self, r, request):
-        username = "redis-py-user"
+        username = "valkey-py-user"
 
         def teardown():
             r.acl_deluser(username)
@@ -422,9 +413,8 @@ class TestRedisCommands:
             r.acl_setuser(username, categories=["list"])
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_redis_enterprise()
     def test_acl_setuser_commands_without_prefix_fails(self, r, request):
-        username = "redis-py-user"
+        username = "valkey-py-user"
 
         def teardown():
             r.acl_deluser(username)
@@ -435,9 +425,8 @@ class TestRedisCommands:
             r.acl_setuser(username, commands=["get"])
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_redis_enterprise()
     def test_acl_setuser_add_passwords_and_nopass_fails(self, r, request):
-        username = "redis-py-user"
+        username = "valkey-py-user"
 
         def teardown():
             r.acl_deluser(username)
@@ -474,13 +463,12 @@ class TestRedisCommands:
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("5.0.0")
     def test_client_list_types_not_replica(self, r):
-        with pytest.raises(exceptions.RedisError):
+        with pytest.raises(exceptions.ValkeyError):
             r.client_list(_type="not a client type")
         for client_type in ["normal", "master", "pubsub"]:
             clients = r.client_list(_type=client_type)
             assert isinstance(clients, list)
 
-    @skip_if_redis_enterprise()
     def test_client_list_replica(self, r):
         clients = r.client_list(_type="replica")
         assert isinstance(clients, list)
@@ -494,9 +482,9 @@ class TestRedisCommands:
         assert "addr" in clients[0]
 
         # testing multiple client ids
-        _get_client(redis.Redis, request, flushdb=False)
-        _get_client(redis.Redis, request, flushdb=False)
-        _get_client(redis.Redis, request, flushdb=False)
+        _get_client(valkey.Valkey, request, flushdb=False)
+        _get_client(valkey.Valkey, request, flushdb=False)
+        _get_client(valkey.Valkey, request, flushdb=False)
         clients_listed = r.client_list(client_id=clients[:-1])
         assert len(clients_listed) > 1
 
@@ -507,7 +495,6 @@ class TestRedisCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.2.0")
-    @skip_if_redis_enterprise()
     def test_client_trackinginfo(self, r):
         res = r.client_trackinginfo()
         assert len(res) > 2
@@ -515,7 +502,6 @@ class TestRedisCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_redis_enterprise()
     def test_client_tracking(self, r, r2):
         # simple case
         assert r.client_tracking_on()
@@ -551,25 +537,25 @@ class TestRedisCommands:
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.6.9")
     def test_client_setname(self, r):
-        assert r.client_setname("redis_py_test")
-        assert_resp_response(r, r.client_getname(), "redis_py_test", b"redis_py_test")
+        assert r.client_setname("valkey_py_test")
+        assert_resp_response(r, r.client_getname(), "valkey_py_test", b"valkey_py_test")
 
     @skip_if_server_version_lt("7.2.0")
-    def test_client_setinfo(self, r: redis.Redis):
+    def test_client_setinfo(self, r: valkey.Valkey):
         r.ping()
         info = r.client_info()
-        assert info["lib-name"] == "redis-py"
-        assert info["lib-ver"] == redis.__version__
+        assert info["lib-name"] == "valkey-py"
+        assert info["lib-ver"] == valkey.__version__
         assert r.client_setinfo("lib-name", "test")
         assert r.client_setinfo("lib-ver", "123")
         info = r.client_info()
         assert info["lib-name"] == "test"
         assert info["lib-ver"] == "123"
-        r2 = redis.Redis(lib_name="test2", lib_version="1234")
+        r2 = valkey.Valkey(lib_name="test2", lib_version="1234")
         info = r2.client_info()
         assert info["lib-name"] == "test2"
         assert info["lib-ver"] == "1234"
-        r3 = redis.Redis(lib_name=None, lib_version=None)
+        r3 = valkey.Valkey(lib_name=None, lib_version=None)
         info = r3.client_info()
         assert info["lib-name"] == ""
         assert info["lib-ver"] == ""
@@ -577,27 +563,27 @@ class TestRedisCommands:
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.6.9")
     def test_client_kill(self, r, r2):
-        r.client_setname("redis-py-c1")
-        r2.client_setname("redis-py-c2")
+        r.client_setname("valkey-py-c1")
+        r2.client_setname("valkey-py-c2")
         clients = [
             client
             for client in r.client_list()
-            if client.get("name") in ["redis-py-c1", "redis-py-c2"]
+            if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
         ]
         assert len(clients) == 2
 
         clients_by_name = {client.get("name"): client for client in clients}
 
-        client_addr = clients_by_name["redis-py-c2"].get("addr")
+        client_addr = clients_by_name["valkey-py-c2"].get("addr")
         assert r.client_kill(client_addr) is True
 
         clients = [
             client
             for client in r.client_list()
-            if client.get("name") in ["redis-py-c1", "redis-py-c2"]
+            if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
         ]
         assert len(clients) == 1
-        assert clients[0].get("name") == "redis-py-c1"
+        assert clients[0].get("name") == "valkey-py-c1"
 
     @skip_if_server_version_lt("2.8.12")
     def test_client_kill_filter_invalid_params(self, r):
@@ -616,80 +602,79 @@ class TestRedisCommands:
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.12")
     def test_client_kill_filter_by_id(self, r, r2):
-        r.client_setname("redis-py-c1")
-        r2.client_setname("redis-py-c2")
+        r.client_setname("valkey-py-c1")
+        r2.client_setname("valkey-py-c2")
         clients = [
             client
             for client in r.client_list()
-            if client.get("name") in ["redis-py-c1", "redis-py-c2"]
+            if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
         ]
         assert len(clients) == 2
 
         clients_by_name = {client.get("name"): client for client in clients}
 
-        client_2_id = clients_by_name["redis-py-c2"].get("id")
+        client_2_id = clients_by_name["valkey-py-c2"].get("id")
         resp = r.client_kill_filter(_id=client_2_id)
         assert resp == 1
 
         clients = [
             client
             for client in r.client_list()
-            if client.get("name") in ["redis-py-c1", "redis-py-c2"]
+            if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
         ]
         assert len(clients) == 1
-        assert clients[0].get("name") == "redis-py-c1"
+        assert clients[0].get("name") == "valkey-py-c1"
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.12")
     def test_client_kill_filter_by_addr(self, r, r2):
-        r.client_setname("redis-py-c1")
-        r2.client_setname("redis-py-c2")
+        r.client_setname("valkey-py-c1")
+        r2.client_setname("valkey-py-c2")
         clients = [
             client
             for client in r.client_list()
-            if client.get("name") in ["redis-py-c1", "redis-py-c2"]
+            if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
         ]
         assert len(clients) == 2
 
         clients_by_name = {client.get("name"): client for client in clients}
 
-        client_2_addr = clients_by_name["redis-py-c2"].get("addr")
+        client_2_addr = clients_by_name["valkey-py-c2"].get("addr")
         resp = r.client_kill_filter(addr=client_2_addr)
         assert resp == 1
 
         clients = [
             client
             for client in r.client_list()
-            if client.get("name") in ["redis-py-c1", "redis-py-c2"]
+            if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
         ]
         assert len(clients) == 1
-        assert clients[0].get("name") == "redis-py-c1"
+        assert clients[0].get("name") == "valkey-py-c1"
 
     @skip_if_server_version_lt("2.6.9")
     def test_client_list_after_client_setname(self, r):
-        r.client_setname("redis_py_test")
+        r.client_setname("valkey_py_test")
         clients = r.client_list()
         # we don't know which client ours will be
-        assert "redis_py_test" in [c["name"] for c in clients]
+        assert "valkey_py_test" in [c["name"] for c in clients]
 
     @skip_if_server_version_lt("6.2.0")
     def test_client_kill_filter_by_laddr(self, r, r2):
-        r.client_setname("redis-py-c1")
-        r2.client_setname("redis-py-c2")
+        r.client_setname("valkey-py-c1")
+        r2.client_setname("valkey-py-c2")
         clients = [
             client
             for client in r.client_list()
-            if client.get("name") in ["redis-py-c1", "redis-py-c2"]
+            if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
         ]
         assert len(clients) == 2
 
         clients_by_name = {client.get("name"): client for client in clients}
 
-        client_2_addr = clients_by_name["redis-py-c2"].get("laddr")
+        client_2_addr = clients_by_name["valkey-py-c2"].get("laddr")
         assert r.client_kill_filter(laddr=client_2_addr)
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_redis_enterprise()
     def test_client_kill_filter_by_user(self, r, request):
         killuser = "user_to_kill"
         r.acl_setuser(
@@ -700,7 +685,7 @@ class TestRedisCommands:
             keys=["cache:*"],
             nopass=True,
         )
-        _get_client(redis.Redis, request, flushdb=False, username=killuser)
+        _get_client(valkey.Valkey, request, flushdb=False, username=killuser)
         r.client_kill_filter(user=killuser)
         clients = r.client_list()
         for c in clients:
@@ -708,9 +693,8 @@ class TestRedisCommands:
         r.acl_deluser(killuser)
 
     @skip_if_server_version_lt("7.4.0")
-    @skip_if_redis_enterprise()
     def test_client_kill_filter_by_maxage(self, r, request):
-        _get_client(redis.Redis, request, flushdb=False)
+        _get_client(valkey.Valkey, request, flushdb=False)
         time.sleep(4)
         assert len(r.client_list()) == 2
         r.client_kill_filter(maxage=2)
@@ -718,15 +702,13 @@ class TestRedisCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.9.50")
-    @skip_if_redis_enterprise()
     def test_client_pause(self, r):
         assert r.client_pause(1)
         assert r.client_pause(timeout=1)
-        with pytest.raises(exceptions.RedisError):
+        with pytest.raises(exceptions.ValkeyError):
             r.client_pause(timeout="not an integer")
 
     @skip_if_server_version_lt("6.2.0")
-    @skip_if_redis_enterprise()
     def test_client_pause_all(self, r, r2):
         assert r.client_pause(1, all=False)
         assert r2.set("foo", "bar")
@@ -735,7 +717,6 @@ class TestRedisCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.2.0")
-    @skip_if_redis_enterprise()
     def test_client_unpause(self, r):
         assert r.client_unpause() == b"OK"
 
@@ -758,7 +739,7 @@ class TestRedisCommands:
     @skip_if_server_version_lt("3.2.0")
     def test_client_reply(self, r, r_timeout):
         assert r_timeout.client_reply("ON") == b"OK"
-        with pytest.raises(exceptions.RedisError):
+        with pytest.raises(exceptions.ValkeyError):
             r_timeout.client_reply("OFF")
 
             r_timeout.client_reply("SKIP")
@@ -770,7 +751,6 @@ class TestRedisCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_redis_enterprise()
     def test_client_getredir(self, r):
         assert isinstance(r.client_getredir(), int)
         assert r.client_getredir() == -1
@@ -787,13 +767,12 @@ class TestRedisCommands:
         # assert data['maxmemory'].isdigit()
 
     @skip_if_server_version_lt("7.0.0")
-    def test_config_get_multi_params(self, r: redis.Redis):
+    def test_config_get_multi_params(self, r: valkey.Valkey):
         res = r.config_get("*max-*-entries*", "maxmemory")
         assert "maxmemory" in res
         assert "hash-max-listpack-entries" in res
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_config_resetstat(self, r):
         r.ping()
         prior_commands_processed = int(r.info()["total_commands_processed"])
@@ -802,7 +781,6 @@ class TestRedisCommands:
         reset_commands_processed = int(r.info()["total_commands_processed"])
         assert reset_commands_processed < prior_commands_processed
 
-    @skip_if_redis_enterprise()
     def test_config_set(self, r):
         r.config_set("timeout", 70)
         assert r.config_get()["timeout"] == "70"
@@ -810,8 +788,7 @@ class TestRedisCommands:
         assert r.config_get()["timeout"] == "0"
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_redis_enterprise()
-    def test_config_set_multi_params(self, r: redis.Redis):
+    def test_config_set_multi_params(self, r: valkey.Valkey):
         r.config_set("timeout", 70, "maxmemory", 100)
         assert r.config_get()["timeout"] == "70"
         assert r.config_get()["maxmemory"] == "100"
@@ -820,7 +797,6 @@ class TestRedisCommands:
         assert r.config_get()["maxmemory"] == "0"
 
     @skip_if_server_version_lt("6.0.0")
-    @skip_if_redis_enterprise()
     def test_failover(self, r):
         with pytest.raises(NotImplementedError):
             r.failover()
@@ -842,18 +818,17 @@ class TestRedisCommands:
         info = r.info()
         assert isinstance(info, dict)
         assert "arch_bits" in info.keys()
-        assert "redis_version" in info.keys()
+        assert "valkey_version" in info.keys()
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("7.0.0")
     def test_info_multi_sections(self, r):
         res = r.info("clients", "server")
         assert isinstance(res, dict)
-        assert "redis_version" in res
+        assert "valkey_version" in res
         assert "connected_clients" in res
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_lastsave(self, r):
         assert isinstance(r.lastsave(), datetime.datetime)
 
@@ -868,7 +843,6 @@ class TestRedisCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.2.0")
-    @skip_if_redis_enterprise()
     def test_reset(self, r):
         assert_resp_response(r, r.reset(), "RESET", b"RESET")
 
@@ -887,7 +861,6 @@ class TestRedisCommands:
         assert r.quit()
 
     @skip_if_server_version_lt("2.8.12")
-    @skip_if_redis_enterprise()
     @pytest.mark.onlynoncluster
     def test_role(self, r):
         assert r.role()[0] == b"master"
@@ -895,7 +868,6 @@ class TestRedisCommands:
         assert isinstance(r.role()[2], list)
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_select(self, r):
         assert r.select(5)
         assert r.select(2)
@@ -974,18 +946,17 @@ class TestRedisCommands:
         assert isinstance(t[0], int)
         assert isinstance(t[1], int)
 
-    @skip_if_redis_enterprise()
     def test_bgsave(self, r):
         assert r.bgsave()
         time.sleep(0.3)
         assert r.bgsave(True)
 
-    def test_never_decode_option(self, r: redis.Redis):
+    def test_never_decode_option(self, r: valkey.Valkey):
         opts = {NEVER_DECODE: []}
         r.delete("a")
         assert r.execute_command("EXISTS", "a", **opts) == 0
 
-    def test_empty_response_option(self, r: redis.Redis):
+    def test_empty_response_option(self, r: valkey.Valkey):
         opts = {EMPTY_RESPONSE: []}
         r.delete("a")
         assert r.execute_command("EXISTS", "a", **opts) == 0
@@ -1022,7 +993,7 @@ class TestRedisCommands:
         assert r.bitcount("mykey") == 26
         assert r.bitcount("mykey", 1, 1, "byte") == 6
         assert r.bitcount("mykey", 5, 30, "bit") == 17
-        with pytest.raises(redis.ResponseError):
+        with pytest.raises(valkey.ResponseError):
             assert r.bitcount("mykey", 5, 30, "but")
 
     @pytest.mark.onlynoncluster
@@ -1092,9 +1063,9 @@ class TestRedisCommands:
     def test_bitpos_wrong_arguments(self, r):
         key = "key:bitpos:wrong:args"
         r.set(key, b"\xff\xf0\x00")
-        with pytest.raises(exceptions.RedisError):
+        with pytest.raises(exceptions.ValkeyError):
             r.bitpos(key, 0, end=1) == 12
-        with pytest.raises(exceptions.RedisError):
+        with pytest.raises(exceptions.ValkeyError):
             r.bitpos(key, 7) == 12
 
     @skip_if_server_version_lt("7.0.0")
@@ -1103,7 +1074,7 @@ class TestRedisCommands:
         assert r.bitpos("mykey", 1, 0) == 8
         assert r.bitpos("mykey", 1, 2, -1, "byte") == 16
         assert r.bitpos("mykey", 0, 7, 15, "bit") == 7
-        with pytest.raises(redis.ResponseError):
+        with pytest.raises(valkey.ResponseError):
             r.bitpos("mykey", 1, 7, 15, "bite")
 
     @pytest.mark.onlynoncluster
@@ -1126,8 +1097,8 @@ class TestRedisCommands:
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.2.0")
     def test_copy_to_another_database(self, request):
-        r0 = _get_client(redis.Redis, request, db=0)
-        r1 = _get_client(redis.Redis, request, db=1)
+        r0 = _get_client(valkey.Valkey, request, db=0)
+        r1 = _get_client(valkey.Valkey, request, db=1)
         r0.set("a", "foo")
         assert r0.copy("a", "b", destination_db=1) == 1
         assert r1.get("b") == b"foo"
@@ -1189,7 +1160,7 @@ class TestRedisCommands:
             [b"matches", [[[4, 7], [5, 8]]], b"len", 6],
             {b"matches": [[[4, 7], [5, 8]]], b"len": 6},
         )
-        with pytest.raises(redis.ResponseError):
+        with pytest.raises(valkey.ResponseError):
             assert r.lcs("foo", "bar", len=True, idx=True)
 
     @skip_if_server_version_lt("2.6.0")
@@ -1204,7 +1175,7 @@ class TestRedisCommands:
     def test_dump_and_restore_and_replace(self, r):
         r["a"] = "bar"
         dumped = r.dump("a")
-        with pytest.raises(redis.ResponseError):
+        with pytest.raises(valkey.ResponseError):
             r.restore("a", 0, dumped)
 
         r.restore("a", 0, dumped, replace=True)
@@ -1216,7 +1187,7 @@ class TestRedisCommands:
         dumped = r.dump("a")
         del r["a"]
         ttl = int(
-            (redis_server_time(r) + datetime.timedelta(minutes=1)).timestamp() * 1000
+            (valkey_server_time(r) + datetime.timedelta(minutes=1)).timestamp() * 1000
         )
         r.restore("a", ttl, dumped, absttl=True)
         assert r["a"] == b"foo"
@@ -1268,17 +1239,17 @@ class TestRedisCommands:
         assert r.expire("key", 150, lt=True) == 0
 
     def test_expireat_datetime(self, r):
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=1)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         r["a"] = "foo"
         assert r.expireat("a", expire_at) is True
         assert 0 < r.ttl("a") <= 61
 
     def test_expireat_no_key(self, r):
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=1)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert r.expireat("a", expire_at) is False
 
     def test_expireat_unixtime(self, r):
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=1)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         r["a"] = "foo"
         expire_at_seconds = int(expire_at.timestamp())
         assert r.expireat("a", expire_at_seconds) is True
@@ -1293,38 +1264,38 @@ class TestRedisCommands:
     @skip_if_server_version_lt("7.0.0")
     def test_expireat_option_nx(self, r):
         assert r.set("key", "val") is True
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=1)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert r.expireat("key", expire_at, nx=True) is True
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=2)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=2)
         assert r.expireat("key", expire_at, nx=True) is False
 
     @skip_if_server_version_lt("7.0.0")
     def test_expireat_option_xx(self, r):
         assert r.set("key", "val") is True
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=1)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert r.expireat("key", expire_at, xx=True) is False
         assert r.expireat("key", expire_at) is True
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=2)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=2)
         assert r.expireat("key", expire_at, xx=True) is True
 
     @skip_if_server_version_lt("7.0.0")
     def test_expireat_option_gt(self, r):
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=2)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=2)
         assert r.set("key", "val") is True
         assert r.expireat("key", expire_at) is True
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=1)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert r.expireat("key", expire_at, gt=True) is False
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=3)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=3)
         assert r.expireat("key", expire_at, gt=True) is True
 
     @skip_if_server_version_lt("7.0.0")
     def test_expireat_option_lt(self, r):
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=2)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=2)
         assert r.set("key", "val") is True
         assert r.expireat("key", expire_at) is True
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=3)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=3)
         assert r.expireat("key", expire_at, lt=True) is False
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=1)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert r.expireat("key", expire_at, lt=True) is True
 
     def test_get_and_set(self, r):
@@ -1356,7 +1327,7 @@ class TestRedisCommands:
         assert r.ttl("a") == 60
         assert r.getex("a", px=6000) == b"1"
         assert r.ttl("a") == 6
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=1)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert r.getex("a", pxat=expire_at) == b"1"
         assert r.ttl("a") <= 61
         assert r.getex("a", persist=True) == b"1"
@@ -1509,19 +1480,19 @@ class TestRedisCommands:
 
     @skip_if_server_version_lt("2.6.0")
     def test_pexpireat_datetime(self, r):
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=1)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         r["a"] = "foo"
         assert r.pexpireat("a", expire_at) is True
         assert 0 < r.pttl("a") <= 61000
 
     @skip_if_server_version_lt("2.6.0")
     def test_pexpireat_no_key(self, r):
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=1)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert r.pexpireat("a", expire_at) is False
 
     @skip_if_server_version_lt("2.6.0")
     def test_pexpireat_unixtime(self, r):
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=1)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         r["a"] = "foo"
         expire_at_milliseconds = int(expire_at.timestamp() * 1000)
         assert r.pexpireat("a", expire_at_milliseconds) is True
@@ -1530,14 +1501,14 @@ class TestRedisCommands:
     @skip_if_server_version_lt("7.0.0")
     def test_pexpireat_option_nx(self, r):
         assert r.set("key", "val") is True
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=1)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert r.pexpireat("key", expire_at, nx=True) is True
         assert r.pexpireat("key", expire_at, nx=True) is False
 
     @skip_if_server_version_lt("7.0.0")
     def test_pexpireat_option_xx(self, r):
         assert r.set("key", "val") is True
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=1)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert r.pexpireat("key", expire_at, xx=True) is False
         assert r.pexpireat("key", expire_at) is True
         assert r.pexpireat("key", expire_at, xx=True) is True
@@ -1545,21 +1516,21 @@ class TestRedisCommands:
     @skip_if_server_version_lt("7.0.0")
     def test_pexpireat_option_gt(self, r):
         assert r.set("key", "val") is True
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=2)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=2)
         assert r.pexpireat("key", expire_at) is True
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=1)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert r.pexpireat("key", expire_at, gt=True) is False
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=3)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=3)
         assert r.pexpireat("key", expire_at, gt=True) is True
 
     @skip_if_server_version_lt("7.0.0")
     def test_pexpireat_option_lt(self, r):
         assert r.set("key", "val") is True
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=2)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=2)
         assert r.pexpireat("key", expire_at) is True
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=3)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=3)
         assert r.pexpireat("key", expire_at, lt=True) is False
-        expire_at = redis_server_time(r) + datetime.timedelta(minutes=1)
+        expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert r.pexpireat("key", expire_at, lt=True) is True
 
     @skip_if_server_version_lt("7.0.0")
@@ -1682,13 +1653,13 @@ class TestRedisCommands:
 
     @skip_if_server_version_lt("6.2.0")
     def test_set_exat_timedelta(self, r):
-        expire_at = redis_server_time(r) + datetime.timedelta(seconds=10)
+        expire_at = valkey_server_time(r) + datetime.timedelta(seconds=10)
         assert r.set("a", "1", exat=expire_at)
         assert 0 < r.ttl("a") <= 10
 
     @skip_if_server_version_lt("6.2.0")
     def test_set_pxat_timedelta(self, r):
-        expire_at = redis_server_time(r) + datetime.timedelta(seconds=50)
+        expire_at = valkey_server_time(r) + datetime.timedelta(seconds=50)
         assert r.set("a", "1", pxat=expire_at)
         assert 0 < r.ttl("a") <= 100
 
@@ -1735,18 +1706,12 @@ class TestRedisCommands:
 
     @skip_if_server_version_lt("6.0.0")
     @skip_if_server_version_gte("7.0.0")
-    @skip_if_redis_enterprise()
     def test_stralgo_lcs(self, r):
         key1 = "{foo}key1"
         key2 = "{foo}key2"
         value1 = "ohmytext"
         value2 = "mynewtext"
         res = "mytext"
-
-        if skip_if_redis_enterprise().args[0] is True:
-            with pytest.raises(redis.exceptions.ResponseError):
-                assert r.stralgo("LCS", value1, value2) == res
-            return
 
         # test LCS of strings
         assert r.stralgo("LCS", value1, value2) == res
@@ -1778,7 +1743,6 @@ class TestRedisCommands:
 
     @skip_if_server_version_lt("6.0.0")
     @skip_if_server_version_gte("7.0.0")
-    @skip_if_redis_enterprise()
     def test_stralgo_negative(self, r):
         with pytest.raises(exceptions.DataError):
             r.stralgo("ISSUB", "value1", "value2")
@@ -1796,18 +1760,13 @@ class TestRedisCommands:
     def test_substr(self, r):
         r["a"] = "0123456789"
 
-        if skip_if_redis_enterprise().args[0] is True:
-            with pytest.raises(redis.exceptions.ResponseError):
-                assert r.substr("a", 0) == b"0123456789"
-            return
-
         assert r.substr("a", 0) == b"0123456789"
         assert r.substr("a", 2) == b"23456789"
         assert r.substr("a", 3, 5) == b"345"
         assert r.substr("a", 3, -2) == b"345678"
 
     def generate_lib_code(self, lib_name):
-        return f"""#!js api_version=1.0 name={lib_name}\n redis.registerFunction('foo', ()=>{{return 'bar'}})"""  # noqa
+        return f"""#!js api_version=1.0 name={lib_name}\n valkey.registerFunction('foo', ()=>{{return 'bar'}})"""  # noqa
 
     def try_delete_libs(self, r, *lib_names):
         for lib_name in lib_names:
@@ -1817,7 +1776,7 @@ class TestRedisCommands:
                 pass
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("7.1.140")
+    @pytest.mark.skip
     def test_tfunction_load_delete(self, r):
         self.try_delete_libs(r, "lib1")
         lib_code = self.generate_lib_code("lib1")
@@ -1825,7 +1784,7 @@ class TestRedisCommands:
         assert r.tfunction_delete("lib1")
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("7.1.140")
+    @pytest.mark.skip
     def test_tfunction_list(self, r):
         self.try_delete_libs(r, "lib1", "lib2", "lib3")
         assert r.tfunction_load(self.generate_lib_code("lib1"))
@@ -1833,7 +1792,7 @@ class TestRedisCommands:
         assert r.tfunction_load(self.generate_lib_code("lib3"))
 
         # test error thrown when verbose > 4
-        with pytest.raises(redis.exceptions.DataError):
+        with pytest.raises(valkey.exceptions.DataError):
             assert r.tfunction_list(verbose=8)
 
         functions = r.tfunction_list(verbose=1)
@@ -1848,7 +1807,7 @@ class TestRedisCommands:
         assert r.tfunction_delete("lib3")
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("7.1.140")
+    @pytest.mark.skip
     def test_tfcall(self, r):
         self.try_delete_libs(r, "lib1")
         assert r.tfunction_load(self.generate_lib_code("lib1"))
@@ -1957,7 +1916,7 @@ class TestRedisCommands:
         r.rpush("foo", "1", "2", "3", "4", "5")
         result = [b"foo", [b"1", b"2"]]
         assert r.lmpop("2", "bar", "foo", direction="LEFT", count=2) == result
-        with pytest.raises(redis.ResponseError):
+        with pytest.raises(valkey.ResponseError):
             r.lmpop("2", "bar", "foo", direction="up", count=2)
         r.rpush("bar", "a", "b", "c", "d")
         assert r.lmpop("2", "bar", "foo", direction="LEFT") == [b"bar", [b"a"]]
@@ -2355,14 +2314,12 @@ class TestRedisCommands:
         assert r.smembers("c") == {b"1", b"2", b"3"}
 
     @skip_if_server_version_lt("1.0.0")
-    @skip_if_redis_enterprise()
     def test_debug_segfault(self, r):
         with pytest.raises(NotImplementedError):
             r.debug_segfault()
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("3.2.0")
-    @skip_if_redis_enterprise()
     def test_script_debug(self, r):
         with pytest.raises(NotImplementedError):
             r.script_debug()
@@ -2426,8 +2383,8 @@ class TestRedisCommands:
 
     def test_zadd_incr_with_xx(self, r):
         # this asks zadd to incr 'a1' only if it exists, but it clearly
-        # doesn't. Redis returns a null value in this case and so should
-        # redis-py
+        # doesn't. Valkey returns a null value in this case and so should
+        # valkey-py
         assert r.zadd("a", {"a1": 1}, xx=True, incr=True) is None
 
     @skip_if_server_version_lt("6.2.0")
@@ -2697,7 +2654,7 @@ class TestRedisCommands:
             [b"a", [[b"a1", b"1"], [b"a2", b"2"]]],
             [b"a", [[b"a1", 1.0], [b"a2", 2.0]]],
         )
-        with pytest.raises(redis.DataError):
+        with pytest.raises(valkey.DataError):
             r.zmpop("2", ["b", "a"], count=2)
         r.zadd("b", {"b1": 10, "ab": 9, "b3": 8})
         assert_resp_response(
@@ -2717,7 +2674,7 @@ class TestRedisCommands:
             [b"a", [[b"a1", b"1"], [b"a2", b"2"]]],
             [b"a", [[b"a1", 1.0], [b"a2", 2.0]]],
         )
-        with pytest.raises(redis.DataError):
+        with pytest.raises(valkey.DataError):
             r.bzmpop(1, "2", ["b", "a"], count=2)
         r.zadd("b", {"b1": 10, "ab": 9, "b3": 8})
         assert_resp_response(
@@ -2871,7 +2828,7 @@ class TestRedisCommands:
         assert r.zrank("a", "a6") is None
 
     @skip_if_server_version_lt("7.2.0")
-    def test_zrank_withscore(self, r: redis.Redis):
+    def test_zrank_withscore(self, r: valkey.Valkey):
         r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
         assert r.zrank("a", "a1") == 0
         assert r.zrank("a", "a2") == 1
@@ -3120,11 +3077,11 @@ class TestRedisCommands:
         assert r.hget("a", "2") == b"2"
         assert r.hget("a", "3") == b"3"
 
-        # field was updated, redis returns 0
+        # field was updated, valkey returns 0
         assert r.hset("a", "2", 5) == 0
         assert r.hget("a", "2") == b"5"
 
-        # field is new, redis returns 1
+        # field is new, valkey returns 1
         assert r.hset("a", "4", 4) == 1
         assert r.hget("a", "4") == b"4"
 
@@ -3205,10 +3162,10 @@ class TestRedisCommands:
         assert r.hmget("a", "a", "b", "c") == [b"1", b"2", b"3"]
 
     def test_hmset(self, r):
-        redis_class = type(r).__name__
+        valkey_class = type(r).__name__
         warning_message = (
             r"^{0}\.hmset\(\) is deprecated\. "
-            r"Use {0}\.hset\(\) instead\.$".format(redis_class)
+            r"Use {0}\.hset\(\) instead\.$".format(valkey_class)
         )
         h = {b"a": b"1", b"b": b"2", b"c": b"3"}
         with pytest.warns(DeprecationWarning, match=warning_message):
@@ -3393,98 +3350,81 @@ class TestRedisCommands:
         r.execute_command("SORT", "issue#924")
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_cluster_addslots(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("ADDSLOTS", 1) is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_cluster_count_failure_reports(self, mock_cluster_resp_int):
         assert isinstance(
             mock_cluster_resp_int.cluster("COUNT-FAILURE-REPORTS", "node"), int
         )
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_cluster_countkeysinslot(self, mock_cluster_resp_int):
         assert isinstance(mock_cluster_resp_int.cluster("COUNTKEYSINSLOT", 2), int)
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_cluster_delslots(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("DELSLOTS", 1) is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_cluster_failover(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("FAILOVER", 1) is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_cluster_forget(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("FORGET", 1) is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_cluster_info(self, mock_cluster_resp_info):
         assert isinstance(mock_cluster_resp_info.cluster("info"), dict)
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_cluster_keyslot(self, mock_cluster_resp_int):
         assert isinstance(mock_cluster_resp_int.cluster("keyslot", "asdf"), int)
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_cluster_meet(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("meet", "ip", "port", 1) is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_cluster_nodes(self, mock_cluster_resp_nodes):
         assert isinstance(mock_cluster_resp_nodes.cluster("nodes"), dict)
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_cluster_replicate(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("replicate", "nodeid") is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_cluster_reset(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("reset", "hard") is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_cluster_saveconfig(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("saveconfig") is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_cluster_setslot(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.cluster("setslot", 1, "IMPORTING", "nodeid") is True
 
     @pytest.mark.onlynoncluster
-    @skip_if_redis_enterprise()
     def test_cluster_slaves(self, mock_cluster_resp_slaves):
         assert isinstance(mock_cluster_resp_slaves.cluster("slaves", "nodeid"), dict)
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("3.0.0")
     @skip_if_server_version_gte("7.0.0")
-    @skip_if_redis_enterprise()
     def test_readwrite(self, r):
         assert r.readwrite()
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("3.0.0")
     def test_readonly_invalid_cluster_state(self, r):
-        with pytest.raises(exceptions.RedisError):
+        with pytest.raises(exceptions.ValkeyError):
             r.readonly()
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("3.0.0")
-    @skip_if_redis_enterprise()
     def test_readonly(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.readonly() is True
 
@@ -3541,7 +3481,7 @@ class TestRedisCommands:
 
     @skip_if_server_version_lt("3.2.0")
     def test_geoadd_invalid_params(self, r):
-        with pytest.raises(exceptions.RedisError):
+        with pytest.raises(exceptions.ValkeyError):
             r.geoadd("barcelona", (1, 2))
 
     @skip_if_server_version_lt("3.2.0")
@@ -3572,7 +3512,7 @@ class TestRedisCommands:
 
     @skip_if_server_version_lt("3.2.0")
     def test_geodist_invalid_units(self, r):
-        with pytest.raises(exceptions.RedisError):
+        with pytest.raises(exceptions.ValkeyError):
             assert r.geodist("x", "y", "z", "inches")
 
     @skip_if_server_version_lt("3.2.0")
@@ -3599,7 +3539,7 @@ class TestRedisCommands:
             "place2",
         )
         r.geoadd("barcelona", values)
-        # redis uses 52 bits precision, hereby small errors may be introduced.
+        # valkey uses 52 bits precision, hereby small errors may be introduced.
         assert_resp_response(
             r,
             r.geopos("barcelona", "place1", "place2"),
@@ -4108,11 +4048,11 @@ class TestRedisCommands:
         r.xadd(stream, {"foo": "bar"})
 
         # Future self: No limits without approximate, according to the api
-        with pytest.raises(redis.ResponseError):
+        with pytest.raises(valkey.ResponseError):
             assert r.xadd(stream, {"foo": "bar"}, maxlen=3, approximate=False, limit=2)
 
         # limit can not be provided without maxlen or minid
-        with pytest.raises(redis.ResponseError):
+        with pytest.raises(valkey.ResponseError):
             assert r.xadd(stream, {"foo": "bar"}, limit=2)
 
         # maxlen with a limit
@@ -4120,7 +4060,7 @@ class TestRedisCommands:
         r.delete(stream)
 
         # maxlen and minid can not be provided together
-        with pytest.raises(redis.DataError):
+        with pytest.raises(valkey.DataError):
             assert r.xadd(stream, {"foo": "bar"}, maxlen=3, minid="sometestvalue")
 
         # minid with a limit
@@ -4145,7 +4085,7 @@ class TestRedisCommands:
         assert r.xadd(stream, {"foo": "bar"}, approximate=True, minid=m3)
 
     @skip_if_server_version_lt("7.0.0")
-    def test_xadd_explicit_ms(self, r: redis.Redis):
+    def test_xadd_explicit_ms(self, r: valkey.Valkey):
         stream = "stream"
         message_id = r.xadd(stream, {"foo": "bar"}, "9999999999999999999-*")
         ms = message_id[: message_id.index(b"-")]
@@ -4189,11 +4129,11 @@ class TestRedisCommands:
         stream = "stream"
         group = "group"
         consumer = "consumer"
-        with pytest.raises(redis.DataError):
+        with pytest.raises(valkey.DataError):
             r.xautoclaim(stream, group, consumer, min_idle_time=-1)
         with pytest.raises(ValueError):
             r.xautoclaim(stream, group, consumer, min_idle_time="wrong")
-        with pytest.raises(redis.DataError):
+        with pytest.raises(valkey.DataError):
             r.xautoclaim(stream, group, consumer, min_idle_time=0, count=-1)
 
     @skip_if_server_version_lt("5.0.0")
@@ -4322,7 +4262,7 @@ class TestRedisCommands:
         assert r.xinfo_groups(stream) == expected
 
     @skip_if_server_version_lt("7.0.0")
-    def test_xgroup_create_entriesread(self, r: redis.Redis):
+    def test_xgroup_create_entriesread(self, r: valkey.Valkey):
         stream = "stream"
         group = "group"
         r.xadd(stream, {"foo": "bar"})
@@ -4558,21 +4498,21 @@ class TestRedisCommands:
     def test_xpending_range_negative(self, r):
         stream = "stream"
         group = "group"
-        with pytest.raises(redis.DataError):
+        with pytest.raises(valkey.DataError):
             r.xpending_range(stream, group, min="-", max="+", count=None)
         with pytest.raises(ValueError):
             r.xpending_range(stream, group, min="-", max="+", count="one")
-        with pytest.raises(redis.DataError):
+        with pytest.raises(valkey.DataError):
             r.xpending_range(stream, group, min="-", max="+", count=-1)
         with pytest.raises(ValueError):
             r.xpending_range(stream, group, min="-", max="+", count=5, idle="one")
-        with pytest.raises(redis.exceptions.ResponseError):
+        with pytest.raises(valkey.exceptions.ResponseError):
             r.xpending_range(stream, group, min="-", max="+", count=5, idle=1.5)
-        with pytest.raises(redis.DataError):
+        with pytest.raises(valkey.DataError):
             r.xpending_range(stream, group, min="-", max="+", count=5, idle=-1)
-        with pytest.raises(redis.DataError):
+        with pytest.raises(valkey.DataError):
             r.xpending_range(stream, group, min=None, max=None, count=None, idle=0)
-        with pytest.raises(redis.DataError):
+        with pytest.raises(valkey.DataError):
             r.xpending_range(
                 stream, group, min=None, max=None, count=None, consumername=0
             )
@@ -4766,14 +4706,14 @@ class TestRedisCommands:
         r.xadd(stream, {"foo": "bar"})
 
         # Future self: No limits without approximate, according to the api
-        with pytest.raises(redis.ResponseError):
+        with pytest.raises(valkey.ResponseError):
             assert r.xtrim(stream, 3, approximate=False, limit=2)
 
         # maxlen with a limit
         assert r.xtrim(stream, 3, approximate=True, limit=2) == 0
         r.delete(stream)
 
-        with pytest.raises(redis.DataError):
+        with pytest.raises(valkey.DataError):
             assert r.xtrim(stream, maxlen=3, minid="sometestvalue")
 
         # minid with a limit
@@ -4866,7 +4806,7 @@ class TestRedisCommands:
         assert resp == [0, None, 255]
 
     @skip_if_server_version_lt("6.0.0")
-    def test_bitfield_ro(self, r: redis.Redis):
+    def test_bitfield_ro(self, r: valkey.Valkey):
         bf = r.bitfield("a")
         resp = bf.set("u8", 8, 255).execute()
         assert resp == [0]
@@ -4889,26 +4829,14 @@ class TestRedisCommands:
             r.memory_doctor()
 
     @skip_if_server_version_lt("4.0.0")
-    @skip_if_redis_enterprise()
     def test_memory_malloc_stats(self, r):
-        if skip_if_redis_enterprise().args[0] is True:
-            with pytest.raises(redis.exceptions.ResponseError):
-                assert r.memory_malloc_stats()
-            return
-
         assert r.memory_malloc_stats()
 
     @skip_if_server_version_lt("4.0.0")
-    @skip_if_redis_enterprise()
     def test_memory_stats(self, r):
         # put a key into the current db to make sure that "db.<current-db>"
         # has data
         r.set("foo", "bar")
-
-        if skip_if_redis_enterprise().args[0] is True:
-            with pytest.raises(redis.exceptions.ResponseError):
-                stats = r.memory_stats()
-            return
 
         stats = r.memory_stats()
         assert isinstance(stats, dict)
@@ -4922,36 +4850,34 @@ class TestRedisCommands:
         assert isinstance(r.memory_usage("foo"), int)
 
     @skip_if_server_version_lt("7.0.0")
-    def test_latency_histogram_not_implemented(self, r: redis.Redis):
+    def test_latency_histogram_not_implemented(self, r: valkey.Valkey):
         with pytest.raises(NotImplementedError):
             r.latency_histogram()
 
-    def test_latency_graph_not_implemented(self, r: redis.Redis):
+    def test_latency_graph_not_implemented(self, r: valkey.Valkey):
         with pytest.raises(NotImplementedError):
             r.latency_graph()
 
-    def test_latency_doctor_not_implemented(self, r: redis.Redis):
+    def test_latency_doctor_not_implemented(self, r: valkey.Valkey):
         with pytest.raises(NotImplementedError):
             r.latency_doctor()
 
-    def test_latency_history(self, r: redis.Redis):
+    def test_latency_history(self, r: valkey.Valkey):
         assert r.latency_history("command") == []
 
-    def test_latency_latest(self, r: redis.Redis):
+    def test_latency_latest(self, r: valkey.Valkey):
         assert r.latency_latest() == []
 
-    def test_latency_reset(self, r: redis.Redis):
+    def test_latency_reset(self, r: valkey.Valkey):
         assert r.latency_reset() == 0
 
     @skip_if_server_version_lt("4.0.0")
-    @skip_if_redis_enterprise()
     def test_module_list(self, r):
         assert isinstance(r.module_list(), list)
         for x in r.module_list():
             assert isinstance(x, dict)
 
     @skip_if_server_version_lt("2.8.13")
-    @skip_if_redis_enterprise()
     def test_command_count(self, r):
         res = r.command_count()
         assert isinstance(res, int)
@@ -4963,18 +4889,16 @@ class TestRedisCommands:
             r.command_docs("set")
 
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_redis_enterprise()
-    def test_command_list(self, r: redis.Redis):
+    def test_command_list(self, r: valkey.Valkey):
         assert len(r.command_list()) > 300
         assert len(r.command_list(module="fakemod")) == 0
         assert len(r.command_list(category="list")) > 15
         assert b"lpop" in r.command_list(pattern="l*")
-        with pytest.raises(redis.ResponseError):
+        with pytest.raises(valkey.ResponseError):
             r.command_list(category="list", pattern="l*")
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.13")
-    @skip_if_redis_enterprise()
     def test_command_getkeys(self, r):
         res = r.command_getkeys("MSET", "a", "b", "c", "d", "e", "f")
         assert_resp_response(r, res, ["a", "c", "e"], [b"a", b"c", b"e"])
@@ -5004,8 +4928,7 @@ class TestRedisCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_redis_enterprise()
-    def test_command_getkeysandflags(self, r: redis.Redis):
+    def test_command_getkeysandflags(self, r: valkey.Valkey):
         assert_resp_response(
             r,
             r.command_getkeysandflags("LMOVE", "mylist1", "mylist2", "left", "left"),
@@ -5021,25 +4944,23 @@ class TestRedisCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("4.0.0")
-    @skip_if_redis_enterprise()
     def test_module(self, r):
-        with pytest.raises(redis.exceptions.ModuleError) as excinfo:
+        with pytest.raises(valkey.exceptions.ModuleError) as excinfo:
             r.module_load("/some/fake/path")
             assert "Error loading the extension." in str(excinfo.value)
 
-        with pytest.raises(redis.exceptions.ModuleError) as excinfo:
+        with pytest.raises(valkey.exceptions.ModuleError) as excinfo:
             r.module_load("/some/fake/path", "arg1", "arg2", "arg3", "arg4")
             assert "Error loading the extension." in str(excinfo.value)
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("7.0.0")
-    @skip_if_redis_enterprise()
-    def test_module_loadex(self, r: redis.Redis):
-        with pytest.raises(redis.exceptions.ModuleError) as excinfo:
+    def test_module_loadex(self, r: valkey.Valkey):
+        with pytest.raises(valkey.exceptions.ModuleError) as excinfo:
             r.module_loadex("/some/fake/path")
             assert "Error loading the extension." in str(excinfo.value)
 
-        with pytest.raises(redis.exceptions.ModuleError) as excinfo:
+        with pytest.raises(valkey.exceptions.ModuleError) as excinfo:
             r.module_loadex("/some/fake/path", ["name", "value"], ["arg1", "arg2"])
             assert "Error loading the extension." in str(excinfo.value)
 
@@ -5054,7 +4975,7 @@ class TestRedisCommands:
         assert r.get(key) == b"bar"
 
         # overwrite restore
-        with pytest.raises(redis.exceptions.ResponseError):
+        with pytest.raises(valkey.exceptions.ResponseError):
             assert r.restore(key, 0, dumpdata)
         r.set(key, "a new value!")
         assert r.restore(key, 0, dumpdata, replace=True)
@@ -5088,19 +5009,18 @@ class TestRedisCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("5.0.0")
-    @skip_if_redis_enterprise()
     def test_replicaof(self, r):
-        with pytest.raises(redis.ResponseError):
+        with pytest.raises(valkey.ResponseError):
             assert r.replicaof("NO ONE")
         assert r.replicaof("NO", "ONE")
 
-    def test_shutdown(self, r: redis.Redis):
+    def test_shutdown(self, r: valkey.Valkey):
         r.execute_command = mock.MagicMock()
         r.execute_command("SHUTDOWN", "NOSAVE")
         r.execute_command.assert_called_once_with("SHUTDOWN", "NOSAVE")
 
     @skip_if_server_version_lt("7.0.0")
-    def test_shutdown_with_params(self, r: redis.Redis):
+    def test_shutdown_with_params(self, r: valkey.Valkey):
         r.execute_command = mock.MagicMock()
         r.execute_command("SHUTDOWN", "SAVE", "NOW", "FORCE")
         r.execute_command.assert_called_once_with("SHUTDOWN", "SAVE", "NOW", "FORCE")
@@ -5110,24 +5030,22 @@ class TestRedisCommands:
     @pytest.mark.replica
     @pytest.mark.xfail(strict=False)
     @skip_if_server_version_lt("2.8.0")
-    @skip_if_redis_enterprise()
     def test_sync(self, r):
         r.flushdb()
         time.sleep(1)
-        r2 = redis.Redis(port=6380, decode_responses=False)
+        r2 = valkey.Valkey(port=6380, decode_responses=False)
         res = r2.sync()
-        assert b"REDIS" in res
+        assert b"VALKEY" in res
 
     @pytest.mark.replica
     @skip_if_server_version_lt("2.8.0")
-    @skip_if_redis_enterprise()
     def test_psync(self, r):
-        r2 = redis.Redis(port=6380, decode_responses=False)
+        r2 = valkey.Valkey(port=6380, decode_responses=False)
         res = r2.psync(r2.client_id(), 1)
         assert b"FULLRESYNC" in res
 
     @pytest.mark.onlynoncluster
-    def test_interrupted_command(self, r: redis.Redis):
+    def test_interrupted_command(self, r: valkey.Valkey):
         """
         Regression test for issue #1128:  An Un-handled BaseException
         will leave the socket with un-read response to a previous
@@ -5199,10 +5117,6 @@ class TestBinarySave:
             assert r.lrange(key, 0, -1) == value
 
     def test_22_info(self, r):
-        """
-        Older Redis versions contained 'allocation_stats' in INFO that
-        was the cause of a number of bugs when parsing.
-        """
         info = (
             "allocation_stats:6=1,7=1,8=7141,9=180,10=92,11=116,12=5330,"
             "13=123,14=3091,15=11048,16=225842,17=1784,18=814,19=12020,"
@@ -5234,7 +5148,6 @@ class TestBinarySave:
         assert "6" in parsed["allocation_stats"]
         assert ">=256" in parsed["allocation_stats"]
 
-    @skip_if_redis_enterprise()
     def test_large_responses(self, r):
         "The PythonParser has some special cases for return values > 1MB"
         # load up 5MB of data into a key
