@@ -13,7 +13,6 @@ from tests.conftest import (
     assert_resp_response,
     is_resp2_connection,
     skip_if_server_version_gte,
-    skip_if_server_version_lt,
     skip_unless_arch_bits,
 )
 from valkey._parsers import AsyncCommandsParser
@@ -1052,7 +1051,6 @@ class TestClusterValkeyCommands:
         myid = await r.cluster_myid(node)
         assert len(myid) == 40
 
-    @skip_if_server_version_lt("7.2.0")
     async def test_cluster_myshardid(self, r: ValkeyCluster) -> None:
         node = r.get_random_node()
         myshardid = await r.cluster_myshardid(node)
@@ -1071,7 +1069,6 @@ class TestClusterValkeyCommands:
         mock_node_resp(node, "OK")
         assert await r.cluster_addslots(node, 1, 2, 3) is True
 
-    @skip_if_server_version_lt("7.0.0")
     async def test_cluster_addslotsrange(self, r: ValkeyCluster):
         node = r.get_random_node()
         mock_node_resp(node, "OK")
@@ -1103,7 +1100,6 @@ class TestClusterValkeyCommands:
 
         await r.aclose()
 
-    @skip_if_server_version_lt("7.0.0")
     async def test_cluster_delslotsrange(self):
         r = await get_mocked_valkey_client(host=default_host, port=default_port)
         mock_all_nodes_resp(r, "OK")
@@ -1280,7 +1276,6 @@ class TestClusterValkeyCommands:
             == "r4xfga22229cf3c652b6fca0d09ff69f3e0d4d"
         )
 
-    @skip_if_server_version_lt("7.0.0")
     async def test_cluster_links(self, r: ValkeyCluster):
         node = r.get_random_node()
         res = await r.cluster_links(node)
@@ -1411,16 +1406,13 @@ class TestClusterValkeyCommands:
         assert isinstance(t[0], int)
         assert isinstance(t[1], int)
 
-    @skip_if_server_version_lt("4.0.0")
     async def test_memory_usage(self, r: ValkeyCluster) -> None:
         await r.set("foo", "bar")
         assert isinstance(await r.memory_usage("foo"), int)
 
-    @skip_if_server_version_lt("4.0.0")
     async def test_memory_malloc_stats(self, r: ValkeyCluster) -> None:
         assert await r.memory_malloc_stats()
 
-    @skip_if_server_version_lt("4.0.0")
     async def test_memory_stats(self, r: ValkeyCluster) -> None:
         # put a key into the current db to make sure that "db.<current-db>"
         # has data
@@ -1432,12 +1424,10 @@ class TestClusterValkeyCommands:
             if key.startswith("db."):
                 assert isinstance(value, dict)
 
-    @skip_if_server_version_lt("4.0.0")
     async def test_memory_help(self, r: ValkeyCluster) -> None:
         with pytest.raises(NotImplementedError):
             await r.memory_help()
 
-    @skip_if_server_version_lt("4.0.0")
     async def test_memory_doctor(self, r: ValkeyCluster) -> None:
         with pytest.raises(NotImplementedError):
             await r.memory_doctor()
@@ -1450,7 +1440,6 @@ class TestClusterValkeyCommands:
         node = r.get_primaries()[0]
         assert await r.echo("foo bar", target_nodes=node) == b"foo bar"
 
-    @skip_if_server_version_lt("1.0.0")
     async def test_debug_segfault(self, r: ValkeyCluster) -> None:
         with pytest.raises(NotImplementedError):
             await r.debug_segfault()
@@ -1468,14 +1457,12 @@ class TestClusterValkeyCommands:
         )
         assert reset_commands_processed < prior_commands_processed
 
-    @skip_if_server_version_lt("6.2.0")
     async def test_client_trackinginfo(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         res = await r.client_trackinginfo(target_nodes=node)
         assert len(res) > 2
         assert "prefixes" in res or b"prefixes" in res
 
-    @skip_if_server_version_lt("2.9.50")
     async def test_client_pause(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         assert await r.client_pause(1, target_nodes=node)
@@ -1483,16 +1470,13 @@ class TestClusterValkeyCommands:
         with pytest.raises(ValkeyError):
             await r.client_pause(timeout="not an integer", target_nodes=node)
 
-    @skip_if_server_version_lt("6.2.0")
     async def test_client_unpause(self, r: ValkeyCluster) -> None:
         assert await r.client_unpause()
 
-    @skip_if_server_version_lt("5.0.0")
     async def test_client_id(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         assert await r.client_id(target_nodes=node) > 0
 
-    @skip_if_server_version_lt("5.0.0")
     async def test_client_unblock(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         myid = await r.client_id(target_nodes=node)
@@ -1500,20 +1484,17 @@ class TestClusterValkeyCommands:
         assert not await r.client_unblock(myid, error=True, target_nodes=node)
         assert not await r.client_unblock(myid, error=False, target_nodes=node)
 
-    @skip_if_server_version_lt("6.0.0")
     async def test_client_getredir(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         assert isinstance(await r.client_getredir(target_nodes=node), int)
         assert await r.client_getredir(target_nodes=node) == -1
 
-    @skip_if_server_version_lt("6.2.0")
     async def test_client_info(self, r: ValkeyCluster) -> None:
         node = r.get_primaries()[0]
         info = await r.client_info(target_nodes=node)
         assert isinstance(info, dict)
         assert "addr" in info
 
-    @skip_if_server_version_lt("2.6.9")
     async def test_client_kill(
         self, r: ValkeyCluster, create_valkey: Callable[..., ValkeyCluster]
     ) -> None:
@@ -1541,13 +1522,11 @@ class TestClusterValkeyCommands:
         assert clients[0].get("name") == "valkey-py-c1"
         await r2.aclose()
 
-    @skip_if_server_version_lt("2.6.0")
     async def test_cluster_bitop_not_empty_string(self, r: ValkeyCluster) -> None:
         await r.set("{foo}a", "")
         await r.bitop("not", "{foo}r", "{foo}a")
         assert await r.get("{foo}r") is None
 
-    @skip_if_server_version_lt("2.6.0")
     async def test_cluster_bitop_not(self, r: ValkeyCluster) -> None:
         test_str = b"\xAA\x00\xFF\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
@@ -1555,7 +1534,6 @@ class TestClusterValkeyCommands:
         await r.bitop("not", "{foo}r", "{foo}a")
         assert int(binascii.hexlify(await r.get("{foo}r")), 16) == correct
 
-    @skip_if_server_version_lt("2.6.0")
     async def test_cluster_bitop_not_in_place(self, r: ValkeyCluster) -> None:
         test_str = b"\xAA\x00\xFF\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
@@ -1563,7 +1541,6 @@ class TestClusterValkeyCommands:
         await r.bitop("not", "{foo}a", "{foo}a")
         assert int(binascii.hexlify(await r.get("{foo}a")), 16) == correct
 
-    @skip_if_server_version_lt("2.6.0")
     async def test_cluster_bitop_single_string(self, r: ValkeyCluster) -> None:
         test_str = b"\x01\x02\xFF"
         await r.set("{foo}a", test_str)
@@ -1574,7 +1551,6 @@ class TestClusterValkeyCommands:
         assert await r.get("{foo}res2") == test_str
         assert await r.get("{foo}res3") == test_str
 
-    @skip_if_server_version_lt("2.6.0")
     async def test_cluster_bitop_string_operands(self, r: ValkeyCluster) -> None:
         await r.set("{foo}a", b"\x01\x02\xFF\xFF")
         await r.set("{foo}b", b"\x01\x02\xFF")
@@ -1585,7 +1561,6 @@ class TestClusterValkeyCommands:
         assert int(binascii.hexlify(await r.get("{foo}res2")), 16) == 0x0102FFFF
         assert int(binascii.hexlify(await r.get("{foo}res3")), 16) == 0x000000FF
 
-    @skip_if_server_version_lt("6.2.0")
     async def test_cluster_copy(self, r: ValkeyCluster) -> None:
         assert await r.copy("{foo}a", "{foo}b") == 0
         await r.set("{foo}a", "bar")
@@ -1593,20 +1568,17 @@ class TestClusterValkeyCommands:
         assert await r.get("{foo}a") == b"bar"
         assert await r.get("{foo}b") == b"bar"
 
-    @skip_if_server_version_lt("6.2.0")
     async def test_cluster_copy_and_replace(self, r: ValkeyCluster) -> None:
         await r.set("{foo}a", "foo1")
         await r.set("{foo}b", "foo2")
         assert await r.copy("{foo}a", "{foo}b") == 0
         assert await r.copy("{foo}a", "{foo}b", replace=True) == 1
 
-    @skip_if_server_version_lt("6.2.0")
     async def test_cluster_lmove(self, r: ValkeyCluster) -> None:
         await r.rpush("{foo}a", "one", "two", "three", "four")
         assert await r.lmove("{foo}a", "{foo}b")
         assert await r.lmove("{foo}a", "{foo}b", "right", "left")
 
-    @skip_if_server_version_lt("6.2.0")
     async def test_cluster_blmove(self, r: ValkeyCluster) -> None:
         await r.rpush("{foo}a", "one", "two", "three", "four")
         assert await r.blmove("{foo}a", "{foo}b", 5)
@@ -1767,7 +1739,6 @@ class TestClusterValkeyCommands:
         assert await r.sunionstore("{foo}c", "{foo}a", "{foo}b") == 3
         assert await r.smembers("{foo}c") == {b"1", b"2", b"3"}
 
-    @skip_if_server_version_lt("6.2.0")
     async def test_cluster_zdiff(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 2, "a3": 3})
         await r.zadd("{foo}b", {"a1": 1, "a2": 2})
@@ -1775,7 +1746,6 @@ class TestClusterValkeyCommands:
         response = await r.zdiff(["{foo}a", "{foo}b"], withscores=True)
         assert_resp_response(r, response, [b"a3", b"3"], [[b"a3", 3.0]])
 
-    @skip_if_server_version_lt("6.2.0")
     async def test_cluster_zdiffstore(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 2, "a3": 3})
         await r.zadd("{foo}b", {"a1": 1, "a2": 2})
@@ -1784,7 +1754,6 @@ class TestClusterValkeyCommands:
         response = await r.zrange("{foo}out", 0, -1, withscores=True)
         assert_resp_response(r, response, [(b"a3", 3.0)], [[b"a3", 3.0]])
 
-    @skip_if_server_version_lt("6.2.0")
     async def test_cluster_zinter(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 2, "a3": 1})
         await r.zadd("{foo}b", {"a1": 2, "a2": 2, "a3": 2})
@@ -1880,7 +1849,6 @@ class TestClusterValkeyCommands:
             [[b"a3", 20.0], [b"a1", 23.0]],
         )
 
-    @skip_if_server_version_lt("4.9.0")
     async def test_cluster_bzpopmax(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 2})
         await r.zadd("{foo}b", {"b1": 10, "b2": 20})
@@ -1917,7 +1885,6 @@ class TestClusterValkeyCommands:
             [b"{foo}c", b"c1", 100],
         )
 
-    @skip_if_server_version_lt("4.9.0")
     async def test_cluster_bzpopmin(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 2})
         await r.zadd("{foo}b", {"b1": 10, "b2": 20})
@@ -1954,7 +1921,6 @@ class TestClusterValkeyCommands:
             [b"{foo}c", b"c1", 100],
         )
 
-    @skip_if_server_version_lt("6.2.0")
     async def test_cluster_zrangestore(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 2, "a3": 3})
         assert await r.zrangestore("{foo}b", "{foo}a", 0, 1)
@@ -1981,7 +1947,6 @@ class TestClusterValkeyCommands:
         )
         assert await r.zrange("{foo}b", 0, -1) == [b"a2"]
 
-    @skip_if_server_version_lt("6.2.0")
     async def test_cluster_zunion(self, r: ValkeyCluster) -> None:
         await r.zadd("{foo}a", {"a1": 1, "a2": 1, "a3": 1})
         await r.zadd("{foo}b", {"a1": 2, "a2": 2, "a3": 2})
@@ -2085,7 +2050,6 @@ class TestClusterValkeyCommands:
             [[b"a2", 5.0], [b"a4", 12.0], [b"a3", 20.0], [b"a1", 23.0]],
         )
 
-    @skip_if_server_version_lt("2.8.9")
     async def test_cluster_pfcount(self, r: ValkeyCluster) -> None:
         members = {b"1", b"2", b"3"}
         await r.pfadd("{foo}a", *members)
@@ -2095,7 +2059,6 @@ class TestClusterValkeyCommands:
         assert await r.pfcount("{foo}b") == len(members_b)
         assert await r.pfcount("{foo}a", "{foo}b") == len(members_b.union(members))
 
-    @skip_if_server_version_lt("2.8.9")
     async def test_cluster_pfmerge(self, r: ValkeyCluster) -> None:
         mema = {b"1", b"2", b"3"}
         memb = {b"2", b"3", b"4"}
@@ -2114,7 +2077,6 @@ class TestClusterValkeyCommands:
         assert await r.lrange("{foo}sorted_values", 0, -1) == [b"1", b"2", b"3"]
 
     # GEO COMMANDS
-    @skip_if_server_version_lt("6.2.0")
     async def test_cluster_geosearchstore(self, r: ValkeyCluster) -> None:
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -2133,7 +2095,6 @@ class TestClusterValkeyCommands:
         assert await r.zrange("{foo}places_barcelona", 0, -1) == [b"place1"]
 
     @skip_unless_arch_bits(64)
-    @skip_if_server_version_lt("6.2.0")
     async def test_geosearchstore_dist(self, r: ValkeyCluster) -> None:
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -2153,7 +2114,6 @@ class TestClusterValkeyCommands:
         # instead of save the geo score, the distance is saved.
         assert await r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
 
-    @skip_if_server_version_lt("3.2.0")
     async def test_cluster_georadius_store(self, r: ValkeyCluster) -> None:
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -2168,7 +2128,6 @@ class TestClusterValkeyCommands:
         assert await r.zrange("{foo}places_barcelona", 0, -1) == [b"place1"]
 
     @skip_unless_arch_bits(64)
-    @skip_if_server_version_lt("3.2.0")
     async def test_cluster_georadius_store_dist(self, r: ValkeyCluster) -> None:
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -2201,7 +2160,6 @@ class TestClusterValkeyCommands:
         assert set(await r.keys(pattern="test*", target_nodes="primaries")) == keys
 
     # SCAN COMMANDS
-    @skip_if_server_version_lt("2.8.0")
     async def test_cluster_scan(self, r: ValkeyCluster) -> None:
         await r.set("a", 1)
         await r.set("b", 2)
@@ -2220,7 +2178,6 @@ class TestClusterValkeyCommands:
             assert sorted(cursors.keys()) == sorted(node.name for node in nodes)
             assert all(cursor == 0 for cursor in cursors.values())
 
-    @skip_if_server_version_lt("6.0.0")
     async def test_cluster_scan_type(self, r: ValkeyCluster) -> None:
         await r.sadd("a-set", 1)
         await r.sadd("b-set", 1)
@@ -2243,7 +2200,6 @@ class TestClusterValkeyCommands:
             assert sorted(cursors.keys()) == sorted(node.name for node in nodes)
             assert all(cursor == 0 for cursor in cursors.values())
 
-    @skip_if_server_version_lt("2.8.0")
     async def test_cluster_scan_iter(self, r: ValkeyCluster) -> None:
         keys_all = []
         keys_1 = []
@@ -2272,7 +2228,6 @@ class TestClusterValkeyCommands:
             await r.set(key, 1)
         assert await r.randomkey(target_nodes=node) in (b"{foo}a", b"{foo}b", b"{foo}c")
 
-    @skip_if_server_version_lt("6.0.0")
     async def test_acl_log(
         self, r: ValkeyCluster, create_valkey: Callable[..., ValkeyCluster]
     ) -> None:

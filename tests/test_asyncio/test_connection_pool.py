@@ -4,7 +4,6 @@ import re
 import pytest
 import pytest_asyncio
 import valkey.asyncio as valkey
-from tests.conftest import skip_if_server_version_lt
 from valkey.asyncio.connection import Connection, to_bool
 
 from .compat import aclosing, mock
@@ -318,13 +317,11 @@ class TestConnectionPoolURLParsing:
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "port": 6380}
 
-    @skip_if_server_version_lt("6.0.0")
     def test_username(self):
         pool = valkey.ConnectionPool.from_url("valkey://myuser:@localhost")
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "username": "myuser"}
 
-    @skip_if_server_version_lt("6.0.0")
     def test_quoted_username(self):
         pool = valkey.ConnectionPool.from_url(
             "valkey://%2Fmyuser%2F%2B name%3D%24+:@localhost"
@@ -350,7 +347,6 @@ class TestConnectionPoolURLParsing:
             "password": "/mypass/+ word=$+",
         }
 
-    @skip_if_server_version_lt("6.0.0")
     def test_username_and_password(self):
         pool = valkey.ConnectionPool.from_url("valkey://myuser:mypass@localhost")
         assert pool.connection_class == valkey.Connection
@@ -477,13 +473,11 @@ class TestConnectionPoolUnixSocketURLParsing:
         assert pool.connection_class == valkey.UnixDomainSocketConnection
         assert pool.connection_kwargs == {"path": "/socket"}
 
-    @skip_if_server_version_lt("6.0.0")
     def test_username(self):
         pool = valkey.ConnectionPool.from_url("unix://myuser:@/socket")
         assert pool.connection_class == valkey.UnixDomainSocketConnection
         assert pool.connection_kwargs == {"path": "/socket", "username": "myuser"}
 
-    @skip_if_server_version_lt("6.0.0")
     def test_quoted_username(self):
         pool = valkey.ConnectionPool.from_url(
             "unix://%2Fmyuser%2F%2B name%3D%24+:@/socket"
@@ -587,7 +581,6 @@ class TestConnection:
         assert not pool._available_connections[0]._reader
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.8.8")
     async def test_busy_loading_disconnects_socket(self, r):
         """
         If Valkey raises a LOADING error, the connection should be
@@ -599,7 +592,6 @@ class TestConnection:
             assert not r.connection._reader
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.8.8")
     async def test_busy_loading_from_pipeline_immediate_command(self, r):
         """
         BusyLoadingErrors should raise from Pipelines that execute a
@@ -616,7 +608,6 @@ class TestConnection:
         assert not pool._available_connections[0]._reader
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.8.8")
     async def test_busy_loading_from_pipeline(self, r):
         """
         BusyLoadingErrors should be raised from a pipeline execution
@@ -631,7 +622,6 @@ class TestConnection:
         assert len(pool._available_connections) == 1
         assert not pool._available_connections[0]._reader
 
-    @skip_if_server_version_lt("2.8.8")
     async def test_read_only_error(self, r):
         """READONLY errors get turned into ReadOnlyError exceptions"""
         with pytest.raises(valkey.ReadOnlyError):

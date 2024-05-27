@@ -45,7 +45,6 @@ from .conftest import (
     _get_client,
     assert_resp_response,
     is_resp2_connection,
-    skip_if_server_version_lt,
     skip_unless_arch_bits,
     wait_for_command,
 )
@@ -1106,7 +1105,6 @@ class TestClusterValkeyCommands:
         # subscribed to this channel in the entire cluster
         assert r.pubsub_numpat(target_nodes="all") == len(nodes)
 
-    @skip_if_server_version_lt("2.8.0")
     def test_cluster_pubsub_channels(self, r):
         p = r.pubsub()
         p.subscribe("foo", "bar", "baz", "quux")
@@ -1117,7 +1115,6 @@ class TestClusterValkeyCommands:
             [channel in r.pubsub_channels(target_nodes="all") for channel in expected]
         )
 
-    @skip_if_server_version_lt("2.8.0")
     def test_cluster_pubsub_numsub(self, r):
         p1 = r.pubsub()
         p1.subscribe("foo", "bar", "baz")
@@ -1147,7 +1144,6 @@ class TestClusterValkeyCommands:
         assert cluster_slots.get((0, 8191)) is not None
         assert cluster_slots.get((0, 8191)).get("primary") == ("127.0.0.1", 7000)
 
-    @skip_if_server_version_lt("7.0.0")
     def test_cluster_shards(self, r):
         cluster_shards = r.cluster_shards()
         assert isinstance(cluster_shards, list)
@@ -1176,7 +1172,6 @@ class TestClusterValkeyCommands:
                 for attribute in node.keys():
                     assert attribute in attributes
 
-    @skip_if_server_version_lt("7.2.0")
     def test_cluster_myshardid(self, r):
         myshardid = r.cluster_myshardid()
         assert isinstance(myshardid, str)
@@ -1187,7 +1182,6 @@ class TestClusterValkeyCommands:
         mock_node_resp(node, "OK")
         assert r.cluster_addslots(node, 1, 2, 3) is True
 
-    @skip_if_server_version_lt("7.0.0")
     def test_cluster_addslotsrange(self, r):
         node = r.get_random_node()
         mock_node_resp(node, "OK")
@@ -1217,7 +1211,6 @@ class TestClusterValkeyCommands:
         assert node0.valkey_connection.connection.read_response.called
         assert node1.valkey_connection.connection.read_response.called
 
-    @skip_if_server_version_lt("7.0.0")
     def test_cluster_delslotsrange(self):
         cluster_slots = [
             [
@@ -1406,7 +1399,6 @@ class TestClusterValkeyCommands:
             == "r4xfga22229cf3c652b6fca0d09ff69f3e0d4d"
         )
 
-    @skip_if_server_version_lt("7.0.0")
     def test_cluster_links(self, r):
         node = r.get_random_node()
         res = r.cluster_links(node)
@@ -1529,16 +1521,13 @@ class TestClusterValkeyCommands:
         assert isinstance(t[0], int)
         assert isinstance(t[1], int)
 
-    @skip_if_server_version_lt("4.0.0")
     def test_memory_usage(self, r):
         r.set("foo", "bar")
         assert isinstance(r.memory_usage("foo"), int)
 
-    @skip_if_server_version_lt("4.0.0")
     def test_memory_malloc_stats(self, r):
         assert r.memory_malloc_stats()
 
-    @skip_if_server_version_lt("4.0.0")
     def test_memory_stats(self, r):
         # put a key into the current db to make sure that "db.<current-db>"
         # has data
@@ -1550,12 +1539,10 @@ class TestClusterValkeyCommands:
             if key.startswith("db."):
                 assert isinstance(value, dict)
 
-    @skip_if_server_version_lt("4.0.0")
     def test_memory_help(self, r):
         with pytest.raises(NotImplementedError):
             r.memory_help()
 
-    @skip_if_server_version_lt("4.0.0")
     def test_memory_doctor(self, r):
         with pytest.raises(NotImplementedError):
             r.memory_doctor()
@@ -1568,7 +1555,6 @@ class TestClusterValkeyCommands:
         node = r.get_primaries()[0]
         assert r.echo("foo bar", target_nodes=node) == b"foo bar"
 
-    @skip_if_server_version_lt("1.0.0")
     def test_debug_segfault(self, r):
         with pytest.raises(NotImplementedError):
             r.debug_segfault()
@@ -1586,14 +1572,12 @@ class TestClusterValkeyCommands:
         )
         assert reset_commands_processed < prior_commands_processed
 
-    @skip_if_server_version_lt("6.2.0")
     def test_client_trackinginfo(self, r):
         node = r.get_primaries()[0]
         res = r.client_trackinginfo(target_nodes=node)
         assert len(res) > 2
         assert "prefixes" in res or b"prefixes" in res
 
-    @skip_if_server_version_lt("2.9.50")
     def test_client_pause(self, r):
         node = r.get_primaries()[0]
         assert r.client_pause(1, target_nodes=node)
@@ -1601,16 +1585,13 @@ class TestClusterValkeyCommands:
         with pytest.raises(ValkeyError):
             r.client_pause(timeout="not an integer", target_nodes=node)
 
-    @skip_if_server_version_lt("6.2.0")
     def test_client_unpause(self, r):
         assert r.client_unpause()
 
-    @skip_if_server_version_lt("5.0.0")
     def test_client_id(self, r):
         node = r.get_primaries()[0]
         assert r.client_id(target_nodes=node) > 0
 
-    @skip_if_server_version_lt("5.0.0")
     def test_client_unblock(self, r):
         node = r.get_primaries()[0]
         myid = r.client_id(target_nodes=node)
@@ -1618,20 +1599,17 @@ class TestClusterValkeyCommands:
         assert not r.client_unblock(myid, error=True, target_nodes=node)
         assert not r.client_unblock(myid, error=False, target_nodes=node)
 
-    @skip_if_server_version_lt("6.0.0")
     def test_client_getredir(self, r):
         node = r.get_primaries()[0]
         assert isinstance(r.client_getredir(target_nodes=node), int)
         assert r.client_getredir(target_nodes=node) == -1
 
-    @skip_if_server_version_lt("6.2.0")
     def test_client_info(self, r):
         node = r.get_primaries()[0]
         info = r.client_info(target_nodes=node)
         assert isinstance(info, dict)
         assert "addr" in info
 
-    @skip_if_server_version_lt("2.6.9")
     def test_client_kill(self, r, r2):
         node = r.get_primaries()[0]
         r.client_setname("valkey-py-c1", target_nodes="all")
@@ -1655,13 +1633,11 @@ class TestClusterValkeyCommands:
         assert len(clients) == 1
         assert clients[0].get("name") == "valkey-py-c1"
 
-    @skip_if_server_version_lt("2.6.0")
     def test_cluster_bitop_not_empty_string(self, r):
         r["{foo}a"] = ""
         r.bitop("not", "{foo}r", "{foo}a")
         assert r.get("{foo}r") is None
 
-    @skip_if_server_version_lt("2.6.0")
     def test_cluster_bitop_not(self, r):
         test_str = b"\xAA\x00\xFF\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
@@ -1669,7 +1645,6 @@ class TestClusterValkeyCommands:
         r.bitop("not", "{foo}r", "{foo}a")
         assert int(binascii.hexlify(r["{foo}r"]), 16) == correct
 
-    @skip_if_server_version_lt("2.6.0")
     def test_cluster_bitop_not_in_place(self, r):
         test_str = b"\xAA\x00\xFF\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
@@ -1677,7 +1652,6 @@ class TestClusterValkeyCommands:
         r.bitop("not", "{foo}a", "{foo}a")
         assert int(binascii.hexlify(r["{foo}a"]), 16) == correct
 
-    @skip_if_server_version_lt("2.6.0")
     def test_cluster_bitop_single_string(self, r):
         test_str = b"\x01\x02\xFF"
         r["{foo}a"] = test_str
@@ -1688,7 +1662,6 @@ class TestClusterValkeyCommands:
         assert r["{foo}res2"] == test_str
         assert r["{foo}res3"] == test_str
 
-    @skip_if_server_version_lt("2.6.0")
     def test_cluster_bitop_string_operands(self, r):
         r["{foo}a"] = b"\x01\x02\xFF\xFF"
         r["{foo}b"] = b"\x01\x02\xFF"
@@ -1699,7 +1672,6 @@ class TestClusterValkeyCommands:
         assert int(binascii.hexlify(r["{foo}res2"]), 16) == 0x0102FFFF
         assert int(binascii.hexlify(r["{foo}res3"]), 16) == 0x000000FF
 
-    @skip_if_server_version_lt("6.2.0")
     def test_cluster_copy(self, r):
         assert r.copy("{foo}a", "{foo}b") == 0
         r.set("{foo}a", "bar")
@@ -1707,20 +1679,17 @@ class TestClusterValkeyCommands:
         assert r.get("{foo}a") == b"bar"
         assert r.get("{foo}b") == b"bar"
 
-    @skip_if_server_version_lt("6.2.0")
     def test_cluster_copy_and_replace(self, r):
         r.set("{foo}a", "foo1")
         r.set("{foo}b", "foo2")
         assert r.copy("{foo}a", "{foo}b") == 0
         assert r.copy("{foo}a", "{foo}b", replace=True) == 1
 
-    @skip_if_server_version_lt("6.2.0")
     def test_cluster_lmove(self, r):
         r.rpush("{foo}a", "one", "two", "three", "four")
         assert r.lmove("{foo}a", "{foo}b")
         assert r.lmove("{foo}a", "{foo}b", "right", "left")
 
-    @skip_if_server_version_lt("6.2.0")
     def test_cluster_blmove(self, r):
         r.rpush("{foo}a", "one", "two", "three", "four")
         assert r.blmove("{foo}a", "{foo}b", 5)
@@ -1881,7 +1850,6 @@ class TestClusterValkeyCommands:
         assert r.sunionstore("{foo}c", "{foo}a", "{foo}b") == 3
         assert r.smembers("{foo}c") == {b"1", b"2", b"3"}
 
-    @skip_if_server_version_lt("6.2.0")
     def test_cluster_zdiff(self, r):
         r.zadd("{foo}a", {"a1": 1, "a2": 2, "a3": 3})
         r.zadd("{foo}b", {"a1": 1, "a2": 2})
@@ -1894,7 +1862,6 @@ class TestClusterValkeyCommands:
             [[b"a3", 3.0]],
         )
 
-    @skip_if_server_version_lt("6.2.0")
     def test_cluster_zdiffstore(self, r):
         r.zadd("{foo}a", {"a1": 1, "a2": 2, "a3": 3})
         r.zadd("{foo}b", {"a1": 1, "a2": 2})
@@ -1903,7 +1870,6 @@ class TestClusterValkeyCommands:
         response = r.zrange("{foo}out", 0, -1, withscores=True)
         assert_resp_response(r, response, [(b"a3", 3.0)], [[b"a3", 3.0]])
 
-    @skip_if_server_version_lt("6.2.0")
     def test_cluster_zinter(self, r):
         r.zadd("{foo}a", {"a1": 1, "a2": 2, "a3": 1})
         r.zadd("{foo}b", {"a1": 2, "a2": 2, "a3": 2})
@@ -1991,7 +1957,6 @@ class TestClusterValkeyCommands:
             [[b"a3", 20.0], [b"a1", 23.0]],
         )
 
-    @skip_if_server_version_lt("4.9.0")
     def test_cluster_bzpopmax(self, r):
         r.zadd("{foo}a", {"a1": 1, "a2": 2})
         r.zadd("{foo}b", {"b1": 10, "b2": 20})
@@ -2028,7 +1993,6 @@ class TestClusterValkeyCommands:
             [b"{foo}c", b"c1", 100],
         )
 
-    @skip_if_server_version_lt("4.9.0")
     def test_cluster_bzpopmin(self, r):
         r.zadd("{foo}a", {"a1": 1, "a2": 2})
         r.zadd("{foo}b", {"b1": 10, "b2": 20})
@@ -2065,7 +2029,6 @@ class TestClusterValkeyCommands:
             [b"{foo}c", b"c1", 100],
         )
 
-    @skip_if_server_version_lt("6.2.0")
     def test_cluster_zrangestore(self, r):
         r.zadd("{foo}a", {"a1": 1, "a2": 2, "a3": 3})
         assert r.zrangestore("{foo}b", "{foo}a", 0, 1)
@@ -2092,7 +2055,6 @@ class TestClusterValkeyCommands:
         )
         assert r.zrange("{foo}b", 0, -1) == [b"a2"]
 
-    @skip_if_server_version_lt("6.2.0")
     def test_cluster_zunion(self, r):
         r.zadd("{foo}a", {"a1": 1, "a2": 1, "a3": 1})
         r.zadd("{foo}b", {"a1": 2, "a2": 2, "a3": 2})
@@ -2181,7 +2143,6 @@ class TestClusterValkeyCommands:
             [[b"a2", 5.0], [b"a4", 12.0], [b"a3", 20.0], [b"a1", 23.0]],
         )
 
-    @skip_if_server_version_lt("2.8.9")
     def test_cluster_pfcount(self, r):
         members = {b"1", b"2", b"3"}
         r.pfadd("{foo}a", *members)
@@ -2191,7 +2152,6 @@ class TestClusterValkeyCommands:
         assert r.pfcount("{foo}b") == len(members_b)
         assert r.pfcount("{foo}a", "{foo}b") == len(members_b.union(members))
 
-    @skip_if_server_version_lt("2.8.9")
     def test_cluster_pfmerge(self, r):
         mema = {b"1", b"2", b"3"}
         memb = {b"2", b"3", b"4"}
@@ -2210,7 +2170,6 @@ class TestClusterValkeyCommands:
         assert r.lrange("{foo}sorted_values", 0, -1) == [b"1", b"2", b"3"]
 
     # GEO COMMANDS
-    @skip_if_server_version_lt("6.2.0")
     def test_cluster_geosearchstore(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -2229,7 +2188,6 @@ class TestClusterValkeyCommands:
         assert r.zrange("{foo}places_barcelona", 0, -1) == [b"place1"]
 
     @skip_unless_arch_bits(64)
-    @skip_if_server_version_lt("6.2.0")
     def test_geosearchstore_dist(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -2249,7 +2207,6 @@ class TestClusterValkeyCommands:
         # instead of save the geo score, the distance is saved.
         assert r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
 
-    @skip_if_server_version_lt("3.2.0")
     def test_cluster_georadius_store(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -2264,7 +2221,6 @@ class TestClusterValkeyCommands:
         assert r.zrange("{foo}places_barcelona", 0, -1) == [b"place1"]
 
     @skip_unless_arch_bits(64)
-    @skip_if_server_version_lt("3.2.0")
     def test_cluster_georadius_store_dist(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -2297,7 +2253,6 @@ class TestClusterValkeyCommands:
         assert set(r.keys(pattern="test*", target_nodes="primaries")) == keys
 
     # SCAN COMMANDS
-    @skip_if_server_version_lt("2.8.0")
     def test_cluster_scan(self, r):
         r.set("a", 1)
         r.set("b", 2)
@@ -2316,7 +2271,6 @@ class TestClusterValkeyCommands:
             assert sorted(cursors.keys()) == sorted(node.name for node in nodes)
             assert all(cursor == 0 for cursor in cursors.values())
 
-    @skip_if_server_version_lt("6.0.0")
     def test_cluster_scan_type(self, r):
         r.sadd("a-set", 1)
         r.sadd("b-set", 1)
@@ -2337,7 +2291,6 @@ class TestClusterValkeyCommands:
             assert sorted(cursors.keys()) == sorted(node.name for node in nodes)
             assert all(cursor == 0 for cursor in cursors.values())
 
-    @skip_if_server_version_lt("2.8.0")
     def test_cluster_scan_iter(self, r):
         keys_all = []
         keys_1 = []
@@ -2364,7 +2317,6 @@ class TestClusterValkeyCommands:
             r[key] = 1
         assert r.randomkey(target_nodes=node) in (b"{foo}a", b"{foo}b", b"{foo}c")
 
-    @skip_if_server_version_lt("6.0.0")
     def test_acl_log(self, r, request):
         key = "{cache}:"
         node = r.get_node_from_key(key)
@@ -2418,7 +2370,6 @@ class TestClusterValkeyCommands:
             except Exception:
                 pass
 
-    @skip_if_server_version_lt("7.1.140")
     @pytest.mark.skip
     def test_tfunction_load_delete(self, r):
         r.gears_refresh_cluster()
@@ -2427,7 +2378,6 @@ class TestClusterValkeyCommands:
         assert r.tfunction_load(lib_code)
         assert r.tfunction_delete("lib1")
 
-    @skip_if_server_version_lt("7.1.140")
     @pytest.mark.skip
     def test_tfunction_list(self, r):
         r.gears_refresh_cluster()
@@ -2451,7 +2401,6 @@ class TestClusterValkeyCommands:
         assert r.tfunction_delete("lib2")
         assert r.tfunction_delete("lib3")
 
-    @skip_if_server_version_lt("7.1.140")
     @pytest.mark.skip
     def test_tfcall(self, r):
         r.gears_refresh_cluster()

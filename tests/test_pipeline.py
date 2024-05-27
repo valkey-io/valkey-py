@@ -4,7 +4,7 @@ from unittest import mock
 import pytest
 import valkey
 
-from .conftest import skip_if_server_version_lt, wait_for_command
+from .conftest import wait_for_command
 
 
 class TestPipeline:
@@ -388,7 +388,6 @@ class TestPipeline:
             assert response == [True, [0, 0, 15, 15, 14], b"1"]
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.0.0")
     def test_pipeline_discard(self, r):
         # empty pipeline should raise an error
         with r.pipeline() as pipe:

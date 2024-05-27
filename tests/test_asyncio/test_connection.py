@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pytest
 import valkey
-from tests.conftest import skip_if_server_version_lt
 from valkey._parsers import (
     _AsyncHiredisParser,
     _AsyncRESP2Parser,
@@ -90,7 +89,6 @@ async def test_single_connection():
     await r.aclose()
 
 
-@skip_if_server_version_lt("4.0.0")
 @pytest.mark.valkeymod
 @pytest.mark.onlynoncluster
 async def test_loading_external_modules(r):
