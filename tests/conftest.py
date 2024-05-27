@@ -1,5 +1,4 @@
 import argparse
-import random
 import time
 from typing import Callable, TypeVar
 from unittest import mock
