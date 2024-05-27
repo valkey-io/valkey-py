@@ -459,11 +459,7 @@ def wait_for_command(client, monitor, command, key=None):
     # for, something went wrong
     if key is None:
         # generate key
-        valkey_version = VALKEY_INFO["version"]
-        if Version(valkey_version) >= Version("5.0.0"):
-            id_str = str(client.client_id())
-        else:
-            id_str = f"{random.randrange(2 ** 32):08x}"
+        id_str = str(client.client_id())
         key = f"__VALKEY-PY-{id_str}__"
     client.get(key)
     while True:

@@ -247,7 +247,7 @@ async def wait_for_command(
     # for, something went wrong
     if key is None:
         # generate key
-        id_str = f"{random.randrange(2 ** 32):08x}"
+        id_str = str(await client.client_id())
         key = f"__VALKEY-PY-{id_str}__"
     await client.get(key)
     while True:
