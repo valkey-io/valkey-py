@@ -666,7 +666,11 @@ class TestConnection:
         """
         with pytest.raises(valkey.AuthenticationError):
             await r.execute_command(
-                "DEBUG", "ERROR", "ERR Client sent AUTH, but no password is set"
+                "DEBUG",
+                "ERROR",
+                "ERR AUTH <password> called without any password "
+                "configured for the default user. Are you sure "
+                "your configuration is correct?",
             )
 
     async def test_connect_invalid_password_supplied(self, r):

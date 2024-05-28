@@ -583,13 +583,6 @@ class TestConnection:
         AuthenticationError should be raised when the server is not configured with auth
         but credentials are supplied by the user.
         """
-        # Redis < 6
-        with pytest.raises(valkey.AuthenticationError):
-            r.execute_command(
-                "DEBUG", "ERROR", "ERR Client sent AUTH, but no password is set"
-            )
-
-        # Redis >= 6
         with pytest.raises(valkey.AuthenticationError):
             r.execute_command(
                 "DEBUG",
