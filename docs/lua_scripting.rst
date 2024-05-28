@@ -26,7 +26,7 @@ key, multiplies it with the multiplier value and returns the result.
 
 .. code:: python
 
-   >>> r = redis.Redis()
+   >>> r = valkey.Valkey()
    >>> lua = """
    ... local value = redis.call('GET', KEYS[1])
    ... value = tonumber(value)
@@ -62,7 +62,7 @@ one that points to a completely different Valkey server.
 
 .. code:: python
 
-   >>> r2 = redis.Redis('valkey2.example.com')
+   >>> r2 = valkey.Valkey('valkey2.example.com')
    >>> r2.set('foo', 3)
    >>> multiply(keys=['foo'], args=[5], client=r2)
    15
