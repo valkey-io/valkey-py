@@ -16,7 +16,6 @@ from tests.conftest import (
     assert_resp_response,
     assert_resp_response_in,
     is_resp2_connection,
-    skip_if_server_version_gte,
     skip_if_server_version_lt,
     skip_unless_arch_bits,
 )
@@ -2279,11 +2278,6 @@ class TestValkeyCommands:
             await mock_cluster_resp_slaves.cluster("slaves", "nodeid"), dict
         )
 
-    @skip_if_server_version_gte("7.0.0")
-    @pytest.mark.onlynoncluster
-    async def test_readwrite(self, r: valkey.Valkey):
-        assert await r.readwrite()
-
     @pytest.mark.onlynoncluster
     async def test_readonly_invalid_cluster_state(self, r: valkey.Valkey):
         with pytest.raises(exceptions.ValkeyError):
@@ -2376,10 +2370,6 @@ class TestValkeyCommands:
 
     async def test_geopos_no_value(self, r: valkey.Valkey):
         assert await r.geopos("barcelona", "place1", "place2") == [None, None]
-
-    @skip_if_server_version_gte("4.0.0")
-    async def test_old_geopos_no_value(self, r: valkey.Valkey):
-        assert await r.geopos("barcelona", "place1", "place2") == []
 
     async def test_georadius(self, r: valkey.Valkey):
         values = (2.1909389952632, 41.433791470673, "place1") + (

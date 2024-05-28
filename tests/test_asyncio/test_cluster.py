@@ -12,7 +12,6 @@ from _pytest.fixtures import FixtureRequest
 from tests.conftest import (
     assert_resp_response,
     is_resp2_connection,
-    skip_if_server_version_gte,
     skip_unless_arch_bits,
 )
 from valkey._parsers import AsyncCommandsParser
@@ -2728,43 +2727,6 @@ class TestClusterPipeline:
             assert first_node._free.pop().read_response.await_count
             assert ask_node._free.pop().read_response.await_count
             assert res == ["MOCK_OK"]
-
-    @skip_if_server_version_gte("7.0.0")
-    async def test_moved_redirection_on_slave_with_default(
-        self, r: ValkeyCluster
-    ) -> None:
-        """Test MovedError handling."""
-        key = "foo"
-        await r.set("foo", "bar")
-        # set read_from_replicas to True
-        r.read_from_replicas = True
-        primary = r.get_node_from_key(key, False)
-        moved_error = f"{r.keyslot(key)} {primary.host}:{primary.port}"
-
-        parse_response_orig = primary.parse_response
-        with mock.patch.object(
-            ClusterNode, "parse_response", autospec=True
-        ) as parse_response_mock:
-
-            async def parse_response(
-                self, connection: Connection, command: str, **kwargs: Any
-            ) -> Any:
-                if (
-                    command == "GET"
-                    and self.host != primary.host
-                    and self.port != primary.port
-                ):
-                    raise MovedError(moved_error)
-
-                return await parse_response_orig(connection, command, **kwargs)
-
-            parse_response_mock.side_effect = parse_response
-
-            async with r.pipeline() as readwrite_pipe:
-                assert r.reinitialize_counter == 0
-                readwrite_pipe.get(key).get(key)
-                assert r.reinitialize_counter == 0
-                assert await readwrite_pipe.execute() == [b"bar", b"bar"]
 
     async def test_readonly_pipeline_from_readonly_client(
         self, r: ValkeyCluster
