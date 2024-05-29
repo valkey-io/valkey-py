@@ -24,7 +24,6 @@ from .conftest import (
     assert_resp_response,
     assert_resp_response_in,
     is_resp2_connection,
-    skip_if_server_version_gte,
     skip_if_server_version_lt,
     skip_unless_arch_bits,
 )
@@ -34,11 +33,11 @@ from .conftest import (
 def slowlog(request, r):
     current_config = r.config_get()
     old_slower_than_value = current_config["slowlog-log-slower-than"]
-    old_max_legnth_value = current_config["slowlog-max-len"]
+    old_max_length_value = current_config["slowlog-max-len"]
 
     def cleanup():
         r.config_set("slowlog-log-slower-than", old_slower_than_value)
-        r.config_set("slowlog-max-len", old_max_legnth_value)
+        r.config_set("slowlog-max-len", old_max_length_value)
 
     request.addfinalizer(cleanup)
 
@@ -136,19 +135,16 @@ class TestValkeyCommands:
             r["a"]
 
     # SERVER INFORMATION
-    @skip_if_server_version_lt("6.0.0")
     def test_acl_cat_no_category(self, r):
         categories = r.acl_cat()
         assert isinstance(categories, list)
         assert "read" in categories or b"read" in categories
 
-    @skip_if_server_version_lt("6.0.0")
     def test_acl_cat_with_category(self, r):
         commands = r.acl_cat("read")
         assert isinstance(commands, list)
         assert "get" in commands or b"get" in commands
 
-    @skip_if_server_version_lt("7.0.0")
     def test_acl_dryrun(self, r, request):
         username = "valkey-py-user"
 
@@ -162,7 +158,6 @@ class TestValkeyCommands:
         no_permissions_message = b"user has no permissions to run the"
         assert no_permissions_message in r.acl_dryrun(username, "get", "key")
 
-    @skip_if_server_version_lt("6.0.0")
     def test_acl_deluser(self, r, request):
         username = "valkey-py-user"
 
@@ -186,7 +181,6 @@ class TestValkeyCommands:
         assert r.acl_getuser(users[3]) is None
         assert r.acl_getuser(users[4]) is None
 
-    @skip_if_server_version_lt("6.0.0")
     def test_acl_genpass(self, r):
         password = r.acl_genpass()
         assert isinstance(password, (str, bytes))
@@ -200,7 +194,6 @@ class TestValkeyCommands:
         assert isinstance(password, (str, bytes))
         assert len(password) == 139
 
-    @skip_if_server_version_lt("7.0.0")
     def test_acl_getuser_setuser(self, r, request):
         r.flushall()
         username = "valkey-py-user"
@@ -333,13 +326,11 @@ class TestValkeyCommands:
             [{"commands": "-@all +set", "keys": "%W~app*", "channels": ""}],
         )
 
-    @skip_if_server_version_lt("6.0.0")
     def test_acl_help(self, r):
         res = r.acl_help()
         assert isinstance(res, list)
         assert len(res) != 0
 
-    @skip_if_server_version_lt("6.0.0")
     def test_acl_list(self, r, request):
         username = "valkey-py-user"
         start = r.acl_list()
@@ -353,7 +344,6 @@ class TestValkeyCommands:
         users = r.acl_list()
         assert len(users) == len(start) + 1
 
-    @skip_if_server_version_lt("6.0.0")
     @pytest.mark.onlynoncluster
     def test_acl_log(self, r, request):
         username = "valkey-py-user"
@@ -400,7 +390,6 @@ class TestValkeyCommands:
             expected.keys(),
         )
 
-    @skip_if_server_version_lt("6.0.0")
     def test_acl_setuser_categories_without_prefix_fails(self, r, request):
         username = "valkey-py-user"
 
@@ -412,7 +401,6 @@ class TestValkeyCommands:
         with pytest.raises(exceptions.DataError):
             r.acl_setuser(username, categories=["list"])
 
-    @skip_if_server_version_lt("6.0.0")
     def test_acl_setuser_commands_without_prefix_fails(self, r, request):
         username = "valkey-py-user"
 
@@ -424,7 +412,6 @@ class TestValkeyCommands:
         with pytest.raises(exceptions.DataError):
             r.acl_setuser(username, commands=["get"])
 
-    @skip_if_server_version_lt("6.0.0")
     def test_acl_setuser_add_passwords_and_nopass_fails(self, r, request):
         username = "valkey-py-user"
 
@@ -436,13 +423,11 @@ class TestValkeyCommands:
         with pytest.raises(exceptions.DataError):
             r.acl_setuser(username, passwords="+mypass", nopass=True)
 
-    @skip_if_server_version_lt("6.0.0")
     def test_acl_users(self, r):
         users = r.acl_users()
         assert isinstance(users, list)
         assert len(users) > 0
 
-    @skip_if_server_version_lt("6.0.0")
     def test_acl_whoami(self, r):
         username = r.acl_whoami()
         assert isinstance(username, (str, bytes))
@@ -454,14 +439,12 @@ class TestValkeyCommands:
         assert "addr" in clients[0]
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_client_info(self, r):
         info = r.client_info()
         assert isinstance(info, dict)
         assert "addr" in info
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("5.0.0")
     def test_client_list_types_not_replica(self, r):
         with pytest.raises(exceptions.ValkeyError):
             r.client_list(_type="not a client type")
@@ -474,7 +457,6 @@ class TestValkeyCommands:
         assert isinstance(clients, list)
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_client_list_client_id(self, r, request):
         clients = r.client_list()
         clients = r.client_list(client_id=[clients[0]["id"]])
@@ -489,19 +471,16 @@ class TestValkeyCommands:
         assert len(clients_listed) > 1
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("5.0.0")
     def test_client_id(self, r):
         assert r.client_id() > 0
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_client_trackinginfo(self, r):
         res = r.client_trackinginfo()
         assert len(res) > 2
         assert "prefixes" in res or b"prefixes" in res
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.0.0")
     def test_client_tracking(self, r, r2):
         # simple case
         assert r.client_tracking_on()
@@ -522,7 +501,6 @@ class TestValkeyCommands:
             assert r.client_tracking_on(prefix=["foo", "bar", "blee"])
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("5.0.0")
     def test_client_unblock(self, r):
         myid = r.client_id()
         assert not r.client_unblock(myid)
@@ -530,17 +508,14 @@ class TestValkeyCommands:
         assert not r.client_unblock(myid, error=False)
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.6.9")
     def test_client_getname(self, r):
         assert r.client_getname() is None
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.6.9")
     def test_client_setname(self, r):
         assert r.client_setname("valkey_py_test")
         assert_resp_response(r, r.client_getname(), "valkey_py_test", b"valkey_py_test")
 
-    @skip_if_server_version_lt("7.2.0")
     def test_client_setinfo(self, r: valkey.Valkey):
         r.ping()
         info = r.client_info()
@@ -561,7 +536,6 @@ class TestValkeyCommands:
         assert info["lib-ver"] == ""
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.6.9")
     def test_client_kill(self, r, r2):
         r.client_setname("valkey-py-c1")
         r2.client_setname("valkey-py-c2")
@@ -585,7 +559,6 @@ class TestValkeyCommands:
         assert len(clients) == 1
         assert clients[0].get("name") == "valkey-py-c1"
 
-    @skip_if_server_version_lt("2.8.12")
     def test_client_kill_filter_invalid_params(self, r):
         # empty
         with pytest.raises(exceptions.DataError):
@@ -600,7 +573,6 @@ class TestValkeyCommands:
             r.client_kill_filter(_type="caster")
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.8.12")
     def test_client_kill_filter_by_id(self, r, r2):
         r.client_setname("valkey-py-c1")
         r2.client_setname("valkey-py-c2")
@@ -626,7 +598,6 @@ class TestValkeyCommands:
         assert clients[0].get("name") == "valkey-py-c1"
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.8.12")
     def test_client_kill_filter_by_addr(self, r, r2):
         r.client_setname("valkey-py-c1")
         r2.client_setname("valkey-py-c2")
@@ -651,14 +622,12 @@ class TestValkeyCommands:
         assert len(clients) == 1
         assert clients[0].get("name") == "valkey-py-c1"
 
-    @skip_if_server_version_lt("2.6.9")
     def test_client_list_after_client_setname(self, r):
         r.client_setname("valkey_py_test")
         clients = r.client_list()
         # we don't know which client ours will be
         assert "valkey_py_test" in [c["name"] for c in clients]
 
-    @skip_if_server_version_lt("6.2.0")
     def test_client_kill_filter_by_laddr(self, r, r2):
         r.client_setname("valkey-py-c1")
         r2.client_setname("valkey-py-c2")
@@ -674,7 +643,6 @@ class TestValkeyCommands:
         client_2_addr = clients_by_name["valkey-py-c2"].get("laddr")
         assert r.client_kill_filter(laddr=client_2_addr)
 
-    @skip_if_server_version_lt("6.0.0")
     def test_client_kill_filter_by_user(self, r, request):
         killuser = "user_to_kill"
         r.acl_setuser(
@@ -701,14 +669,12 @@ class TestValkeyCommands:
         assert len(r.client_list()) == 1
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.9.50")
     def test_client_pause(self, r):
         assert r.client_pause(1)
         assert r.client_pause(timeout=1)
         with pytest.raises(exceptions.ValkeyError):
             r.client_pause(timeout="not an integer")
 
-    @skip_if_server_version_lt("6.2.0")
     def test_client_pause_all(self, r, r2):
         assert r.client_pause(1, all=False)
         assert r2.set("foo", "bar")
@@ -716,19 +682,16 @@ class TestValkeyCommands:
         assert r.get("foo") == b"bar"
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_client_unpause(self, r):
         assert r.client_unpause() == b"OK"
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("7.0.0")
     def test_client_no_evict(self, r):
         assert r.client_no_evict("ON")
         with pytest.raises(TypeError):
             r.client_no_evict()
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("7.2.0")
     def test_client_no_touch(self, r):
         assert r.client_no_touch("ON") == b"OK"
         assert r.client_no_touch("OFF") == b"OK"
@@ -736,7 +699,6 @@ class TestValkeyCommands:
             r.client_no_touch()
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("3.2.0")
     def test_client_reply(self, r, r_timeout):
         assert r_timeout.client_reply("ON") == b"OK"
         with pytest.raises(exceptions.ValkeyError):
@@ -750,12 +712,10 @@ class TestValkeyCommands:
         assert r.get("foo") == b"bar"
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.0.0")
     def test_client_getredir(self, r):
         assert isinstance(r.client_getredir(), int)
         assert r.client_getredir() == -1
 
-    @skip_if_server_version_lt("6.0.0")
     def test_hello_notI_implemented(self, r):
         with pytest.raises(NotImplementedError):
             r.hello()
@@ -766,7 +726,6 @@ class TestValkeyCommands:
         # # assert 'maxmemory' in data
         # assert data['maxmemory'].isdigit()
 
-    @skip_if_server_version_lt("7.0.0")
     def test_config_get_multi_params(self, r: valkey.Valkey):
         res = r.config_get("*max-*-entries*", "maxmemory")
         assert "maxmemory" in res
@@ -787,7 +746,6 @@ class TestValkeyCommands:
         assert r.config_set("timeout", 0)
         assert r.config_get()["timeout"] == "0"
 
-    @skip_if_server_version_lt("7.0.0")
     def test_config_set_multi_params(self, r: valkey.Valkey):
         r.config_set("timeout", 70, "maxmemory", 100)
         assert r.config_get()["timeout"] == "70"
@@ -796,7 +754,6 @@ class TestValkeyCommands:
         assert r.config_get()["timeout"] == "0"
         assert r.config_get()["maxmemory"] == "0"
 
-    @skip_if_server_version_lt("6.0.0")
     def test_failover(self, r):
         with pytest.raises(NotImplementedError):
             r.failover()
@@ -821,7 +778,6 @@ class TestValkeyCommands:
         assert "valkey_version" in info.keys()
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("7.0.0")
     def test_info_multi_sections(self, r):
         res = r.info("clients", "server")
         assert isinstance(res, dict)
@@ -833,7 +789,6 @@ class TestValkeyCommands:
         assert isinstance(r.lastsave(), datetime.datetime)
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("5.0.0")
     def test_lolwut(self, r):
         lolwut = r.lolwut().decode("utf-8")
         assert "Redis ver." in lolwut
@@ -842,7 +797,6 @@ class TestValkeyCommands:
         assert "Redis ver." in lolwut
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_reset(self, r):
         assert_resp_response(r, r.reset(), "RESET", b"RESET")
 
@@ -860,7 +814,6 @@ class TestValkeyCommands:
     def test_quit(self, r):
         assert r.quit()
 
-    @skip_if_server_version_lt("2.8.12")
     @pytest.mark.onlynoncluster
     def test_role(self, r):
         assert r.role()[0] == b"master"
@@ -939,7 +892,6 @@ class TestValkeyCommands:
         r.get("foo")
         assert isinstance(r.slowlog_len(), int)
 
-    @skip_if_server_version_lt("2.6.0")
     def test_time(self, r):
         t = r.time()
         assert len(t) == 2
@@ -968,7 +920,6 @@ class TestValkeyCommands:
         assert r.append("a", "a2") == 4
         assert r["a"] == b"a1a2"
 
-    @skip_if_server_version_lt("2.6.0")
     def test_bitcount(self, r):
         r.setbit("a", 5, True)
         assert r.bitcount("a") == 1
@@ -987,7 +938,6 @@ class TestValkeyCommands:
         assert r.bitcount("a", -2, -1) == 2
         assert r.bitcount("a", 1, 1) == 1
 
-    @skip_if_server_version_lt("7.0.0")
     def test_bitcount_mode(self, r):
         r.set("mykey", "foobar")
         assert r.bitcount("mykey") == 26
@@ -997,14 +947,12 @@ class TestValkeyCommands:
             assert r.bitcount("mykey", 5, 30, "but")
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.6.0")
     def test_bitop_not_empty_string(self, r):
         r["a"] = ""
         r.bitop("not", "r", "a")
         assert r.get("r") is None
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.6.0")
     def test_bitop_not(self, r):
         test_str = b"\xAA\x00\xFF\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
@@ -1013,7 +961,6 @@ class TestValkeyCommands:
         assert int(binascii.hexlify(r["r"]), 16) == correct
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.6.0")
     def test_bitop_not_in_place(self, r):
         test_str = b"\xAA\x00\xFF\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
@@ -1022,7 +969,6 @@ class TestValkeyCommands:
         assert int(binascii.hexlify(r["a"]), 16) == correct
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.6.0")
     def test_bitop_single_string(self, r):
         test_str = b"\x01\x02\xFF"
         r["a"] = test_str
@@ -1034,7 +980,6 @@ class TestValkeyCommands:
         assert r["res3"] == test_str
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.6.0")
     def test_bitop_string_operands(self, r):
         r["a"] = b"\x01\x02\xFF\xFF"
         r["b"] = b"\x01\x02\xFF"
@@ -1046,7 +991,6 @@ class TestValkeyCommands:
         assert int(binascii.hexlify(r["res3"]), 16) == 0x000000FF
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.8.7")
     def test_bitpos(self, r):
         key = "key:bitpos"
         r.set(key, b"\xff\xf0\x00")
@@ -1059,7 +1003,6 @@ class TestValkeyCommands:
         r.set(key, b"\x00\x00\x00")
         assert r.bitpos(key, 1) == -1
 
-    @skip_if_server_version_lt("2.8.7")
     def test_bitpos_wrong_arguments(self, r):
         key = "key:bitpos:wrong:args"
         r.set(key, b"\xff\xf0\x00")
@@ -1068,7 +1011,6 @@ class TestValkeyCommands:
         with pytest.raises(exceptions.ValkeyError):
             r.bitpos(key, 7) == 12
 
-    @skip_if_server_version_lt("7.0.0")
     def test_bitpos_mode(self, r):
         r.set("mykey", b"\x00\xff\xf0")
         assert r.bitpos("mykey", 1, 0) == 8
@@ -1078,7 +1020,6 @@ class TestValkeyCommands:
             r.bitpos("mykey", 1, 7, 15, "bite")
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_copy(self, r):
         assert r.copy("a", "b") == 0
         r.set("a", "foo")
@@ -1087,7 +1028,6 @@ class TestValkeyCommands:
         assert r.get("b") == b"foo"
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_copy_and_replace(self, r):
         r.set("a", "foo1")
         r.set("b", "foo2")
@@ -1095,7 +1035,6 @@ class TestValkeyCommands:
         assert r.copy("a", "b", replace=True) == 1
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_copy_to_another_database(self, request):
         r0 = _get_client(valkey.Valkey, request, db=0)
         r1 = _get_client(valkey.Valkey, request, db=1)
@@ -1133,14 +1072,12 @@ class TestValkeyCommands:
         del r["a"]
         assert r.get("a") is None
 
-    @skip_if_server_version_lt("4.0.0")
     def test_unlink(self, r):
         assert r.unlink("a") == 0
         r["a"] = "foo"
         assert r.unlink("a") == 1
         assert r.get("a") is None
 
-    @skip_if_server_version_lt("4.0.0")
     def test_unlink_with_multiple_keys(self, r):
         r["a"] = "foo"
         r["b"] = "bar"
@@ -1149,7 +1086,6 @@ class TestValkeyCommands:
         assert r.get("b") is None
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("7.0.0")
     def test_lcs(self, r):
         r.mset({"foo": "ohmytext", "bar": "mynewtext"})
         assert r.lcs("foo", "bar") == b"mytext"
@@ -1163,7 +1099,6 @@ class TestValkeyCommands:
         with pytest.raises(valkey.ResponseError):
             assert r.lcs("foo", "bar", len=True, idx=True)
 
-    @skip_if_server_version_lt("2.6.0")
     def test_dump_and_restore(self, r):
         r["a"] = "foo"
         dumped = r.dump("a")
@@ -1171,7 +1106,6 @@ class TestValkeyCommands:
         r.restore("a", 0, dumped)
         assert r["a"] == b"foo"
 
-    @skip_if_server_version_lt("3.0.0")
     def test_dump_and_restore_and_replace(self, r):
         r["a"] = "bar"
         dumped = r.dump("a")
@@ -1181,7 +1115,6 @@ class TestValkeyCommands:
         r.restore("a", 0, dumped, replace=True)
         assert r["a"] == b"bar"
 
-    @skip_if_server_version_lt("5.0.0")
     def test_dump_and_restore_absttl(self, r):
         r["a"] = "foo"
         dumped = r.dump("a")
@@ -1213,26 +1146,22 @@ class TestValkeyCommands:
         assert r.persist("a")
         assert r.ttl("a") == -1
 
-    @skip_if_server_version_lt("7.0.0")
     def test_expire_option_nx(self, r):
         r.set("key", "val")
         assert r.expire("key", 100, nx=True) == 1
         assert r.expire("key", 500, nx=True) == 0
 
-    @skip_if_server_version_lt("7.0.0")
     def test_expire_option_xx(self, r):
         r.set("key", "val")
         assert r.expire("key", 100, xx=True) == 0
         assert r.expire("key", 100)
         assert r.expire("key", 500, xx=True) == 1
 
-    @skip_if_server_version_lt("7.0.0")
     def test_expire_option_gt(self, r):
         r.set("key", "val", 100)
         assert r.expire("key", 50, gt=True) == 0
         assert r.expire("key", 500, gt=True) == 1
 
-    @skip_if_server_version_lt("7.0.0")
     def test_expire_option_lt(self, r):
         r.set("key", "val", 100)
         assert r.expire("key", 50, lt=True) == 1
@@ -1255,13 +1184,11 @@ class TestValkeyCommands:
         assert r.expireat("a", expire_at_seconds) is True
         assert 0 < r.ttl("a") <= 61
 
-    @skip_if_server_version_lt("7.0.0")
     def test_expiretime(self, r):
         r.set("a", "foo")
         r.expireat("a", 33177117420)
         assert r.expiretime("a") == 33177117420
 
-    @skip_if_server_version_lt("7.0.0")
     def test_expireat_option_nx(self, r):
         assert r.set("key", "val") is True
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
@@ -1269,7 +1196,6 @@ class TestValkeyCommands:
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=2)
         assert r.expireat("key", expire_at, nx=True) is False
 
-    @skip_if_server_version_lt("7.0.0")
     def test_expireat_option_xx(self, r):
         assert r.set("key", "val") is True
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
@@ -1278,7 +1204,6 @@ class TestValkeyCommands:
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=2)
         assert r.expireat("key", expire_at, xx=True) is True
 
-    @skip_if_server_version_lt("7.0.0")
     def test_expireat_option_gt(self, r):
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=2)
         assert r.set("key", "val") is True
@@ -1288,7 +1213,6 @@ class TestValkeyCommands:
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=3)
         assert r.expireat("key", expire_at, gt=True) is True
 
-    @skip_if_server_version_lt("7.0.0")
     def test_expireat_option_lt(self, r):
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=2)
         assert r.set("key", "val") is True
@@ -1311,14 +1235,12 @@ class TestValkeyCommands:
         assert r.get("integer") == str(integer).encode()
         assert r.get("unicode_string").decode("utf-8") == unicode_string
 
-    @skip_if_server_version_lt("6.2.0")
     def test_getdel(self, r):
         assert r.getdel("a") is None
         r.set("a", 1)
         assert r.getdel("a") == b"1"
         assert r.getdel("a") is None
 
-    @skip_if_server_version_lt("6.2.0")
     def test_getex(self, r):
         r.set("a", 1)
         assert r.getex("a") == b"1"
@@ -1385,7 +1307,6 @@ class TestValkeyCommands:
         assert r.incrby("a", 4) == 5
         assert r["a"] == b"5"
 
-    @skip_if_server_version_lt("2.6.0")
     def test_incrbyfloat(self, r):
         assert r.incrbyfloat("a") == 1.0
         assert r["a"] == b"1"
@@ -1412,14 +1333,12 @@ class TestValkeyCommands:
         assert r.mget("a", "other", "b", "c") == [b"1", None, b"2", b"3"]
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_lmove(self, r):
         r.rpush("a", "one", "two", "three", "four")
         assert r.lmove("a", "b")
         assert r.lmove("a", "b", "right", "left")
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_blmove(self, r):
         r.rpush("a", "one", "two", "three", "four")
         assert r.blmove("a", "b", 5)
@@ -1442,7 +1361,6 @@ class TestValkeyCommands:
             assert r[k] == v
         assert r.get("d") is None
 
-    @skip_if_server_version_lt("2.6.0")
     def test_pexpire(self, r):
         assert r.pexpire("a", 60000) is False
         r["a"] = "foo"
@@ -1451,46 +1369,39 @@ class TestValkeyCommands:
         assert r.persist("a")
         assert r.pttl("a") == -1
 
-    @skip_if_server_version_lt("7.0.0")
     def test_pexpire_option_nx(self, r):
         assert r.set("key", "val") is True
         assert r.pexpire("key", 60000, nx=True) is True
         assert r.pexpire("key", 60000, nx=True) is False
 
-    @skip_if_server_version_lt("7.0.0")
     def test_pexpire_option_xx(self, r):
         assert r.set("key", "val") is True
         assert r.pexpire("key", 60000, xx=True) is False
         assert r.pexpire("key", 60000) is True
         assert r.pexpire("key", 70000, xx=True) is True
 
-    @skip_if_server_version_lt("7.0.0")
     def test_pexpire_option_gt(self, r):
         assert r.set("key", "val") is True
         assert r.pexpire("key", 60000) is True
         assert r.pexpire("key", 70000, gt=True) is True
         assert r.pexpire("key", 50000, gt=True) is False
 
-    @skip_if_server_version_lt("7.0.0")
     def test_pexpire_option_lt(self, r):
         assert r.set("key", "val") is True
         assert r.pexpire("key", 60000) is True
         assert r.pexpire("key", 50000, lt=True) is True
         assert r.pexpire("key", 70000, lt=True) is False
 
-    @skip_if_server_version_lt("2.6.0")
     def test_pexpireat_datetime(self, r):
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         r["a"] = "foo"
         assert r.pexpireat("a", expire_at) is True
         assert 0 < r.pttl("a") <= 61000
 
-    @skip_if_server_version_lt("2.6.0")
     def test_pexpireat_no_key(self, r):
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert r.pexpireat("a", expire_at) is False
 
-    @skip_if_server_version_lt("2.6.0")
     def test_pexpireat_unixtime(self, r):
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         r["a"] = "foo"
@@ -1498,14 +1409,12 @@ class TestValkeyCommands:
         assert r.pexpireat("a", expire_at_milliseconds) is True
         assert 0 < r.pttl("a") <= 61000
 
-    @skip_if_server_version_lt("7.0.0")
     def test_pexpireat_option_nx(self, r):
         assert r.set("key", "val") is True
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert r.pexpireat("key", expire_at, nx=True) is True
         assert r.pexpireat("key", expire_at, nx=True) is False
 
-    @skip_if_server_version_lt("7.0.0")
     def test_pexpireat_option_xx(self, r):
         assert r.set("key", "val") is True
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
@@ -1513,7 +1422,6 @@ class TestValkeyCommands:
         assert r.pexpireat("key", expire_at) is True
         assert r.pexpireat("key", expire_at, xx=True) is True
 
-    @skip_if_server_version_lt("7.0.0")
     def test_pexpireat_option_gt(self, r):
         assert r.set("key", "val") is True
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=2)
@@ -1523,7 +1431,6 @@ class TestValkeyCommands:
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=3)
         assert r.pexpireat("key", expire_at, gt=True) is True
 
-    @skip_if_server_version_lt("7.0.0")
     def test_pexpireat_option_lt(self, r):
         assert r.set("key", "val") is True
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=2)
@@ -1533,26 +1440,22 @@ class TestValkeyCommands:
         expire_at = valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert r.pexpireat("key", expire_at, lt=True) is True
 
-    @skip_if_server_version_lt("7.0.0")
     def test_pexpiretime(self, r):
         r.set("a", "foo")
         r.pexpireat("a", 33177117420000)
         assert r.pexpiretime("a") == 33177117420000
 
-    @skip_if_server_version_lt("2.6.0")
     def test_psetex(self, r):
         assert r.psetex("a", 1000, "value")
         assert r["a"] == b"value"
         assert 0 < r.pttl("a") <= 1000
 
-    @skip_if_server_version_lt("2.6.0")
     def test_psetex_timedelta(self, r):
         expire_at = datetime.timedelta(milliseconds=1000)
         assert r.psetex("a", expire_at, "value")
         assert r["a"] == b"value"
         assert 0 < r.pttl("a") <= 1000
 
-    @skip_if_server_version_lt("2.6.0")
     def test_pttl(self, r):
         assert r.pexpire("a", 10000) is False
         r["a"] = "1"
@@ -1561,12 +1464,10 @@ class TestValkeyCommands:
         assert r.persist("a")
         assert r.pttl("a") == -1
 
-    @skip_if_server_version_lt("2.8.0")
     def test_pttl_no_key(self, r):
         "PTTL on servers 2.8 and after return -2 when the key doesn't exist"
         assert r.pttl("a") == -2
 
-    @skip_if_server_version_lt("6.2.0")
     def test_hrandfield(self, r):
         assert r.hrandfield("key") is None
         r.hset("key", mapping={"a": 1, "b": 2, "c": 3, "d": 4, "e": 5})
@@ -1601,13 +1502,11 @@ class TestValkeyCommands:
         assert r["a"] == b"1"
         assert r["b"] == b"2"
 
-    @skip_if_server_version_lt("2.6.0")
     def test_set_nx(self, r):
         assert r.set("a", "1", nx=True)
         assert not r.set("a", "2", nx=True)
         assert r["a"] == b"1"
 
-    @skip_if_server_version_lt("2.6.0")
     def test_set_xx(self, r):
         assert not r.set("a", "1", xx=True)
         assert r.get("a") is None
@@ -1615,7 +1514,6 @@ class TestValkeyCommands:
         assert r.set("a", "2", xx=True)
         assert r.get("a") == b"2"
 
-    @skip_if_server_version_lt("2.6.0")
     def test_set_px(self, r):
         assert r.set("a", "1", px=10000)
         assert r["a"] == b"1"
@@ -1624,52 +1522,44 @@ class TestValkeyCommands:
         with pytest.raises(exceptions.DataError):
             assert r.set("a", "1", px=10.0)
 
-    @skip_if_server_version_lt("2.6.0")
     def test_set_px_timedelta(self, r):
         expire_at = datetime.timedelta(milliseconds=1000)
         assert r.set("a", "1", px=expire_at)
         assert 0 < r.pttl("a") <= 1000
         assert 0 < r.ttl("a") <= 1
 
-    @skip_if_server_version_lt("2.6.0")
     def test_set_ex(self, r):
         assert r.set("a", "1", ex=10)
         assert 0 < r.ttl("a") <= 10
         with pytest.raises(exceptions.DataError):
             assert r.set("a", "1", ex=10.0)
 
-    @skip_if_server_version_lt("2.6.0")
     def test_set_ex_str(self, r):
         assert r.set("a", "1", ex="10")
         assert 0 < r.ttl("a") <= 10
         with pytest.raises(exceptions.DataError):
             assert r.set("a", "1", ex="10.5")
 
-    @skip_if_server_version_lt("2.6.0")
     def test_set_ex_timedelta(self, r):
         expire_at = datetime.timedelta(seconds=60)
         assert r.set("a", "1", ex=expire_at)
         assert 0 < r.ttl("a") <= 60
 
-    @skip_if_server_version_lt("6.2.0")
     def test_set_exat_timedelta(self, r):
         expire_at = valkey_server_time(r) + datetime.timedelta(seconds=10)
         assert r.set("a", "1", exat=expire_at)
         assert 0 < r.ttl("a") <= 10
 
-    @skip_if_server_version_lt("6.2.0")
     def test_set_pxat_timedelta(self, r):
         expire_at = valkey_server_time(r) + datetime.timedelta(seconds=50)
         assert r.set("a", "1", pxat=expire_at)
         assert 0 < r.ttl("a") <= 100
 
-    @skip_if_server_version_lt("2.6.0")
     def test_set_multipleoptions(self, r):
         r["a"] = "val"
         assert r.set("a", "1", xx=True, px=10000)
         assert 0 < r.ttl("a") <= 10
 
-    @skip_if_server_version_lt("6.0.0")
     def test_set_keepttl(self, r):
         r["a"] = "val"
         assert r.set("a", "1", xx=True, px=10000)
@@ -1678,7 +1568,6 @@ class TestValkeyCommands:
         assert r.get("a") == b"2"
         assert 0 < r.ttl("a") <= 10
 
-    @skip_if_server_version_lt("6.2.0")
     def test_set_get(self, r):
         assert r.set("a", "True", get=True) is None
         assert r.set("a", "True", get=True) == b"True"
@@ -1703,55 +1592,6 @@ class TestValkeyCommands:
         r["a"] = "abcdefghijh"
         assert r.setrange("a", 6, "12345") == 11
         assert r["a"] == b"abcdef12345"
-
-    @skip_if_server_version_lt("6.0.0")
-    @skip_if_server_version_gte("7.0.0")
-    def test_stralgo_lcs(self, r):
-        key1 = "{foo}key1"
-        key2 = "{foo}key2"
-        value1 = "ohmytext"
-        value2 = "mynewtext"
-        res = "mytext"
-
-        # test LCS of strings
-        assert r.stralgo("LCS", value1, value2) == res
-        # test using keys
-        r.mset({key1: value1, key2: value2})
-        assert r.stralgo("LCS", key1, key2, specific_argument="keys") == res
-        # test other labels
-        assert r.stralgo("LCS", value1, value2, len=True) == len(res)
-        assert_resp_response(
-            r,
-            r.stralgo("LCS", value1, value2, idx=True),
-            {"len": len(res), "matches": [[(4, 7), (5, 8)], [(2, 3), (0, 1)]]},
-            {"len": len(res), "matches": [[[4, 7], [5, 8]], [[2, 3], [0, 1]]]},
-        )
-        assert_resp_response(
-            r,
-            r.stralgo("LCS", value1, value2, idx=True, withmatchlen=True),
-            {"len": len(res), "matches": [[4, (4, 7), (5, 8)], [2, (2, 3), (0, 1)]]},
-            {"len": len(res), "matches": [[[4, 7], [5, 8], 4], [[2, 3], [0, 1], 2]]},
-        )
-        assert_resp_response(
-            r,
-            r.stralgo(
-                "LCS", value1, value2, idx=True, withmatchlen=True, minmatchlen=4
-            ),
-            {"len": len(res), "matches": [[4, (4, 7), (5, 8)]]},
-            {"len": len(res), "matches": [[[4, 7], [5, 8], 4]]},
-        )
-
-    @skip_if_server_version_lt("6.0.0")
-    @skip_if_server_version_gte("7.0.0")
-    def test_stralgo_negative(self, r):
-        with pytest.raises(exceptions.DataError):
-            r.stralgo("ISSUB", "value1", "value2")
-        with pytest.raises(exceptions.DataError):
-            r.stralgo("LCS", "value1", "value2", len=True, idx=True)
-        with pytest.raises(exceptions.DataError):
-            r.stralgo("LCS", "value1", "value2", specific_argument="INT")
-        with pytest.raises(ValueError):
-            r.stralgo("LCS", "value1", "value2", idx=True, minmatchlen="one")
 
     def test_strlen(self, r):
         r["a"] = "foo"
@@ -1823,7 +1663,6 @@ class TestValkeyCommands:
         assert r.persist("a")
         assert r.ttl("a") == -1
 
-    @skip_if_server_version_lt("2.8.0")
     def test_ttl_nokey(self, r):
         "TTL on servers 2.8 and after return -2 when the key doesn't exist"
         assert r.ttl("a") == -2
@@ -1899,7 +1738,6 @@ class TestValkeyCommands:
         assert r.brpoplpush("a", "b") == b""
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("7.0.0")
     def test_blmpop(self, r):
         r.rpush("a", "1", "2", "3", "4", "5")
         res = [b"a", [b"1", b"2"]]
@@ -1911,7 +1749,6 @@ class TestValkeyCommands:
         assert r.blmpop(1, "2", "foo", "bar", direction="RIGHT") is None
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("7.0.0")
     def test_lmpop(self, r):
         r.rpush("foo", "1", "2", "3", "4", "5")
         result = [b"foo", [b"1", b"2"]]
@@ -1945,7 +1782,6 @@ class TestValkeyCommands:
         assert r.lpop("a") == b"3"
         assert r.lpop("a") is None
 
-    @skip_if_server_version_lt("6.2.0")
     def test_lpop_count(self, r):
         r.rpush("a", "1", "2", "3")
         assert r.lpop("a", 2) == [b"1", b"2"]
@@ -1966,7 +1802,6 @@ class TestValkeyCommands:
         assert r.lpushx("a", "4") == 4
         assert r.lrange("a", 0, -1) == [b"4", b"1", b"2", b"3"]
 
-    @skip_if_server_version_lt("4.0.0")
     def test_lpushx_with_list(self, r):
         # now with a list
         r.lpush("somekey", "a")
@@ -2011,7 +1846,6 @@ class TestValkeyCommands:
         assert r.rpop("a") == b"1"
         assert r.rpop("a") is None
 
-    @skip_if_server_version_lt("6.2.0")
     def test_rpop_count(self, r):
         r.rpush("a", "1", "2", "3")
         assert r.rpop("a", 2) == [b"3", b"2"]
@@ -2033,7 +1867,6 @@ class TestValkeyCommands:
         assert r.rpush("a", "3", "4") == 4
         assert r.lrange("a", 0, -1) == [b"1", b"2", b"3", b"4"]
 
-    @skip_if_server_version_lt("6.0.6")
     def test_lpos(self, r):
         assert r.rpush("a", "a", "b", "c", "1", "2", "3", "c", "c") == 8
         assert r.lpos("a", "a") == 0
@@ -2074,7 +1907,6 @@ class TestValkeyCommands:
 
     # SCAN COMMANDS
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.8.0")
     def test_scan(self, r):
         r.set("a", 1)
         r.set("b", 2)
@@ -2086,7 +1918,6 @@ class TestValkeyCommands:
         assert set(keys) == {b"a"}
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.0.0")
     def test_scan_type(self, r):
         r.sadd("a-set", 1)
         r.hset("a-hash", "foo", 2)
@@ -2095,7 +1926,6 @@ class TestValkeyCommands:
         assert set(keys) == {b"a-set"}
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.8.0")
     def test_scan_iter(self, r):
         r.set("a", 1)
         r.set("b", 2)
@@ -2105,7 +1935,6 @@ class TestValkeyCommands:
         keys = list(r.scan_iter(match="a"))
         assert set(keys) == {b"a"}
 
-    @skip_if_server_version_lt("2.8.0")
     def test_sscan(self, r):
         r.sadd("a", 1, 2, 3)
         cursor, members = r.sscan("a")
@@ -2114,7 +1943,6 @@ class TestValkeyCommands:
         _, members = r.sscan("a", match=b"1")
         assert set(members) == {b"1"}
 
-    @skip_if_server_version_lt("2.8.0")
     def test_sscan_iter(self, r):
         r.sadd("a", 1, 2, 3)
         members = list(r.sscan_iter("a"))
@@ -2122,7 +1950,6 @@ class TestValkeyCommands:
         members = list(r.sscan_iter("a", match=b"1"))
         assert set(members) == {b"1"}
 
-    @skip_if_server_version_lt("2.8.0")
     def test_hscan(self, r):
         r.hset("a", mapping={"a": 1, "b": 2, "c": 3})
         cursor, dic = r.hscan("a")
@@ -2144,7 +1971,6 @@ class TestValkeyCommands:
         _, keys = r.hscan("a_notset", no_values=True)
         assert keys == []
 
-    @skip_if_server_version_lt("2.8.0")
     def test_hscan_iter(self, r):
         r.hset("a", mapping={"a": 1, "b": 2, "c": 3})
         dic = dict(r.hscan_iter("a"))
@@ -2164,7 +1990,6 @@ class TestValkeyCommands:
         keys = list(r.hscan_iter("a_notset", no_values=True))
         assert keys == []
 
-    @skip_if_server_version_lt("2.8.0")
     def test_zscan(self, r):
         r.zadd("a", {"a": 1, "b": 2, "c": 3})
         cursor, pairs = r.zscan("a")
@@ -2173,7 +1998,6 @@ class TestValkeyCommands:
         _, pairs = r.zscan("a", match="a")
         assert set(pairs) == {(b"a", 1)}
 
-    @skip_if_server_version_lt("2.8.0")
     def test_zscan_iter(self, r):
         r.zadd("a", {"a": 1, "b": 2, "c": 3})
         pairs = list(r.zscan_iter("a"))
@@ -2215,7 +2039,6 @@ class TestValkeyCommands:
         assert r.sinter("a", "b") == {b"2", b"3"}
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("7.0.0")
     def test_sintercard(self, r):
         r.sadd("a", 1, 2, 3)
         r.sadd("b", 1, 2, 3)
@@ -2243,7 +2066,6 @@ class TestValkeyCommands:
         r.sadd("a", "1", "2", "3")
         assert r.smembers("a") == {b"1", b"2", b"3"}
 
-    @skip_if_server_version_lt("6.2.0")
     def test_smismember(self, r):
         r.sadd("a", "1", "2", "3")
         result_list = [True, False, True, True]
@@ -2265,7 +2087,6 @@ class TestValkeyCommands:
         assert value in s
         assert r.smembers("a") == set(s) - {value}
 
-    @skip_if_server_version_lt("3.2.0")
     def test_spop_multi_value(self, r):
         s = [b"1", b"2", b"3"]
         r.sadd("a", *s)
@@ -2286,7 +2107,6 @@ class TestValkeyCommands:
         r.sadd("a", *s)
         assert r.srandmember("a") in s
 
-    @skip_if_server_version_lt("2.6.0")
     def test_srandmember_multi_value(self, r):
         s = [b"1", b"2", b"3"]
         r.sadd("a", *s)
@@ -2313,13 +2133,11 @@ class TestValkeyCommands:
         assert r.sunionstore("c", "a", "b") == 3
         assert r.smembers("c") == {b"1", b"2", b"3"}
 
-    @skip_if_server_version_lt("1.0.0")
     def test_debug_segfault(self, r):
         with pytest.raises(NotImplementedError):
             r.debug_segfault()
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("3.2.0")
     def test_script_debug(self, r):
         with pytest.raises(NotImplementedError):
             r.script_debug()
@@ -2387,7 +2205,6 @@ class TestValkeyCommands:
         # valkey-py
         assert r.zadd("a", {"a1": 1}, xx=True, incr=True) is None
 
-    @skip_if_server_version_lt("6.2.0")
     def test_zadd_gt_lt(self, r):
         r.zadd("a", {"a": 2})
         assert r.zadd("a", {"a": 5}, gt=True, ch=True) == 1
@@ -2418,7 +2235,6 @@ class TestValkeyCommands:
         assert r.zcount("a", 10, 20) == 0
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_zdiff(self, r):
         r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         r.zadd("b", {"a1": 1, "a2": 2})
@@ -2431,7 +2247,6 @@ class TestValkeyCommands:
         )
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_zdiffstore(self, r):
         r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         r.zadd("b", {"a1": 1, "a2": 2})
@@ -2451,14 +2266,12 @@ class TestValkeyCommands:
         assert r.zscore("a", "a2") == 3.0
         assert r.zscore("a", "a3") == 8.0
 
-    @skip_if_server_version_lt("2.8.9")
     def test_zlexcount(self, r):
         r.zadd("a", {"a": 0, "b": 0, "c": 0, "d": 0, "e": 0, "f": 0, "g": 0})
         assert r.zlexcount("a", "-", "+") == 7
         assert r.zlexcount("a", "[b", "[f") == 5
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_zinter(self, r):
         r.zadd("a", {"a1": 1, "a2": 2, "a3": 1})
         r.zadd("b", {"a1": 2, "a2": 2, "a3": 2})
@@ -2497,7 +2310,6 @@ class TestValkeyCommands:
         )
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("7.0.0")
     def test_zintercard(self, r):
         r.zadd("a", {"a1": 1, "a2": 2, "a3": 1})
         r.zadd("b", {"a1": 2, "a2": 2, "a3": 2})
@@ -2557,7 +2369,6 @@ class TestValkeyCommands:
             [[b"a3", 20], [b"a1", 23]],
         )
 
-    @skip_if_server_version_lt("4.9.0")
     def test_zpopmax(self, r):
         r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert_resp_response(r, r.zpopmax("a"), [(b"a3", 3)], [b"a3", 3.0])
@@ -2569,7 +2380,6 @@ class TestValkeyCommands:
             [[b"a2", 2], [b"a1", 1]],
         )
 
-    @skip_if_server_version_lt("4.9.0")
     def test_zpopmin(self, r):
         r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert_resp_response(r, r.zpopmin("a"), [(b"a1", 1)], [b"a1", 1.0])
@@ -2581,7 +2391,6 @@ class TestValkeyCommands:
             [[b"a2", 2], [b"a3", 3]],
         )
 
-    @skip_if_server_version_lt("6.2.0")
     def test_zrandemember(self, r):
         r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
         assert r.zrandmember("a") is not None
@@ -2599,7 +2408,6 @@ class TestValkeyCommands:
         assert len(r.zrandmember("a", -10)) == 10
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("4.9.0")
     def test_bzpopmax(self, r):
         r.zadd("a", {"a1": 1, "a2": 2})
         r.zadd("b", {"b1": 10, "b2": 20})
@@ -2622,7 +2430,6 @@ class TestValkeyCommands:
         )
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("4.9.0")
     def test_bzpopmin(self, r):
         r.zadd("a", {"a1": 1, "a2": 2})
         r.zadd("b", {"b1": 10, "b2": 20})
@@ -2645,7 +2452,6 @@ class TestValkeyCommands:
         )
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("7.0.0")
     def test_zmpop(self, r):
         r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert_resp_response(
@@ -2665,7 +2471,6 @@ class TestValkeyCommands:
         )
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("7.0.0")
     def test_bzmpop(self, r):
         r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert_resp_response(
@@ -2722,7 +2527,6 @@ class TestValkeyCommands:
         with pytest.raises(exceptions.DataError):
             r.zrange("a", 0, 1, byscore=True, withscores=True, num=2)
 
-    @skip_if_server_version_lt("6.2.0")
     def test_zrange_params(self, r):
         # bylex
         r.zadd("a", {"a": 0, "b": 0, "c": 0, "d": 0, "e": 0, "f": 0, "g": 0})
@@ -2761,7 +2565,6 @@ class TestValkeyCommands:
         assert r.zrange("a", 0, 1, desc=True) == [b"a5", b"a4"]
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_zrangestore(self, r):
         r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert r.zrangestore("b", "a", 0, 1)
@@ -2784,7 +2587,6 @@ class TestValkeyCommands:
         assert r.zrangestore("b", "a", "[a2", "(a3", bylex=True, offset=0, num=1)
         assert r.zrange("b", 0, -1) == [b"a2"]
 
-    @skip_if_server_version_lt("2.8.9")
     def test_zrangebylex(self, r):
         r.zadd("a", {"a": 0, "b": 0, "c": 0, "d": 0, "e": 0, "f": 0, "g": 0})
         assert r.zrangebylex("a", "-", "[c") == [b"a", b"b", b"c"]
@@ -2793,7 +2595,6 @@ class TestValkeyCommands:
         assert r.zrangebylex("a", "[f", "+") == [b"f", b"g"]
         assert r.zrangebylex("a", "-", "+", start=3, num=2) == [b"d", b"e"]
 
-    @skip_if_server_version_lt("2.9.9")
     def test_zrevrangebylex(self, r):
         r.zadd("a", {"a": 0, "b": 0, "c": 0, "d": 0, "e": 0, "f": 0, "g": 0})
         assert r.zrevrangebylex("a", "[c", "-") == [b"c", b"b", b"a"]
@@ -2827,7 +2628,6 @@ class TestValkeyCommands:
         assert r.zrank("a", "a2") == 1
         assert r.zrank("a", "a6") is None
 
-    @skip_if_server_version_lt("7.2.0")
     def test_zrank_withscore(self, r: valkey.Valkey):
         r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
         assert r.zrank("a", "a1") == 0
@@ -2848,7 +2648,6 @@ class TestValkeyCommands:
         assert r.zrem("a", "a1", "a2") == 2
         assert r.zrange("a", 0, 5) == [b"a3"]
 
-    @skip_if_server_version_lt("2.8.9")
     def test_zremrangebylex(self, r):
         r.zadd("a", {"a": 0, "b": 0, "c": 0, "d": 0, "e": 0, "f": 0, "g": 0})
         assert r.zremrangebylex("a", "-", "[c") == 3
@@ -2922,7 +2721,6 @@ class TestValkeyCommands:
         assert r.zrevrank("a", "a2") == 3
         assert r.zrevrank("a", "a6") is None
 
-    @skip_if_server_version_lt("7.2.0")
     def test_zrevrank_withscore(self, r):
         r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
         assert r.zrevrank("a", "a1") == 4
@@ -2940,7 +2738,6 @@ class TestValkeyCommands:
         assert r.zscore("a", "a4") is None
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_zunion(self, r):
         r.zadd("a", {"a1": 1, "a2": 1, "a3": 1})
         r.zadd("b", {"a1": 2, "a2": 2, "a3": 2})
@@ -3027,7 +2824,6 @@ class TestValkeyCommands:
             [[b"a2", 5], [b"a4", 12], [b"a3", 20], [b"a1", 23]],
         )
 
-    @skip_if_server_version_lt("6.1.240")
     def test_zmscore(self, r):
         with pytest.raises(exceptions.DataError):
             r.zmscore("invalid_key", [])
@@ -3038,7 +2834,6 @@ class TestValkeyCommands:
         assert r.zmscore("a", ["a1", "a2", "a3", "a4"]) == [1.0, 2.0, 3.5, None]
 
     # HYPERLOGLOG TESTS
-    @skip_if_server_version_lt("2.8.9")
     def test_pfadd(self, r):
         members = {b"1", b"2", b"3"}
         assert r.pfadd("a", *members) == 1
@@ -3046,7 +2841,6 @@ class TestValkeyCommands:
         assert r.pfcount("a") == len(members)
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.8.9")
     def test_pfcount(self, r):
         members = {b"1", b"2", b"3"}
         r.pfadd("a", *members)
@@ -3057,7 +2851,6 @@ class TestValkeyCommands:
         assert r.pfcount("a", "b") == len(members_b.union(members))
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.8.9")
     def test_pfmerge(self, r):
         mema = {b"1", b"2", b"3"}
         memb = {b"2", b"3", b"4"}
@@ -3140,7 +2933,6 @@ class TestValkeyCommands:
         assert r.hincrby("a", "1", amount=2) == 3
         assert r.hincrby("a", "1", amount=-2) == 1
 
-    @skip_if_server_version_lt("2.6.0")
     def test_hincrbyfloat(self, r):
         assert r.hincrbyfloat("a", "1") == 1.0
         assert r.hincrbyfloat("a", "1") == 2.0
@@ -3186,7 +2978,6 @@ class TestValkeyCommands:
         remote_vals = r.hvals("a")
         assert sorted(local_vals) == sorted(remote_vals)
 
-    @skip_if_server_version_lt("3.2.0")
     def test_hstrlen(self, r):
         r.hset("a", mapping={"1": "22", "2": "333"})
         assert r.hstrlen("a", "1") == 2
@@ -3333,7 +3124,6 @@ class TestValkeyCommands:
         assert num == 4
         assert r.lrange("sorted", 0, 10) == [b"vodka", b"milk", b"gin", b"apple juice"]
 
-    @skip_if_server_version_lt("7.0.0")
     @pytest.mark.onlynoncluster
     def test_sort_ro(self, r):
         r["score:1"] = 8
@@ -3412,24 +3202,15 @@ class TestValkeyCommands:
         assert isinstance(mock_cluster_resp_slaves.cluster("slaves", "nodeid"), dict)
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("3.0.0")
-    @skip_if_server_version_gte("7.0.0")
-    def test_readwrite(self, r):
-        assert r.readwrite()
-
-    @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("3.0.0")
     def test_readonly_invalid_cluster_state(self, r):
         with pytest.raises(exceptions.ValkeyError):
             r.readonly()
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("3.0.0")
     def test_readonly(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.readonly() is True
 
     # GEO COMMANDS
-    @skip_if_server_version_lt("3.2.0")
     def test_geoadd(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3439,7 +3220,6 @@ class TestValkeyCommands:
         assert r.geoadd("barcelona", values) == 2
         assert r.zcard("barcelona") == 2
 
-    @skip_if_server_version_lt("6.2.0")
     def test_geoadd_nx(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3455,7 +3235,6 @@ class TestValkeyCommands:
         assert r.geoadd("a", values, nx=True) == 1
         assert r.zrange("a", 0, -1) == [b"place3", b"place2", b"place1"]
 
-    @skip_if_server_version_lt("6.2.0")
     def test_geoadd_xx(self, r):
         values = (2.1909389952632, 41.433791470673, "place1")
         assert r.geoadd("a", values) == 1
@@ -3467,7 +3246,6 @@ class TestValkeyCommands:
         assert r.geoadd("a", values, xx=True) == 0
         assert r.zrange("a", 0, -1) == [b"place1"]
 
-    @skip_if_server_version_lt("6.2.0")
     def test_geoadd_ch(self, r):
         values = (2.1909389952632, 41.433791470673, "place1")
         assert r.geoadd("a", values) == 1
@@ -3479,12 +3257,10 @@ class TestValkeyCommands:
         assert r.geoadd("a", values, ch=True) == 2
         assert r.zrange("a", 0, -1) == [b"place1", b"place2"]
 
-    @skip_if_server_version_lt("3.2.0")
     def test_geoadd_invalid_params(self, r):
         with pytest.raises(exceptions.ValkeyError):
             r.geoadd("barcelona", (1, 2))
 
-    @skip_if_server_version_lt("3.2.0")
     def test_geodist(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3494,7 +3270,6 @@ class TestValkeyCommands:
         assert r.geoadd("barcelona", values) == 2
         assert r.geodist("barcelona", "place1", "place2") == 3067.4157
 
-    @skip_if_server_version_lt("3.2.0")
     def test_geodist_units(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3504,18 +3279,15 @@ class TestValkeyCommands:
         r.geoadd("barcelona", values)
         assert r.geodist("barcelona", "place1", "place2", "km") == 3.0674
 
-    @skip_if_server_version_lt("3.2.0")
     def test_geodist_missing_one_member(self, r):
         values = (2.1909389952632, 41.433791470673, "place1")
         r.geoadd("barcelona", values)
         assert r.geodist("barcelona", "place1", "missing_member", "km") is None
 
-    @skip_if_server_version_lt("3.2.0")
     def test_geodist_invalid_units(self, r):
         with pytest.raises(exceptions.ValkeyError):
             assert r.geodist("x", "y", "z", "inches")
 
-    @skip_if_server_version_lt("3.2.0")
     def test_geohash(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3531,7 +3303,6 @@ class TestValkeyCommands:
         )
 
     @skip_unless_arch_bits(64)
-    @skip_if_server_version_lt("3.2.0")
     def test_geopos(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3553,16 +3324,9 @@ class TestValkeyCommands:
             ],
         )
 
-    @skip_if_server_version_lt("4.0.0")
     def test_geopos_no_value(self, r):
         assert r.geopos("barcelona", "place1", "place2") == [None, None]
 
-    @skip_if_server_version_lt("3.2.0")
-    @skip_if_server_version_gte("4.0.0")
-    def test_old_geopos_no_value(self, r):
-        assert r.geopos("barcelona", "place1", "place2") == []
-
-    @skip_if_server_version_lt("6.2.0")
     def test_geosearch(self, r):
         values = (
             (2.1909389952632, 41.433791470673, "place1")
@@ -3593,7 +3357,6 @@ class TestValkeyCommands:
         )[0] in [b"place1", b"place3", b"\x80place2"]
 
     @skip_unless_arch_bits(64)
-    @skip_if_server_version_lt("6.2.0")
     def test_geosearch_member(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3630,7 +3393,6 @@ class TestValkeyCommands:
             ],
         ]
 
-    @skip_if_server_version_lt("6.2.0")
     def test_geosearch_sort(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3646,7 +3408,6 @@ class TestValkeyCommands:
         ) == [b"place2", b"place1"]
 
     @skip_unless_arch_bits(64)
-    @skip_if_server_version_lt("6.2.0")
     def test_geosearch_with(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3709,7 +3470,6 @@ class TestValkeyCommands:
             == []
         )
 
-    @skip_if_server_version_lt("6.2.0")
     def test_geosearch_negative(self, r):
         # not specifying member nor longitude and latitude
         with pytest.raises(exceptions.DataError):
@@ -3752,7 +3512,6 @@ class TestValkeyCommands:
             assert r.geosearch("barcelona", member="place3", radius=100, any=1)
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("6.2.0")
     def test_geosearchstore(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3772,7 +3531,6 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_unless_arch_bits(64)
-    @skip_if_server_version_lt("6.2.0")
     def test_geosearchstore_dist(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3792,13 +3550,11 @@ class TestValkeyCommands:
         # instead of save the geo score, the distance is saved.
         assert r.zscore("places_barcelona", "place1") == 88.05060698409301
 
-    @skip_if_server_version_lt("3.2.0")
     def test_georadius_Issue2609(self, r):
         # test for issue #2609 (Geo search functions don't work with execute_command)
         r.geoadd(name="my-key", values=[1, 2, "data"])
         assert r.execute_command("GEORADIUS", "my-key", 1, 2, 400, "m") == [b"data"]
 
-    @skip_if_server_version_lt("3.2.0")
     def test_georadius(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3810,7 +3566,6 @@ class TestValkeyCommands:
         assert r.georadius("barcelona", 2.191, 41.433, 1000) == [b"place1"]
         assert r.georadius("barcelona", 2.187, 41.406, 1000) == [b"\x80place2"]
 
-    @skip_if_server_version_lt("3.2.0")
     def test_georadius_no_values(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3821,7 +3576,6 @@ class TestValkeyCommands:
         r.geoadd("barcelona", values)
         assert r.georadius("barcelona", 1, 2, 1000) == []
 
-    @skip_if_server_version_lt("3.2.0")
     def test_georadius_units(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3833,7 +3587,6 @@ class TestValkeyCommands:
         assert r.georadius("barcelona", 2.191, 41.433, 1, unit="km") == [b"place1"]
 
     @skip_unless_arch_bits(64)
-    @skip_if_server_version_lt("3.2.0")
     def test_georadius_with(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3888,7 +3641,6 @@ class TestValkeyCommands:
             == []
         )
 
-    @skip_if_server_version_lt("6.2.0")
     def test_georadius_count(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3902,7 +3654,6 @@ class TestValkeyCommands:
             b"place2"
         ]
 
-    @skip_if_server_version_lt("3.2.0")
     def test_georadius_sort(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3921,7 +3672,6 @@ class TestValkeyCommands:
         ]
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("3.2.0")
     def test_georadius_store(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3935,7 +3685,6 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_unless_arch_bits(64)
-    @skip_if_server_version_lt("3.2.0")
     def test_georadius_store_dist(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3949,7 +3698,6 @@ class TestValkeyCommands:
         assert r.zscore("places_barcelona", "place1") == 88.05060698409301
 
     @skip_unless_arch_bits(64)
-    @skip_if_server_version_lt("3.2.0")
     def test_georadiusmember(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3981,7 +3729,6 @@ class TestValkeyCommands:
             ],
         ]
 
-    @skip_if_server_version_lt("6.2.0")
     def test_georadiusmember_count(self, r):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3993,7 +3740,6 @@ class TestValkeyCommands:
             b"\x80place2"
         ]
 
-    @skip_if_server_version_lt("5.0.0")
     def test_xack(self, r):
         stream = "stream"
         group = "group"
@@ -4014,7 +3760,6 @@ class TestValkeyCommands:
         assert r.xack(stream, group, m1) == 1
         assert r.xack(stream, group, m2, m3) == 2
 
-    @skip_if_server_version_lt("5.0.0")
     def test_xadd(self, r):
         stream = "stream"
         message_id = r.xadd(stream, {"foo": "bar"})
@@ -4028,7 +3773,6 @@ class TestValkeyCommands:
         r.xadd(stream, {"foo": "bar"}, maxlen=2, approximate=False)
         assert r.xlen(stream) == 2
 
-    @skip_if_server_version_lt("6.2.0")
     def test_xadd_nomkstream(self, r):
         # nomkstream option
         stream = "stream"
@@ -4038,7 +3782,6 @@ class TestValkeyCommands:
         r.xadd(stream, {"some": "other"}, nomkstream=True)
         assert r.xlen(stream) == 3
 
-    @skip_if_server_version_lt("6.2.0")
     def test_xadd_minlen_and_limit(self, r):
         stream = "stream"
 
@@ -4084,14 +3827,12 @@ class TestValkeyCommands:
         r.xadd(stream, {"foo": "bar"})
         assert r.xadd(stream, {"foo": "bar"}, approximate=True, minid=m3)
 
-    @skip_if_server_version_lt("7.0.0")
     def test_xadd_explicit_ms(self, r: valkey.Valkey):
         stream = "stream"
         message_id = r.xadd(stream, {"foo": "bar"}, "9999999999999999999-*")
         ms = message_id[: message_id.index(b"-")]
         assert ms == b"9999999999999999999"
 
-    @skip_if_server_version_lt("7.0.0")
     def test_xautoclaim(self, r):
         stream = "stream"
         group = "group"
@@ -4124,7 +3865,6 @@ class TestValkeyCommands:
             stream, group, consumer1, min_idle_time=0, start_id=message_id2, justid=True
         ) == [message_id2]
 
-    @skip_if_server_version_lt("6.2.0")
     def test_xautoclaim_negative(self, r):
         stream = "stream"
         group = "group"
@@ -4136,7 +3876,6 @@ class TestValkeyCommands:
         with pytest.raises(valkey.DataError):
             r.xautoclaim(stream, group, consumer, min_idle_time=0, count=-1)
 
-    @skip_if_server_version_lt("5.0.0")
     def test_xclaim(self, r):
         stream = "stream"
         group = "group"
@@ -4173,7 +3912,6 @@ class TestValkeyCommands:
             justid=True,
         ) == [message_id]
 
-    @skip_if_server_version_lt("7.0.0")
     def test_xclaim_trimmed(self, r):
         # xclaim should not raise an exception if the item is not there
         stream = "stream"
@@ -4197,7 +3935,6 @@ class TestValkeyCommands:
         assert len(item) == 1
         assert item[0][0] == sid2
 
-    @skip_if_server_version_lt("5.0.0")
     def test_xdel(self, r):
         stream = "stream"
 
@@ -4212,7 +3949,6 @@ class TestValkeyCommands:
         assert r.xdel(stream, m1) == 1
         assert r.xdel(stream, m2, m3) == 2
 
-    @skip_if_server_version_lt("7.0.0")
     def test_xgroup_create(self, r):
         # tests xgroup_create and xinfo_groups
         stream = "stream"
@@ -4235,7 +3971,6 @@ class TestValkeyCommands:
         ]
         assert r.xinfo_groups(stream) == expected
 
-    @skip_if_server_version_lt("7.0.0")
     def test_xgroup_create_mkstream(self, r):
         # tests xgroup_create and xinfo_groups
         stream = "stream"
@@ -4261,7 +3996,6 @@ class TestValkeyCommands:
         ]
         assert r.xinfo_groups(stream) == expected
 
-    @skip_if_server_version_lt("7.0.0")
     def test_xgroup_create_entriesread(self, r: valkey.Valkey):
         stream = "stream"
         group = "group"
@@ -4283,7 +4017,6 @@ class TestValkeyCommands:
         ]
         assert r.xinfo_groups(stream) == expected
 
-    @skip_if_server_version_lt("5.0.0")
     def test_xgroup_delconsumer(self, r):
         stream = "stream"
         group = "group"
@@ -4301,7 +4034,6 @@ class TestValkeyCommands:
         # deleting the consumer should return 2 pending messages
         assert r.xgroup_delconsumer(stream, group, consumer) == 2
 
-    @skip_if_server_version_lt("6.2.0")
     def test_xgroup_createconsumer(self, r):
         stream = "stream"
         group = "group"
@@ -4317,7 +4049,6 @@ class TestValkeyCommands:
         # deleting the consumer should return 2 pending messages
         assert r.xgroup_delconsumer(stream, group, consumer) == 2
 
-    @skip_if_server_version_lt("5.0.0")
     def test_xgroup_destroy(self, r):
         stream = "stream"
         group = "group"
@@ -4329,7 +4060,6 @@ class TestValkeyCommands:
         r.xgroup_create(stream, group, 0)
         assert r.xgroup_destroy(stream, group)
 
-    @skip_if_server_version_lt("7.0.0")
     def test_xgroup_setid(self, r):
         stream = "stream"
         group = "group"
@@ -4350,7 +4080,6 @@ class TestValkeyCommands:
         ]
         assert r.xinfo_groups(stream) == expected
 
-    @skip_if_server_version_lt("7.2.0")
     def test_xinfo_consumers(self, r):
         stream = "stream"
         group = "group"
@@ -4377,7 +4106,6 @@ class TestValkeyCommands:
         assert isinstance(info[1].pop("inactive"), int)
         assert info == expected
 
-    @skip_if_server_version_lt("7.0.0")
     def test_xinfo_stream(self, r):
         stream = "stream"
         m1 = r.xadd(stream, {"foo": "bar"})
@@ -4391,7 +4119,6 @@ class TestValkeyCommands:
         assert info["entries-added"] == 2
         assert info["recorded-first-entry-id"] == m1
 
-    @skip_if_server_version_lt("6.0.0")
     def test_xinfo_stream_full(self, r):
         stream = "stream"
         group = "group"
@@ -4408,7 +4135,6 @@ class TestValkeyCommands:
         )
         assert len(info["groups"]) == 1
 
-    @skip_if_server_version_lt("5.0.0")
     def test_xlen(self, r):
         stream = "stream"
         assert r.xlen(stream) == 0
@@ -4416,7 +4142,6 @@ class TestValkeyCommands:
         r.xadd(stream, {"foo": "bar"})
         assert r.xlen(stream) == 2
 
-    @skip_if_server_version_lt("5.0.0")
     def test_xpending(self, r):
         stream = "stream"
         group = "group"
@@ -4445,7 +4170,6 @@ class TestValkeyCommands:
         }
         assert r.xpending(stream, group) == expected
 
-    @skip_if_server_version_lt("5.0.0")
     def test_xpending_range(self, r):
         stream = "stream"
         group = "group"
@@ -4476,7 +4200,6 @@ class TestValkeyCommands:
         assert response[0]["message_id"] == m1
         assert response[0]["consumer"] == consumer1.encode()
 
-    @skip_if_server_version_lt("6.2.0")
     def test_xpending_range_idle(self, r):
         stream = "stream"
         group = "group"
@@ -4517,7 +4240,6 @@ class TestValkeyCommands:
                 stream, group, min=None, max=None, count=None, consumername=0
             )
 
-    @skip_if_server_version_lt("5.0.0")
     def test_xrange(self, r):
         stream = "stream"
         m1 = r.xadd(stream, {"foo": "bar"})
@@ -4540,7 +4262,6 @@ class TestValkeyCommands:
         results = r.xrange(stream, max=m2, count=1)
         assert get_ids(results) == [m1]
 
-    @skip_if_server_version_lt("5.0.0")
     def test_xread(self, r):
         stream = "stream"
         m1 = r.xadd(stream, {"foo": "bar"})
@@ -4580,7 +4301,6 @@ class TestValkeyCommands:
         # xread starting at the last message returns an empty list
         assert_resp_response(r, r.xread(streams={stream: m2}), [], {})
 
-    @skip_if_server_version_lt("5.0.0")
     def test_xreadgroup(self, r):
         stream = "stream"
         group = "group"
@@ -4654,7 +4374,6 @@ class TestValkeyCommands:
             {stream_name: [expected_entries]},
         )
 
-    @skip_if_server_version_lt("5.0.0")
     def test_xrevrange(self, r):
         stream = "stream"
         m1 = r.xadd(stream, {"foo": "bar"})
@@ -4677,7 +4396,6 @@ class TestValkeyCommands:
         results = r.xrevrange(stream, min=m2, count=1)
         assert get_ids(results) == [m4]
 
-    @skip_if_server_version_lt("5.0.0")
     def test_xtrim(self, r):
         stream = "stream"
 
@@ -4696,7 +4414,6 @@ class TestValkeyCommands:
         # 1 message is trimmed
         assert r.xtrim(stream, 3, approximate=False) == 1
 
-    @skip_if_server_version_lt("6.2.4")
     def test_xtrim_minlen_and_length_args(self, r):
         stream = "stream"
 
@@ -4805,7 +4522,6 @@ class TestValkeyCommands:
         )
         assert resp == [0, None, 255]
 
-    @skip_if_server_version_lt("6.0.0")
     def test_bitfield_ro(self, r: valkey.Valkey):
         bf = r.bitfield("a")
         resp = bf.set("u8", 8, 255).execute()
@@ -4818,21 +4534,17 @@ class TestValkeyCommands:
         resp = r.bitfield_ro("a", "u8", 0, items)
         assert resp == [0, 15, 15, 14]
 
-    @skip_if_server_version_lt("4.0.0")
     def test_memory_help(self, r):
         with pytest.raises(NotImplementedError):
             r.memory_help()
 
-    @skip_if_server_version_lt("4.0.0")
     def test_memory_doctor(self, r):
         with pytest.raises(NotImplementedError):
             r.memory_doctor()
 
-    @skip_if_server_version_lt("4.0.0")
     def test_memory_malloc_stats(self, r):
         assert r.memory_malloc_stats()
 
-    @skip_if_server_version_lt("4.0.0")
     def test_memory_stats(self, r):
         # put a key into the current db to make sure that "db.<current-db>"
         # has data
@@ -4844,12 +4556,10 @@ class TestValkeyCommands:
             if key.startswith("db."):
                 assert isinstance(value, dict)
 
-    @skip_if_server_version_lt("4.0.0")
     def test_memory_usage(self, r):
         r.set("foo", "bar")
         assert isinstance(r.memory_usage("foo"), int)
 
-    @skip_if_server_version_lt("7.0.0")
     def test_latency_histogram_not_implemented(self, r: valkey.Valkey):
         with pytest.raises(NotImplementedError):
             r.latency_histogram()
@@ -4871,24 +4581,20 @@ class TestValkeyCommands:
     def test_latency_reset(self, r: valkey.Valkey):
         assert r.latency_reset() == 0
 
-    @skip_if_server_version_lt("4.0.0")
     def test_module_list(self, r):
         assert isinstance(r.module_list(), list)
         for x in r.module_list():
             assert isinstance(x, dict)
 
-    @skip_if_server_version_lt("2.8.13")
     def test_command_count(self, r):
         res = r.command_count()
         assert isinstance(res, int)
         assert res >= 100
 
-    @skip_if_server_version_lt("7.0.0")
     def test_command_docs(self, r):
         with pytest.raises(NotImplementedError):
             r.command_docs("set")
 
-    @skip_if_server_version_lt("7.0.0")
     def test_command_list(self, r: valkey.Valkey):
         assert len(r.command_list()) > 300
         assert len(r.command_list(module="fakemod")) == 0
@@ -4898,7 +4604,6 @@ class TestValkeyCommands:
             r.command_list(category="list", pattern="l*")
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.8.13")
     def test_command_getkeys(self, r):
         res = r.command_getkeys("MSET", "a", "b", "c", "d", "e", "f")
         assert_resp_response(r, res, ["a", "c", "e"], [b"a", b"c", b"e"])
@@ -4918,7 +4623,6 @@ class TestValkeyCommands:
             r, res, ["key1", "key2", "key3"], [b"key1", b"key2", b"key3"]
         )
 
-    @skip_if_server_version_lt("2.8.13")
     def test_command(self, r):
         res = r.command()
         assert len(res) >= 100
@@ -4927,7 +4631,6 @@ class TestValkeyCommands:
         assert "get" in cmds
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("7.0.0")
     def test_command_getkeysandflags(self, r: valkey.Valkey):
         assert_resp_response(
             r,
@@ -4943,7 +4646,6 @@ class TestValkeyCommands:
         )
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("4.0.0")
     def test_module(self, r):
         with pytest.raises(valkey.exceptions.ModuleError) as excinfo:
             r.module_load("/some/fake/path")
@@ -4954,7 +4656,6 @@ class TestValkeyCommands:
             assert "Error loading the extension." in str(excinfo.value)
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("7.0.0")
     def test_module_loadex(self, r: valkey.Valkey):
         with pytest.raises(valkey.exceptions.ModuleError) as excinfo:
             r.module_loadex("/some/fake/path")
@@ -4964,7 +4665,6 @@ class TestValkeyCommands:
             r.module_loadex("/some/fake/path", ["name", "value"], ["arg1", "arg2"])
             assert "Error loading the extension." in str(excinfo.value)
 
-    @skip_if_server_version_lt("2.6.0")
     def test_restore(self, r):
         # standard restore
         key = "foo"
@@ -4989,7 +4689,6 @@ class TestValkeyCommands:
         assert r.restore(key2, 0, dumpdata)
         assert r.ttl(key2) == -1
 
-    @skip_if_server_version_lt("5.0.0")
     def test_restore_idletime(self, r):
         key = "yayakey"
         r.set(key, "blee!")
@@ -4998,7 +4697,6 @@ class TestValkeyCommands:
         assert r.restore(key, 0, dumpdata, idletime=5)
         assert r.get(key) == b"blee!"
 
-    @skip_if_server_version_lt("5.0.0")
     def test_restore_frequency(self, r):
         key = "yayakey"
         r.set(key, "blee!")
@@ -5008,7 +4706,6 @@ class TestValkeyCommands:
         assert r.get(key) == b"blee!"
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("5.0.0")
     def test_replicaof(self, r):
         with pytest.raises(valkey.ResponseError):
             assert r.replicaof("NO ONE")
@@ -5019,7 +4716,6 @@ class TestValkeyCommands:
         r.execute_command("SHUTDOWN", "NOSAVE")
         r.execute_command.assert_called_once_with("SHUTDOWN", "NOSAVE")
 
-    @skip_if_server_version_lt("7.0.0")
     def test_shutdown_with_params(self, r: valkey.Valkey):
         r.execute_command = mock.MagicMock()
         r.execute_command("SHUTDOWN", "SAVE", "NOW", "FORCE")
@@ -5029,7 +4725,6 @@ class TestValkeyCommands:
 
     @pytest.mark.replica
     @pytest.mark.xfail(strict=False)
-    @skip_if_server_version_lt("2.8.0")
     def test_sync(self, r):
         r.flushdb()
         time.sleep(1)
@@ -5038,7 +4733,6 @@ class TestValkeyCommands:
         assert b"VALKEY" in res
 
     @pytest.mark.replica
-    @skip_if_server_version_lt("2.8.0")
     def test_psync(self, r):
         r2 = valkey.Valkey(port=6380, decode_responses=False)
         res = r2.psync(r2.client_id(), 1)

@@ -317,9 +317,7 @@ class SearchCommands:
 
         return self.execute_command(*args)
 
-    @deprecated_function(
-        version="2.0.0", reason="deprecated since redisearch 2.0, call hset instead"
-    )
+    @deprecated_function(reason="deprecated since redisearch 2.0, call hset instead")
     def add_document(
         self,
         doc_id: str,
@@ -373,9 +371,7 @@ class SearchCommands:
             **fields,
         )
 
-    @deprecated_function(
-        version="2.0.0", reason="deprecated since valkeyearch 2.0, call hset instead"
-    )
+    @deprecated_function(reason="deprecated since valkeyearch 2.0, call hset instead")
     def add_document_hash(self, doc_id, score=1.0, language=None, replace=False):
         """
         Add a hash document to the index.

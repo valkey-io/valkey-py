@@ -18,7 +18,6 @@ from valkey.exceptions import ConnectionError, InvalidResponse, TimeoutError
 from valkey.retry import Retry
 from valkey.utils import HIREDIS_AVAILABLE
 
-from .conftest import skip_if_server_version_lt
 from .mocks import MockSocket
 
 
@@ -33,7 +32,6 @@ def test_invalid_response(r):
     assert str(cm.value) == f"Protocol Error: {raw!r}"
 
 
-@skip_if_server_version_lt("4.0.0")
 @pytest.mark.valkeymod
 def test_loading_external_modules(r):
     def inner():

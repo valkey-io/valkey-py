@@ -1,6 +1,5 @@
 import pytest
 import pytest_asyncio
-from tests.conftest import skip_if_server_version_lt
 from valkey import exceptions
 
 multiply_script = """
@@ -36,7 +35,6 @@ class TestScripting:
         assert await r.eval(multiply_script, 1, "a", 3) == 6
 
     @pytest.mark.asyncio(forbid_global_loop=True)
-    @skip_if_server_version_lt("6.2.0")
     async def test_script_flush(self, r):
         await r.set("a", 2)
         await r.script_load(multiply_script)

@@ -15,7 +15,7 @@ else:
 import pytest
 import pytest_asyncio
 import valkey.asyncio as valkey
-from tests.conftest import get_protocol_version, skip_if_server_version_lt
+from tests.conftest import get_protocol_version
 from valkey.exceptions import ConnectionError
 from valkey.typing import EncodableT
 from valkey.utils import HIREDIS_AVAILABLE
@@ -608,7 +608,6 @@ class TestPubSubValkeyDown:
 @pytest.mark.onlynoncluster
 class TestPubSubSubcommands:
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.8.0")
     async def test_pubsub_channels(self, r: valkey.Valkey, pubsub):
         p = pubsub
         await p.subscribe("foo", "bar", "baz", "quux")
@@ -618,7 +617,6 @@ class TestPubSubSubcommands:
         assert all([channel in await r.pubsub_channels() for channel in expected])
 
     @pytest.mark.onlynoncluster
-    @skip_if_server_version_lt("2.8.0")
     async def test_pubsub_numsub(self, r: valkey.Valkey):
         p1 = r.pubsub()
         await p1.subscribe("foo", "bar", "baz")
@@ -638,7 +636,6 @@ class TestPubSubSubcommands:
         await p2.aclose()
         await p3.aclose()
 
-    @skip_if_server_version_lt("2.8.0")
     async def test_pubsub_numpat(self, r: valkey.Valkey):
         p = r.pubsub()
         await p.psubscribe("*oo", "*ar", "b*z")
@@ -650,7 +647,6 @@ class TestPubSubSubcommands:
 
 @pytest.mark.onlynoncluster
 class TestPubSubPings:
-    @skip_if_server_version_lt("3.0.0")
     async def test_send_pubsub_ping(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe("foo")
@@ -660,7 +656,6 @@ class TestPubSubPings:
         )
         await p.aclose()
 
-    @skip_if_server_version_lt("3.0.0")
     async def test_send_pubsub_ping_message(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe("foo")
@@ -673,7 +668,6 @@ class TestPubSubPings:
 
 @pytest.mark.onlynoncluster
 class TestPubSubConnectionKilled:
-    @skip_if_server_version_lt("3.0.0")
     async def test_connection_error_raised_when_connection_dies(
         self, r: valkey.Valkey, pubsub
     ):

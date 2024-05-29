@@ -1,6 +1,5 @@
 import pytest
 import valkey
-from tests.conftest import skip_if_server_version_lt
 from valkey import exceptions
 from valkey.commands.core import Script
 
@@ -64,7 +63,6 @@ class TestScripting:
         # 2 * 3 == 6
         assert r.eval(multiply_script, 1, "a", 3) == 6
 
-    @skip_if_server_version_lt("7.0.0")
     def test_eval_ro(self, r):
         r.set("a", "b")
         assert r.eval_ro("return redis.call('GET', KEYS[1])", 1, "a") == b"b"
@@ -117,7 +115,6 @@ class TestScripting:
         with pytest.raises(exceptions.ValkeyClusterException):
             r.eval(script, 2, "A{foo}", "B{bar}")
 
-    @skip_if_server_version_lt("6.2.0")
     def test_script_flush_620(self, r):
         r.set("a", 2)
         r.script_load(multiply_script)
@@ -152,7 +149,6 @@ class TestScripting:
         # 2 * 3 == 6
         assert r.evalsha(sha, 1, "a", 3) == 6
 
-    @skip_if_server_version_lt("7.0.0")
     def test_evalsha_ro(self, r):
         r.set("a", "b")
         get_sha = r.script_load("return redis.call('GET', KEYS[1])")

@@ -1,7 +1,7 @@
 import pytest
 from valkey._parsers import CommandsParser
 
-from .conftest import assert_resp_response, skip_if_server_version_lt
+from .conftest import assert_resp_response
 
 
 class TestCommandsParser:
@@ -85,7 +85,6 @@ class TestCommandsParser:
         )
 
     # A bug in redis<7.0 causes this to fail: https://github.com/redis/redis/issues/9493
-    @skip_if_server_version_lt("7.0.0")
     def test_get_eval_keys_with_0_keys(self, r):
         commands_parser = CommandsParser(r)
         args = ["EVAL", "return {ARGV[1],ARGV[2]}", 0, "key1", "key2"]
