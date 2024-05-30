@@ -182,7 +182,7 @@ Please try at least versions of Docker.
 
 ### Security Vulnerabilities
 
-Reporting a vulnerability? See [SECURITY.md](https://github.com/valkey-io/valkey-py/blob/main/SECURITY.md).
+Reporting a vulnerability? See SECURITY.md.
 
 ### Everything Else
 
