@@ -3855,8 +3855,8 @@ class StreamCommands(CommandsProtocol):
 
         name: name of the stream.
         groupname: name of the consumer group.
-        idle: filter entries by their idle-time, given
-        in milliseconds (optional).
+        idle: available from  version 6.2. filter entries by their
+        idle-time, given in milliseconds (optional).
         min: minimum stream ID.
         max: maximum stream ID.
         count: number of messages to return
@@ -5364,9 +5364,12 @@ class ScriptCommands(CommandsProtocol):
         For more information see  https://valkey.io/commands/script-flush
         """
 
+        # Server pre 6 had no sync_type.
         if sync_type not in ["SYNC", "ASYNC", None]:
             raise DataError(
-                "SCRIPT FLUSH defaults to SYNC in valkey, or accepts SYNC/ASYNC."
+                "SCRIPT FLUSH defaults to SYNC in server version > 6.2, or "
+                "accepts SYNC/ASYNC. For older versions, "
+                "of valkey leave as None."
             )
         if sync_type is None:
             pieces = []
