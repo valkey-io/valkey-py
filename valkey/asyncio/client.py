@@ -171,7 +171,8 @@ class Valkey(
         if auto_close_connection_pool is not None:
             warnings.warn(
                 DeprecationWarning(
-                    '"auto_close_connection_pool" is deprecated. '
+                    '"auto_close_connection_pool" is deprecated '
+                    "since version 5.0.1. "
                     "Please create a ConnectionPool explicitly and "
                     "provide to the Valkey() constructor instead."
                 )
@@ -258,7 +259,8 @@ class Valkey(
         if auto_close_connection_pool is not None:
             warnings.warn(
                 DeprecationWarning(
-                    '"auto_close_connection_pool" is deprecated. '
+                    '"auto_close_connection_pool" is deprecated '
+                    "since version 5.0.1. "
                     "Please create a ConnectionPool explicitly and "
                     "provide to the Valkey() constructor instead."
                 )
@@ -589,7 +591,7 @@ class Valkey(
         ):
             await self.connection_pool.disconnect()
 
-    @deprecated_function(reason="Use aclose() instead", name="close")
+    @deprecated_function(version="5.0.1", reason="Use aclose() instead", name="close")
     async def close(self, close_connection_pool: Optional[bool] = None) -> None:
         """
         Alias for aclose(), for backwards compatibility
@@ -853,12 +855,12 @@ class PubSub:
             self.patterns = {}
             self.pending_unsubscribe_patterns = set()
 
-    @deprecated_function(reason="Use aclose() instead", name="close")
+    @deprecated_function(version="5.0.1", reason="Use aclose() instead", name="close")
     async def close(self) -> None:
         """Alias for aclose(), for backwards compatibility"""
         await self.aclose()
 
-    @deprecated_function(reason="Use aclose() instead", name="reset")
+    @deprecated_function(version="5.0.1", reason="Use aclose() instead", name="reset")
     async def reset(self) -> None:
         """Alias for aclose(), for backwards compatibility"""
         await self.aclose()

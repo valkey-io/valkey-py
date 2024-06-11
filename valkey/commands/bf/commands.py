@@ -332,7 +332,7 @@ class TOPKCommands:
         """  # noqa
         return self.execute_command(TOPK_QUERY, key, *items)
 
-    @deprecated_function(reason="deprecated since valkeybloom 2.4.0")
+    @deprecated_function(version="4.4.0", reason="deprecated since valkeybloom 2.4.0")
     def count(self, key, *items):
         """
         Return count for one `item` or more from `key`.
