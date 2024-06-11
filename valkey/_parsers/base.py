@@ -35,11 +35,14 @@ MODULE_EXPORTS_DATA_TYPES_ERROR = (
     "types, can't unload"
 )
 # user send an AUTH cmd to a server without authorization configured
-NO_AUTH_SET_ERROR = (
+NO_AUTH_SET_ERROR = {
+    # Server >= 6.0
     "AUTH <password> called without any password "
     "configured for the default user. Are you sure "
-    "your configuration is correct?"
-)
+    "your configuration is correct?": AuthenticationError,
+    # Server < 6.0
+    "Client sent AUTH, but no password is set": AuthenticationError,
+}
 
 
 class BaseParser(ABC):
@@ -59,7 +62,7 @@ class BaseParser(ABC):
             MODULE_EXPORTS_DATA_TYPES_ERROR: ModuleError,
             NO_SUCH_MODULE_ERROR: ModuleError,
             MODULE_UNLOAD_NOT_POSSIBLE_ERROR: ModuleError,
-            NO_AUTH_SET_ERROR: AuthenticationError,
+            **NO_AUTH_SET_ERROR,
         },
         "OOM": OutOfMemoryError,
         "WRONGPASS": AuthenticationError,
