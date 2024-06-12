@@ -51,7 +51,7 @@ The above code connects to localhost on port 6379, sets a value in Redis, and re
 
 
 #### RESP3 Support
-To enable support for RESP3, ensure you have at least version 5.0 of the client, and change your connection object to include *protocol=3*
+To enable support for RESP3 change your connection object to include *protocol=3*
 
 ``` python
 >>> import valkey

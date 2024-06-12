@@ -46,7 +46,7 @@ def tests(c, uvloop=False, protocol=2):
     """Run the valkey-py test suite against the current python,
     with and without hiredis.
     """
-    print("Starting Redis tests")
+    print("Starting Valkey tests")
     standalone_tests(c, uvloop=uvloop, protocol=protocol)
     cluster_tests(c, uvloop=uvloop, protocol=protocol)
 
