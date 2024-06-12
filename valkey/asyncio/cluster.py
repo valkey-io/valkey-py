@@ -446,7 +446,7 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
                     await self.nodes_manager.aclose()
                     await self.nodes_manager.aclose("startup_nodes")
 
-    @deprecated_function(reason="Use aclose() instead", name="close")
+    @deprecated_function(version="5.0.0", reason="Use aclose() instead", name="close")
     async def close(self) -> None:
         """alias for aclose() for backwards compatibility"""
         await self.aclose()

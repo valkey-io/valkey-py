@@ -24,6 +24,7 @@ from .backoff import NoBackoff
 from .credentials import CredentialProvider, UsernamePasswordCredentialProvider
 from .exceptions import (
     AuthenticationError,
+    AuthenticationWrongNumberOfArgsError,
     ChildDeadlockedError,
     ConnectionError,
     DataError,
@@ -375,7 +376,16 @@ class AbstractConnection:
             # avoid checking health here -- PING will fail if we try
             # to check the health prior to the AUTH
             self.send_command("AUTH", *auth_args, check_health=False)
-            auth_response = self.read_response()
+
+            try:
+                auth_response = self.read_response()
+            except AuthenticationWrongNumberOfArgsError:
+                # a username and password were specified but the server seems
+                # to be < 6.0.0 which expects a single password arg.
+                # retry auth with just the password.
+                # https://github.com/andymccurdy/redis-py/issues/1274
+                self.send_command("AUTH", auth_args[-1], check_health=False)
+                auth_response = self.read_response()
 
             if str_if_bytes(auth_response) != "OK":
                 raise AuthenticationError("Invalid Username or Password")

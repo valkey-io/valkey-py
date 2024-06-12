@@ -1,7 +1,7 @@
 import pytest
 from valkey.exceptions import ResponseError
 
-from .conftest import assert_resp_response
+from .conftest import assert_resp_response, skip_if_server_version_lt
 
 engine = "lua"
 lib = "mylib"
@@ -15,6 +15,7 @@ get_function = "redis.register_function('get', function(keys, args) return \
                 redis.call('GET', keys[1]) end)"
 
 
+@skip_if_server_version_lt("7.0.0")
 class TestFunction:
     @pytest.fixture(autouse=True)
     def reset_functions(self, r):
