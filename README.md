@@ -49,6 +49,18 @@ b'bar'
 
 The above code connects to localhost on port 6379, sets a value in Redis, and retrieves it. All responses are returned as bytes in Python, to receive decoded strings, set *decode_responses=True*.  For this, and more connection options, see [these examples](https://valkey-py.readthedocs.io/en/stable/examples.html).
 
+### Migration from redis-py
+
+You are encouraged to use the new class names, but to allow for a smooth transition alias are available:
+
+``` python
+>>> import valkey as redis
+>>> r = redis.Redis(host='localhost', port=6379, db=0)
+>>> r.set('foo', 'bar')
+True
+>>> r.get('foo')
+b'bar'
+```
 
 #### RESP3 Support
 To enable support for RESP3 change your connection object to include *protocol=3*
