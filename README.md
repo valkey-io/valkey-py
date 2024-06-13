@@ -2,14 +2,14 @@
 
 The Python interface to the Valkey key-value store.
 
-[![CI](https://github.com/aiven-sal/valkey-py/workflows/CI/badge.svg?branch=main)](https://github.com/aiven-sal/valkey-py/actions?query=workflow%3ACI+branch%3Amain)
+[![CI](https://github.com/valkey-io/valkey-py/workflows/CI/badge.svg)](https://github.com/valkey-io/valkey-py/actions?query=workflow%3ACI+branch%3Amain)
 [![docs](https://readthedocs.org/projects/valkey-py/badge/?version=latest&style=flat)](https://valkey-py.readthedocs.io/en/latest/)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![pypi](https://badge.fury.io/py/valkey.svg)](https://pypi.org/project/valkey/)
-[![pre-release](https://img.shields.io/github/v/release/aiven-sal/valkey-py?include_prereleases&label=latest-prerelease)](https://github.com/aiven-sal/valkey-py/releases)
-[![codecov](https://codecov.io/gh/aiven-sal/valkey-py/branch/main/graph/badge.svg?token=yenl5fzxxr)](https://codecov.io/gh/aiven-sal/valkey-py)
+[![pre-release](https://img.shields.io/github/v/release/valkey-io/valkey-py?include_prereleases&label=latest-prerelease)](https://github.com/valkey-io/valkey-py/releases)
+[![codecov](https://codecov.io/gh/valkey-io/valkey-py/branch/main/graph/badge.svg?token=yenl5fzxxr)](https://codecov.io/gh/valkey-io/valkey-py)
 
-[Installation](#installation) |  [Usage](#usage) | [Advanced Topics](#advanced-topics) | [Contributing](https://github.com/aiven-sal/valkey-py/blob/main/CONTRIBUTING.md)
+[Installation](#installation) |  [Usage](#usage) | [Advanced Topics](#advanced-topics) | [Contributing](https://github.com/valkey-io/valkey-py/blob/main/CONTRIBUTING.md)
 
 ---------------------------------------------
 
@@ -51,7 +51,7 @@ The above code connects to localhost on port 6379, sets a value in Redis, and re
 
 
 #### RESP3 Support
-To enable support for RESP3, ensure you have at least version 5.0 of the client, and change your connection object to include *protocol=3*
+To enable support for RESP3 change your connection object to include *protocol=3*
 
 ``` python
 >>> import valkey
@@ -71,7 +71,7 @@ Alternatively, you might want to look at [Async connections](https://valkey-py.r
 
 ### Valkey Commands
 
-There is built-in support for all of the [out-of-the-box Valkey commands](https://valkey.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) except where a word (i.e. del) is reserved by the language. The complete set of commands can be found [here](https://github.com/aiven-sal/valkey-py/tree/main/valkey/commands), or [the documentation](https://valkey-py.readthedocs.io/en/stable/commands.html).
+There is built-in support for all of the [out-of-the-box Valkey commands](https://valkey.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) except where a word (i.e. del) is reserved by the language. The complete set of commands can be found [here](https://github.com/valkey-io/valkey-py/tree/main/valkey/commands), or [the documentation](https://valkey-py.readthedocs.io/en/stable/commands.html).
 
 ## Advanced Topics
 
@@ -127,7 +127,7 @@ The following example shows how to utilize [Valkey Pub/Sub](https://redis.io/doc
 ### Author
 
 valkey-py can be found [here](
-https://github.com/aiven-sal/valkey-py), or downloaded from [pypi](https://pypi.org/project/valkey/).
+https://github.com/valkey-io/valkey-py), or downloaded from [pypi](https://pypi.org/project/valkey/).
 It was created as a fork of [redis-py](https://github.com/redis/redis-py)
 
 Special thanks to:

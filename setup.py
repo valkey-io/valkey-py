@@ -32,7 +32,7 @@ setup(
         "Code": "https://github.com/valkey-io/valkey-py",
         "Issue tracker": "https://github.com/valkey-io/valkey-py/issues",
     },
-    author="placeholder",
+    author="valkey-py authors",
     author_email="placeholder@valkey.io",
     python_requires=">=3.8",
     install_requires=[
