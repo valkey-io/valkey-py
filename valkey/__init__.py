@@ -60,6 +60,13 @@ try:
 except AttributeError:
     VERSION = tuple([99, 99, 99])
 
+
+Redis = Valkey
+StrictRedis = StrictValkey
+RedisCluster = ValkeyCluster
+RedisError = ValkeyError
+
+
 __all__ = [
     "AuthenticationError",
     "AuthenticationWrongNumberOfArgsError",
@@ -71,24 +78,28 @@ __all__ = [
     "ConnectionPool",
     "CredentialProvider",
     "DataError",
-    "from_url",
-    "default_backoff",
     "InvalidResponse",
     "OutOfMemoryError",
     "PubSubError",
     "ReadOnlyError",
-    "Valkey",
-    "ValkeyCluster",
-    "ValkeyError",
+    "Redis",
+    "RedisCluster",
+    "RedisError",
     "ResponseError",
+    "SSLConnection",
     "Sentinel",
     "SentinelConnectionPool",
     "SentinelManagedConnection",
     "SentinelManagedSSLConnection",
-    "SSLConnection",
-    "UsernamePasswordCredentialProvider",
+    "StrictRedis",
     "StrictValkey",
     "TimeoutError",
     "UnixDomainSocketConnection",
+    "UsernamePasswordCredentialProvider",
+    "Valkey",
+    "ValkeyCluster",
+    "ValkeyError",
     "WatchError",
+    "default_backoff",
+    "from_url",
 ]
