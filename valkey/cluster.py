@@ -504,7 +504,7 @@ class ValkeyCluster(AbstractValkeyCluster, ValkeyClusterCommands):
         read_from_replicas: bool = False,
         dynamic_startup_nodes: bool = True,
         url: Optional[str] = None,
-        address_remap: Optional[Callable[[str, int], Tuple[str, int]]] = None,
+        address_remap: Optional[Callable[[Tuple[str, int]], Tuple[str, int]]] = None,
         **kwargs,
     ):
         """
@@ -1344,7 +1344,7 @@ class NodesManager:
         lock=None,
         dynamic_startup_nodes=True,
         connection_pool_class=ConnectionPool,
-        address_remap: Optional[Callable[[str, int], Tuple[str, int]]] = None,
+        address_remap: Optional[Callable[[Tuple[str, int]], Tuple[str, int]]] = None,
         **kwargs,
     ):
         self.nodes_cache = {}
@@ -1848,8 +1848,7 @@ class ClusterPubSub(PubSub):
 
     def _pubsubs_generator(self):
         while True:
-            for pubsub in self.node_pubsub_mapping.values():
-                yield pubsub
+            yield from self.node_pubsub_mapping.values()
 
     def get_sharded_message(
         self, ignore_subscribe_messages=False, timeout=0.0, target_node=None

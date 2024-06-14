@@ -8,7 +8,7 @@ setup(
     long_description_content_type="text/markdown",
     keywords=["Valkey", "key-value store", "database"],
     license="MIT",
-    version="5.1.0b5",
+    version="5.1.0b6",
     packages=find_packages(
         include=[
             "valkey",
@@ -33,7 +33,7 @@ setup(
         "Issue tracker": "https://github.com/valkey-io/valkey-py/issues",
     },
     author="valkey-py authors",
-    author_email="placeholder@valkey.io",
+    author_email="valkey-py@lists.valkey.io",
     python_requires=">=3.8",
     install_requires=[
         'async-timeout>=4.0.3; python_full_version<"3.11.3"',
