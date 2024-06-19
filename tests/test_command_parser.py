@@ -1,9 +1,13 @@
 import pytest
 from valkey._parsers import CommandsParser
+from valkey.utils import HIREDIS_AVAILABLE
 
 from .conftest import assert_resp_response, skip_if_server_version_lt
 
 
+# The response to COMMAND contains maps inside sets, which are not handled
+# by the hiredis-py parser (see https://github.com/redis/hiredis-py/issues/188)
+@pytest.mark.skipif(HIREDIS_AVAILABLE, reason="PythonParser only")
 class TestCommandsParser:
     def test_init_commands(self, r):
         commands_parser = CommandsParser(r)
