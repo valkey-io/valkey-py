@@ -971,4 +971,160 @@ def test_uncompressed(client):
     if is_resp2_connection(client):
         assert compressed_info.memory_usage != uncompressed_info.memory_usage
     else:
-        assert compressed_info["memoryUsage"] != uncompressed_info["memoryUsage"]
+        assert compressed_info["memoryUsage"] < uncompressed_info["memoryUsage"]
+
+
+@skip_ifmodversion_lt("1.12.0", "timeseries")
+def test_create_with_insertion_filters(client):
+    client.ts().create(
+        "time-series-1",
+        duplicate_policy="last",
+        ignore_max_time_diff=5,
+        ignore_max_val_diff=10.0,
+    )
+    assert 1000 == client.ts().add("time-series-1", 1000, 1.0)
+    assert 1010 == client.ts().add("time-series-1", 1010, 11.0)
+    assert 1010 == client.ts().add("time-series-1", 1013, 10.0)
+    assert 1020 == client.ts().add("time-series-1", 1020, 11.5)
+    assert 1021 == client.ts().add("time-series-1", 1021, 22.0)
+
+    data_points = client.ts().range("time-series-1", "-", "+")
+    assert_resp_response(
+        client,
+        data_points,
+        [(1000, 1.0), (1010, 11.0), (1020, 11.5), (1021, 22.0)],
+        [[1000, 1.0], [1010, 11.0], [1020, 11.5], [1021, 22.0]],
+    )
+
+
+@skip_ifmodversion_lt("1.12.0", "timeseries")
+def test_create_with_insertion_filters_other_duplicate_policy(client):
+    client.ts().create(
+        "time-series-1",
+        ignore_max_time_diff=5,
+        ignore_max_val_diff=10.0,
+    )
+    assert 1000 == client.ts().add("time-series-1", 1000, 1.0)
+    assert 1010 == client.ts().add("time-series-1", 1010, 11.0)
+    # Still accepted because the duplicate_policy is not `last`.
+    assert 1013 == client.ts().add("time-series-1", 1013, 10.0)
+
+    data_points = client.ts().range("time-series-1", "-", "+")
+    assert_resp_response(
+        client,
+        data_points,
+        [(1000, 1.0), (1010, 11.0), (1013, 10)],
+        [[1000, 1.0], [1010, 11.0], [1013, 10]],
+    )
+
+
+@skip_ifmodversion_lt("1.12.0", "timeseries")
+def test_alter_with_insertion_filters(client):
+    assert 1000 == client.ts().add("time-series-1", 1000, 1.0)
+    assert 1010 == client.ts().add("time-series-1", 1010, 11.0)
+    assert 1013 == client.ts().add("time-series-1", 1013, 10.0)
+
+    client.ts().alter(
+        "time-series-1",
+        duplicate_policy="last",
+        ignore_max_time_diff=5,
+        ignore_max_val_diff=10.0,
+    )
+
+    assert 1013 == client.ts().add("time-series-1", 1015, 11.5)
+
+    data_points = client.ts().range("time-series-1", "-", "+")
+    assert_resp_response(
+        client,
+        data_points,
+        [(1000, 1.0), (1010, 11.0), (1013, 10.0)],
+        [[1000, 1.0], [1010, 11.0], [1013, 10.0]],
+    )
+
+
+@skip_ifmodversion_lt("1.12.0", "timeseries")
+def test_add_with_insertion_filters(client):
+    assert 1000 == client.ts().add(
+        "time-series-1",
+        1000,
+        1.0,
+        duplicate_policy="last",
+        ignore_max_time_diff=5,
+        ignore_max_val_diff=10.0,
+    )
+
+    assert 1000 == client.ts().add("time-series-1", 1004, 3.0)
+
+    data_points = client.ts().range("time-series-1", "-", "+")
+    assert_resp_response(client, data_points, [(1000, 1.0)], [[1000, 1.0]])
+
+
+@skip_ifmodversion_lt("1.12.0", "timeseries")
+def test_incrby_with_insertion_filters(client):
+    assert 1000 == client.ts().incrby(
+        "time-series-1",
+        1.0,
+        timestamp=1000,
+        duplicate_policy="last",
+        ignore_max_time_diff=5,
+        ignore_max_val_diff=10.0,
+    )
+
+    assert 1000 == client.ts().incrby("time-series-1", 3.0, timestamp=1000)
+
+    data_points = client.ts().range("time-series-1", "-", "+")
+    assert_resp_response(client, data_points, [(1000, 1.0)], [[1000, 1.0]])
+
+    assert 1000 == client.ts().incrby("time-series-1", 10.1, timestamp=1000)
+
+    data_points = client.ts().range("time-series-1", "-", "+")
+    assert_resp_response(client, data_points, [(1000, 11.1)], [[1000, 11.1]])
+
+
+@skip_ifmodversion_lt("1.12.0", "timeseries")
+def test_decrby_with_insertion_filters(client):
+    assert 1000 == client.ts().decrby(
+        "time-series-1",
+        1.0,
+        timestamp=1000,
+        duplicate_policy="last",
+        ignore_max_time_diff=5,
+        ignore_max_val_diff=10.0,
+    )
+
+    assert 1000 == client.ts().decrby("time-series-1", 3.0, timestamp=1000)
+
+    data_points = client.ts().range("time-series-1", "-", "+")
+    assert_resp_response(client, data_points, [(1000, -1.0)], [[1000, -1.0]])
+
+    assert 1000 == client.ts().decrby("time-series-1", 10.1, timestamp=1000)
+
+    data_points = client.ts().range("time-series-1", "-", "+")
+    assert_resp_response(client, data_points, [(1000, -11.1)], [[1000, -11.1]])
+
+
+@skip_ifmodversion_lt("1.12.0", "timeseries")
+def test_madd_with_insertion_filters(client):
+    client.ts().create(
+        "time-series-1",
+        duplicate_policy="last",
+        ignore_max_time_diff=5,
+        ignore_max_val_diff=10.0,
+    )
+    assert 1010 == client.ts().add("time-series-1", 1010, 1.0)
+    assert [1010, 1010, 1020, 1021] == client.ts().madd(
+        [
+            ("time-series-1", 1011, 11.0),
+            ("time-series-1", 1013, 10.0),
+            ("time-series-1", 1020, 2.0),
+            ("time-series-1", 1021, 22.0),
+        ]
+    )
+
+    data_points = client.ts().range("time-series-1", "-", "+")
+    assert_resp_response(
+        client,
+        data_points,
+        [(1010, 1.0), (1020, 2.0), (1021, 22.0)],
+        [[1010, 1.0], [1020, 2.0], [1021, 22.0]],
+    )

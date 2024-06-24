@@ -5,13 +5,11 @@ import pytest
 import pytest_asyncio
 import valkey.asyncio as valkey
 from tests.conftest import VALKEY_INFO
-from valkey._parsers import _AsyncHiredisParser, _AsyncRESP2Parser
 from valkey.asyncio import Sentinel
 from valkey.asyncio.client import Monitor
 from valkey.asyncio.connection import Connection, parse_url
 from valkey.asyncio.retry import Retry
 from valkey.backoff import NoBackoff
-from valkey.utils import HIREDIS_AVAILABLE
 
 from .compat import mock
 
@@ -26,41 +24,21 @@ async def _get_info(valkey_url):
 @pytest_asyncio.fixture(
     params=[
         pytest.param(
-            (True, _AsyncRESP2Parser),
+            (True,),
             marks=pytest.mark.skipif(
                 'config.VALKEY_INFO["cluster_enabled"]', reason="cluster mode enabled"
             ),
         ),
-        (False, _AsyncRESP2Parser),
-        pytest.param(
-            (True, _AsyncHiredisParser),
-            marks=[
-                pytest.mark.skipif(
-                    'config.VALKEY_INFO["cluster_enabled"]',
-                    reason="cluster mode enabled",
-                ),
-                pytest.mark.skipif(
-                    not HIREDIS_AVAILABLE, reason="hiredis is not installed"
-                ),
-            ],
-        ),
-        pytest.param(
-            (False, _AsyncHiredisParser),
-            marks=pytest.mark.skipif(
-                not HIREDIS_AVAILABLE, reason="hiredis is not installed"
-            ),
-        ),
+        (False,),
     ],
     ids=[
-        "single-python-parser",
-        "pool-python-parser",
-        "single-hiredis",
-        "pool-hiredis",
+        "single",
+        "pool",
     ],
 )
 async def create_valkey(request):
     """Wrapper around valkey.create_valkey."""
-    single_connection, parser_cls = request.param
+    (single_connection,) = request.param
 
     teardown_clients = []
 
@@ -76,10 +54,9 @@ async def create_valkey(request):
         cluster_mode = VALKEY_INFO["cluster_enabled"]
         if not cluster_mode:
             single = kwargs.pop("single_connection_client", False) or single_connection
-            parser_class = kwargs.pop("parser_class", None) or parser_cls
             url_options = parse_url(url)
             url_options.update(kwargs)
-            pool = valkey.ConnectionPool(parser_class=parser_class, **url_options)
+            pool = valkey.ConnectionPool(**url_options)
             client = cls(connection_pool=pool)
         else:
             client = valkey.ValkeyCluster.from_url(url, **kwargs)
