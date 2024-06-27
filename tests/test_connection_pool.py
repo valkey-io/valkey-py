@@ -196,7 +196,6 @@ class TestBlockingConnectionPool:
         expected = "path=abc,db=0,client_name=test-client"
         assert expected in repr(pool)
 
-
 @pytest.mark.parametrize("connection_protocol", ["valkey", "redis"])
 class TestConnectionPoolURLParsing:
     def test_hostname(self, connection_protocol):
