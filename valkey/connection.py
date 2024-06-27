@@ -978,7 +978,7 @@ def parse_url(url):
         "rediss://",
         "unix://",
     )
-    
+
     if not any([url.startswith(scheme) for scheme in valid_schemes]):
         raise ValueError(
             "Valkey URL must specify one of the following "

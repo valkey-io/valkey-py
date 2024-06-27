@@ -196,6 +196,7 @@ class TestBlockingConnectionPool:
         expected = "path=abc,db=0,client_name=test-client"
         assert expected in repr(pool)
 
+
 @pytest.mark.parametrize("connection_protocol", ["valkey", "redis"])
 class TestConnectionPoolURLParsing:
     def test_hostname(self, connection_protocol):
@@ -204,7 +205,9 @@ class TestConnectionPoolURLParsing:
         assert pool.connection_kwargs == {"host": "my.host"}
 
     def test_quoted_hostname(self, connection_protocol):
-        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://my %2F host %2B%3D+")
+        pool = valkey.ConnectionPool.from_url(
+            f"{connection_protocol}://my %2F host %2B%3D+"
+        )
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "my / host +=+"}
 
@@ -215,7 +218,9 @@ class TestConnectionPoolURLParsing:
 
     @skip_if_server_version_lt("6.0.0")
     def test_username(self, connection_protocol):
-        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://myuser:@localhost")
+        pool = valkey.ConnectionPool.from_url(
+            f"{connection_protocol}://myuser:@localhost"
+        )
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "username": "myuser"}
 
@@ -231,7 +236,9 @@ class TestConnectionPoolURLParsing:
         }
 
     def test_password(self, connection_protocol):
-        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://:mypassword@localhost")
+        pool = valkey.ConnectionPool.from_url(
+            f"{connection_protocol}://:mypassword@localhost"
+        )
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "password": "mypassword"}
 
@@ -247,7 +254,9 @@ class TestConnectionPoolURLParsing:
 
     @skip_if_server_version_lt("6.0.0")
     def test_username_and_password(self, connection_protocol):
-        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://myuser:mypass@localhost")
+        pool = valkey.ConnectionPool.from_url(
+            f"{connection_protocol}://myuser:mypass@localhost"
+        )
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {
             "host": "localhost",
@@ -256,17 +265,23 @@ class TestConnectionPoolURLParsing:
         }
 
     def test_db_as_argument(self, connection_protocol):
-        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://localhost", db=1)
+        pool = valkey.ConnectionPool.from_url(
+            f"{connection_protocol}://localhost", db=1
+        )
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "db": 1}
 
     def test_db_in_path(self, connection_protocol):
-        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://localhost/2", db=1)
+        pool = valkey.ConnectionPool.from_url(
+            f"{connection_protocol}://localhost/2", db=1
+        )
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "db": 2}
 
     def test_db_in_querystring(self, connection_protocol):
-        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://localhost/2?db=3", db=1)
+        pool = valkey.ConnectionPool.from_url(
+            f"{connection_protocol}://localhost/2?db=3", db=1
+        )
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "db": 3}
 
@@ -299,7 +314,9 @@ class TestConnectionPoolURLParsing:
             )
 
     def test_extra_querystring_options(self, connection_protocol):
-        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://localhost?a=1&b=2")
+        pool = valkey.ConnectionPool.from_url(
+            f"{connection_protocol}://localhost?a=1&b=2"
+        )
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "a": "1", "b": "2"}
 
@@ -312,6 +329,7 @@ class TestConnectionPoolURLParsing:
         assert r.connection_pool.connection_class == valkey.Connection
         assert r.connection_pool.connection_kwargs == {"host": "myhost"}
 
+
 def test_invalid_scheme_raises_error():
     with pytest.raises(ValueError) as cm:
         valkey.ConnectionPool.from_url("localhost")
@@ -320,6 +338,7 @@ def test_invalid_scheme_raises_error():
         "(valkey://, valkeys://, redis://, rediss://, unix://)"
     )
 
+
 def test_invalid_scheme_raises_error_when_double_slash_missing():
     with pytest.raises(ValueError) as cm:
         valkey.ConnectionPool.from_url("valkey:foo.bar.com:12345")
@@ -327,6 +346,7 @@ def test_invalid_scheme_raises_error_when_double_slash_missing():
         "Valkey URL must specify one of the following schemes "
         "(valkey://, valkeys://, redis://, rediss://, unix://)"
     )
+
 
 def test_boolean_parsing():
     for expected, value in (
@@ -454,42 +474,52 @@ class TestConnectionPoolUnixSocketURLParsing:
 
 
 @pytest.mark.skipif(not SSL_AVAILABLE, reason="SSL not installed")
-@pytest.mark
+@pytest.mark.parametrize("connection_protocol", ["valkeys", "rediss"])
 class TestSSLConnectionURLParsing:
-    def test_host(self):
-        pool = valkey.ConnectionPool.from_url("valkeys://my.host")
+    def test_host(self, connection_protocol):
+        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://my.host")
         assert pool.connection_class == valkey.SSLConnection
         assert pool.connection_kwargs == {"host": "my.host"}
 
-    def test_connection_class_override(self):
+    def test_connection_class_override(self, connection_protocol):
         class MyConnection(valkey.SSLConnection):
             pass
 
         pool = valkey.ConnectionPool.from_url(
-            "valkeys://my.host", connection_class=MyConnection
+            f"{connection_protocol}://my.host", connection_class=MyConnection
         )
         assert pool.connection_class == MyConnection
 
-    def test_cert_reqs_options(self):
+    def test_cert_reqs_options(self, connection_protocol):
         import ssl
 
         class DummyConnectionPool(valkey.ConnectionPool):
             def get_connection(self, *args, **kwargs):
                 return self.make_connection()
 
-        pool = DummyConnectionPool.from_url("valkeys://?ssl_cert_reqs=none")
+        pool = DummyConnectionPool.from_url(
+            f"{connection_protocol}://?ssl_cert_reqs=none"
+        )
         assert pool.get_connection("_").cert_reqs == ssl.CERT_NONE
 
-        pool = DummyConnectionPool.from_url("valkeys://?ssl_cert_reqs=optional")
+        pool = DummyConnectionPool.from_url(
+            f"{connection_protocol}://?ssl_cert_reqs=optional"
+        )
         assert pool.get_connection("_").cert_reqs == ssl.CERT_OPTIONAL
 
-        pool = DummyConnectionPool.from_url("valkeys://?ssl_cert_reqs=required")
+        pool = DummyConnectionPool.from_url(
+            f"{connection_protocol}://?ssl_cert_reqs=required"
+        )
         assert pool.get_connection("_").cert_reqs == ssl.CERT_REQUIRED
 
-        pool = DummyConnectionPool.from_url("valkeys://?ssl_check_hostname=False")
+        pool = DummyConnectionPool.from_url(
+            f"{connection_protocol}://?ssl_check_hostname=False"
+        )
         assert pool.get_connection("_").check_hostname is False
 
-        pool = DummyConnectionPool.from_url("valkeys://?ssl_check_hostname=True")
+        pool = DummyConnectionPool.from_url(
+            f"{connection_protocol}://?ssl_check_hostname=True"
+        )
         assert pool.get_connection("_").check_hostname is True
 
 

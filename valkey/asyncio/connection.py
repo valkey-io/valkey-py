@@ -1030,7 +1030,7 @@ def parse_url(url: str) -> ConnectKwargs:
         "rediss://",
         "unix://",
     )
-    
+
     if not any([url.startswith(scheme) for scheme in valid_schemes]):
         raise ValueError(
             "Valkey URL must specify one of the following "
@@ -1079,7 +1079,6 @@ def parse_url(url: str) -> ConnectKwargs:
 
         if parsed.scheme in ("valkeys", "rediss"):
             kwargs["connection_class"] = SSLConnection
-
 
     return kwargs
 
