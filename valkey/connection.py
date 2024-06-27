@@ -971,14 +971,18 @@ URL_QUERY_ARGUMENT_PARSERS = {
 
 
 def parse_url(url):
-    if not (
-        url.startswith("valkey://")
-        or url.startswith("valkeys://")
-        or url.startswith("unix://")
-    ):
+    valid_schemes = (
+        "valkey://",
+        "valkeys://",
+        "redis://",
+        "rediss://",
+        "unix://",
+    )
+    
+    if not any([url.startswith(scheme) for scheme in valid_schemes]):
         raise ValueError(
             "Valkey URL must specify one of the following "
-            "schemes (valkey://, valkeys://, unix://)"
+            f"schemes ({', '.join(valid_schemes)})"
         )
 
     url = urlparse(url)
@@ -1001,13 +1005,13 @@ def parse_url(url):
     if url.password:
         kwargs["password"] = unquote(url.password)
 
-    # We only support valkey://, valkeys:// and unix:// schemes.
+    # We only support valkey://, valkeys://, redis://, rediss://, and unix:// schemes.
     if url.scheme == "unix":
         if url.path:
             kwargs["path"] = unquote(url.path)
         kwargs["connection_class"] = UnixDomainSocketConnection
 
-    else:  # implied:  url.scheme in ("valkey", "valkeys"):
+    else:  # implied:  url.scheme in ("valkey", "valkeys", "redis", "rediss"):
         if url.hostname:
             kwargs["host"] = unquote(url.hostname)
         if url.port:
@@ -1021,7 +1025,7 @@ def parse_url(url):
             except (AttributeError, ValueError):
                 pass
 
-        if url.scheme == "valkeys":
+        if url.scheme in ("valkeys", "rediss"):
             kwargs["connection_class"] = SSLConnection
 
     return kwargs
@@ -1050,12 +1054,14 @@ class ConnectionPool:
 
             valkey://[[username]:[password]]@localhost:6379/0
             valkeys://[[username]:[password]]@localhost:6379/0
+            redis://[[username]:[password]]@localhost:6379/0
+            rediss://[[username]:[password]]@localhost:6379/0
             unix://[username@]/path/to/socket.sock?db=0[&password=password]
 
         Three URL schemes are supported:
 
-        - `valkey://` creates a TCP socket connection.
-        - `valkeys://` creates a SSL wrapped TCP socket connection.
+        - `valkey://` and `redis://` creates a TCP socket connection.
+        - `valkeys://` and `rediss://` creates a SSL wrapped TCP socket connection.
         - ``unix://``: creates a Unix Domain Socket connection.
 
         The username, password, hostname, path and all querystring values
@@ -1066,7 +1072,7 @@ class ConnectionPool:
         found will be used:
 
             1. A ``db`` querystring option, e.g. valkey://localhost?db=0
-            2. If using the valkey:// or valkeys:// schemes, the path argument
+            2. If using the valkey://, valkeys://, redis://, or rediss:// schemes, the path argument
                of the url, e.g. valkey://localhost/0
             3. A ``db`` keyword argument to this function.
 

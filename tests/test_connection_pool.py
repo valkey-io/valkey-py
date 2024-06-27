@@ -196,33 +196,33 @@ class TestBlockingConnectionPool:
         expected = "path=abc,db=0,client_name=test-client"
         assert expected in repr(pool)
 
-
+@pytest.mark.parametrize("connection_protocol", ["valkey", "redis"])
 class TestConnectionPoolURLParsing:
-    def test_hostname(self):
-        pool = valkey.ConnectionPool.from_url("valkey://my.host")
+    def test_hostname(self, connection_protocol):
+        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://my.host")
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "my.host"}
 
-    def test_quoted_hostname(self):
-        pool = valkey.ConnectionPool.from_url("valkey://my %2F host %2B%3D+")
+    def test_quoted_hostname(self, connection_protocol):
+        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://my %2F host %2B%3D+")
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "my / host +=+"}
 
-    def test_port(self):
-        pool = valkey.ConnectionPool.from_url("valkey://localhost:6380")
+    def test_port(self, connection_protocol):
+        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://localhost:6380")
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "port": 6380}
 
     @skip_if_server_version_lt("6.0.0")
-    def test_username(self):
-        pool = valkey.ConnectionPool.from_url("valkey://myuser:@localhost")
+    def test_username(self, connection_protocol):
+        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://myuser:@localhost")
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "username": "myuser"}
 
     @skip_if_server_version_lt("6.0.0")
-    def test_quoted_username(self):
+    def test_quoted_username(self, connection_protocol):
         pool = valkey.ConnectionPool.from_url(
-            "valkey://%2Fmyuser%2F%2B name%3D%24+:@localhost"
+            f"{connection_protocol}://%2Fmyuser%2F%2B name%3D%24+:@localhost"
         )
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {
@@ -230,14 +230,14 @@ class TestConnectionPoolURLParsing:
             "username": "/myuser/+ name=$+",
         }
 
-    def test_password(self):
-        pool = valkey.ConnectionPool.from_url("valkey://:mypassword@localhost")
+    def test_password(self, connection_protocol):
+        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://:mypassword@localhost")
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "password": "mypassword"}
 
-    def test_quoted_password(self):
+    def test_quoted_password(self, connection_protocol):
         pool = valkey.ConnectionPool.from_url(
-            "valkey://:%2Fmypass%2F%2B word%3D%24+@localhost"
+            f"{connection_protocol}://:%2Fmypass%2F%2B word%3D%24+@localhost"
         )
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {
@@ -246,8 +246,8 @@ class TestConnectionPoolURLParsing:
         }
 
     @skip_if_server_version_lt("6.0.0")
-    def test_username_and_password(self):
-        pool = valkey.ConnectionPool.from_url("valkey://myuser:mypass@localhost")
+    def test_username_and_password(self, connection_protocol):
+        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://myuser:mypass@localhost")
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {
             "host": "localhost",
@@ -255,24 +255,24 @@ class TestConnectionPoolURLParsing:
             "password": "mypass",
         }
 
-    def test_db_as_argument(self):
-        pool = valkey.ConnectionPool.from_url("valkey://localhost", db=1)
+    def test_db_as_argument(self, connection_protocol):
+        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://localhost", db=1)
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "db": 1}
 
-    def test_db_in_path(self):
-        pool = valkey.ConnectionPool.from_url("valkey://localhost/2", db=1)
+    def test_db_in_path(self, connection_protocol):
+        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://localhost/2", db=1)
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "db": 2}
 
-    def test_db_in_querystring(self):
-        pool = valkey.ConnectionPool.from_url("valkey://localhost/2?db=3", db=1)
+    def test_db_in_querystring(self, connection_protocol):
+        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://localhost/2?db=3", db=1)
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "db": 3}
 
-    def test_extra_typed_querystring_options(self):
+    def test_extra_typed_querystring_options(self, connection_protocol):
         pool = valkey.ConnectionPool.from_url(
-            "valkey://localhost/2?socket_timeout=20&socket_connect_timeout=10"
+            f"{connection_protocol}://localhost/2?socket_timeout=20&socket_connect_timeout=10"
             "&socket_keepalive=&retry_on_timeout=Yes&max_connections=10"
         )
 
@@ -286,67 +286,67 @@ class TestConnectionPoolURLParsing:
         }
         assert pool.max_connections == 10
 
-    def test_boolean_parsing(self):
-        for expected, value in (
-            (None, None),
-            (None, ""),
-            (False, 0),
-            (False, "0"),
-            (False, "f"),
-            (False, "F"),
-            (False, "False"),
-            (False, "n"),
-            (False, "N"),
-            (False, "No"),
-            (True, 1),
-            (True, "1"),
-            (True, "y"),
-            (True, "Y"),
-            (True, "Yes"),
-        ):
-            assert expected is to_bool(value)
-
-    def test_client_name_in_querystring(self):
+    def test_client_name_in_querystring(self, connection_protocol):
         pool = valkey.ConnectionPool.from_url(
-            "valkey://location?client_name=test-client"
+            f"{connection_protocol}://location?client_name=test-client"
         )
         assert pool.connection_kwargs["client_name"] == "test-client"
 
-    def test_invalid_extra_typed_querystring_options(self):
+    def test_invalid_extra_typed_querystring_options(self, connection_protocol):
         with pytest.raises(ValueError):
             valkey.ConnectionPool.from_url(
-                "valkey://localhost/2?socket_timeout=_&socket_connect_timeout=abc"
+                f"{connection_protocol}://localhost/2?socket_timeout=_&socket_connect_timeout=abc"
             )
 
-    def test_extra_querystring_options(self):
-        pool = valkey.ConnectionPool.from_url("valkey://localhost?a=1&b=2")
+    def test_extra_querystring_options(self, connection_protocol):
+        pool = valkey.ConnectionPool.from_url(f"{connection_protocol}://localhost?a=1&b=2")
         assert pool.connection_class == valkey.Connection
         assert pool.connection_kwargs == {"host": "localhost", "a": "1", "b": "2"}
 
-    def test_calling_from_subclass_returns_correct_instance(self):
+    def test_calling_from_subclass_returns_correct_instance(self, connection_protocol):
         pool = valkey.BlockingConnectionPool.from_url("valkey://localhost")
         assert isinstance(pool, valkey.BlockingConnectionPool)
 
-    def test_client_creates_connection_pool(self):
-        r = valkey.Valkey.from_url("valkey://myhost")
+    def test_client_creates_connection_pool(self, connection_protocol):
+        r = valkey.Valkey.from_url(f"{connection_protocol}://myhost")
         assert r.connection_pool.connection_class == valkey.Connection
         assert r.connection_pool.connection_kwargs == {"host": "myhost"}
 
-    def test_invalid_scheme_raises_error(self):
-        with pytest.raises(ValueError) as cm:
-            valkey.ConnectionPool.from_url("localhost")
-        assert str(cm.value) == (
-            "Valkey URL must specify one of the following schemes "
-            "(valkey://, valkeys://, unix://)"
-        )
+def test_invalid_scheme_raises_error():
+    with pytest.raises(ValueError) as cm:
+        valkey.ConnectionPool.from_url("localhost")
+    assert str(cm.value) == (
+        "Valkey URL must specify one of the following schemes "
+        "(valkey://, valkeys://, redis://, rediss://, unix://)"
+    )
 
-    def test_invalid_scheme_raises_error_when_double_slash_missing(self):
-        with pytest.raises(ValueError) as cm:
-            valkey.ConnectionPool.from_url("valkey:foo.bar.com:12345")
-        assert str(cm.value) == (
-            "Valkey URL must specify one of the following schemes "
-            "(valkey://, valkeys://, unix://)"
-        )
+def test_invalid_scheme_raises_error_when_double_slash_missing():
+    with pytest.raises(ValueError) as cm:
+        valkey.ConnectionPool.from_url("valkey:foo.bar.com:12345")
+    assert str(cm.value) == (
+        "Valkey URL must specify one of the following schemes "
+        "(valkey://, valkeys://, redis://, rediss://, unix://)"
+    )
+
+def test_boolean_parsing():
+    for expected, value in (
+        (None, None),
+        (None, ""),
+        (False, 0),
+        (False, "0"),
+        (False, "f"),
+        (False, "F"),
+        (False, "False"),
+        (False, "n"),
+        (False, "N"),
+        (False, "No"),
+        (True, 1),
+        (True, "1"),
+        (True, "y"),
+        (True, "Y"),
+        (True, "Yes"),
+    ):
+        assert expected is to_bool(value)
 
 
 class TestBlockingConnectionPoolURLParsing:
@@ -454,6 +454,7 @@ class TestConnectionPoolUnixSocketURLParsing:
 
 
 @pytest.mark.skipif(not SSL_AVAILABLE, reason="SSL not installed")
+@pytest.mark
 class TestSSLConnectionURLParsing:
     def test_host(self):
         pool = valkey.ConnectionPool.from_url("valkeys://my.host")

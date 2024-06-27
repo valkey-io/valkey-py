@@ -1023,6 +1023,20 @@ class ConnectKwargs(TypedDict, total=False):
 
 
 def parse_url(url: str) -> ConnectKwargs:
+    valid_schemes = (
+        "valkey://",
+        "valkeys://",
+        "redis://",
+        "rediss://",
+        "unix://",
+    )
+    
+    if not any([url.startswith(scheme) for scheme in valid_schemes]):
+        raise ValueError(
+            "Valkey URL must specify one of the following "
+            f"schemes ({', '.join(valid_schemes)})"
+        )
+
     parsed: ParseResult = urlparse(url)
     kwargs: ConnectKwargs = {}
 
@@ -1043,13 +1057,13 @@ def parse_url(url: str) -> ConnectKwargs:
     if parsed.password:
         kwargs["password"] = unquote(parsed.password)
 
-    # We only support valkey://, valkeys:// and unix:// schemes.
+    # We only support valkey://, valkeys://, redis://, rediss://, and unix:// schemes.
     if parsed.scheme == "unix":
         if parsed.path:
             kwargs["path"] = unquote(parsed.path)
         kwargs["connection_class"] = UnixDomainSocketConnection
 
-    elif parsed.scheme in ("valkey", "valkeys"):
+    elif parsed.scheme in ("valkey", "valkeys", "redis", "rediss"):
         if parsed.hostname:
             kwargs["host"] = unquote(parsed.hostname)
         if parsed.port:
@@ -1063,13 +1077,9 @@ def parse_url(url: str) -> ConnectKwargs:
             except (AttributeError, ValueError):
                 pass
 
-        if parsed.scheme == "valkeys":
+        if parsed.scheme in ("valkeys", "rediss"):
             kwargs["connection_class"] = SSLConnection
-    else:
-        valid_schemes = "valkey://, valkeys://, unix://"
-        raise ValueError(
-            f"Valkey URL must specify one of the following schemes ({valid_schemes})"
-        )
+
 
     return kwargs
 
