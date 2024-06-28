@@ -10,7 +10,7 @@ from itertools import chain
 from queue import Empty, Full, LifoQueue
 from time import time
 from typing import Any, Callable, List, Optional, Sequence, Type, Union
-from _parsers.url_parser import parse_url
+from ._parsers.url_parser import parse_url
 
 from ._cache import (
     DEFAULT_ALLOW_LIST,

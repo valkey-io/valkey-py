@@ -32,8 +32,6 @@ URL_QUERY_ARGUMENT_PARSERS: Mapping[str, Callable[..., object]] = MappingProxyTy
 )
 
 
-
-
 def parse_url(url: str):
     from valkey.asyncio.connection import ConnectKwargs, UnixDomainSocketConnection, SSLConnection
 
