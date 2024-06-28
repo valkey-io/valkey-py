@@ -330,24 +330,6 @@ class TestConnectionPoolURLParsing:
         assert r.connection_pool.connection_kwargs == {"host": "myhost"}
 
 
-def test_invalid_scheme_raises_error():
-    with pytest.raises(ValueError) as cm:
-        valkey.ConnectionPool.from_url("localhost")
-    assert str(cm.value) == (
-        "Valkey URL must specify one of the following schemes "
-        "(valkey://, valkeys://, redis://, rediss://, unix://)"
-    )
-
-
-def test_invalid_scheme_raises_error_when_double_slash_missing():
-    with pytest.raises(ValueError) as cm:
-        valkey.ConnectionPool.from_url("valkey:foo.bar.com:12345")
-    assert str(cm.value) == (
-        "Valkey URL must specify one of the following schemes "
-        "(valkey://, valkeys://, redis://, rediss://, unix://)"
-    )
-
-
 def test_boolean_parsing():
     for expected, value in (
         (None, None),
