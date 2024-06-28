@@ -25,7 +25,7 @@ from valkey._cache import (
     DEFAULT_EVICTION_POLICY,
     AbstractCache,
 )
-from valkey._parsers import AsyncCommandsParser, Encoder
+from valkey._parsers import AsyncCommandsParser, Encoder, parse_url
 from valkey._parsers.helpers import (
     _ValkeyCallbacks,
     _ValkeyCallbacksRESP2,
@@ -36,7 +36,6 @@ from valkey.asyncio.connection import (
     Connection,
     DefaultParser,
     SSLConnection,
-    parse_url,
 )
 from valkey.asyncio.lock import Lock
 from valkey.asyncio.retry import Retry
