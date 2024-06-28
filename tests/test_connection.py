@@ -6,14 +6,9 @@ from unittest.mock import patch
 import pytest
 import valkey
 from valkey import ConnectionPool, Valkey
-from valkey._parsers import _HiredisParser, _RESP2Parser, _RESP3Parser
+from valkey._parsers import _HiredisParser, _RESP2Parser, _RESP3Parser, parse_url
 from valkey.backoff import NoBackoff
-from valkey.connection import (
-    Connection,
-    SSLConnection,
-    UnixDomainSocketConnection,
-    parse_url,
-)
+from valkey.connection import Connection, SSLConnection, UnixDomainSocketConnection
 from valkey.exceptions import ConnectionError, InvalidResponse, TimeoutError
 from valkey.retry import Retry
 from valkey.utils import HIREDIS_AVAILABLE

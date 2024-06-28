@@ -946,14 +946,7 @@ class UnixDomainSocketConnection(AbstractConnection):
 
 FALSE_STRINGS = ("0", "F", "FALSE", "N", "NO")
 
-
-def to_bool(value):
-    if value is None or value == "":
-        return None
-    if isinstance(value, str) and value.upper() in FALSE_STRINGS:
-        return False
-    return bool(value)
-
+from ._parsers.url_parser import to_bool
 
 URL_QUERY_ARGUMENT_PARSERS = {
     "db": int,
