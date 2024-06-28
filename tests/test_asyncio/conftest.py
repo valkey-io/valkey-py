@@ -270,4 +270,4 @@ def valkey_url(request):
 @pytest.fixture()
 def connect_args(request):
     url = request.config.getoption("--valkey-url")
-    return parse_url(url)
+    return parse_url(url, True)
