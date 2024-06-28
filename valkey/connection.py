@@ -10,7 +10,7 @@ from itertools import chain
 from queue import Empty, Full, LifoQueue
 from time import time
 from typing import Any, Callable, List, Optional, Sequence, Type, Union
-from urllib.parse import parse_qs, unquote, urlparse
+from _parsers.url_parser import parse_url
 
 from ._cache import (
     DEFAULT_ALLOW_LIST,
@@ -106,9 +106,9 @@ class PythonRespSerializer:
             # output list if we're sending large values or memoryviews
             arg_length = len(arg)
             if (
-                len(buff) > buffer_cutoff
-                or arg_length > buffer_cutoff
-                or isinstance(arg, memoryview)
+                    len(buff) > buffer_cutoff
+                    or arg_length > buffer_cutoff
+                    or isinstance(arg, memoryview)
             ):
                 buff = SYM_EMPTY.join(
                     (buff, SYM_DOLLAR, str(arg_length).encode(), SYM_CRLF)
@@ -135,35 +135,35 @@ class AbstractConnection:
     "Manages communication to and from a Valkey server"
 
     def __init__(
-        self,
-        db: int = 0,
-        password: Optional[str] = None,
-        socket_timeout: Optional[float] = None,
-        socket_connect_timeout: Optional[float] = None,
-        retry_on_timeout: bool = False,
-        retry_on_error=SENTINEL,
-        encoding: str = "utf-8",
-        encoding_errors: str = "strict",
-        decode_responses: bool = False,
-        parser_class=DefaultParser,
-        socket_read_size: int = 65536,
-        health_check_interval: int = 0,
-        client_name: Optional[str] = None,
-        lib_name: Optional[str] = "valkey-py",
-        lib_version: Optional[str] = get_lib_version(),
-        username: Optional[str] = None,
-        retry: Union[Any, None] = None,
-        valkey_connect_func: Optional[Callable[[], None]] = None,
-        credential_provider: Optional[CredentialProvider] = None,
-        protocol: Optional[int] = 2,
-        command_packer: Optional[Callable[[], None]] = None,
-        cache_enabled: bool = False,
-        client_cache: Optional[AbstractCache] = None,
-        cache_max_size: int = 10000,
-        cache_ttl: int = 0,
-        cache_policy: str = DEFAULT_EVICTION_POLICY,
-        cache_deny_list: List[str] = DEFAULT_DENY_LIST,
-        cache_allow_list: List[str] = DEFAULT_ALLOW_LIST,
+            self,
+            db: int = 0,
+            password: Optional[str] = None,
+            socket_timeout: Optional[float] = None,
+            socket_connect_timeout: Optional[float] = None,
+            retry_on_timeout: bool = False,
+            retry_on_error=SENTINEL,
+            encoding: str = "utf-8",
+            encoding_errors: str = "strict",
+            decode_responses: bool = False,
+            parser_class=DefaultParser,
+            socket_read_size: int = 65536,
+            health_check_interval: int = 0,
+            client_name: Optional[str] = None,
+            lib_name: Optional[str] = "valkey-py",
+            lib_version: Optional[str] = get_lib_version(),
+            username: Optional[str] = None,
+            retry: Union[Any, None] = None,
+            valkey_connect_func: Optional[Callable[[], None]] = None,
+            credential_provider: Optional[CredentialProvider] = None,
+            protocol: Optional[int] = 2,
+            command_packer: Optional[Callable[[], None]] = None,
+            cache_enabled: bool = False,
+            client_cache: Optional[AbstractCache] = None,
+            cache_max_size: int = 10000,
+            cache_ttl: int = 0,
+            cache_policy: str = DEFAULT_EVICTION_POLICY,
+            cache_deny_list: List[str] = DEFAULT_DENY_LIST,
+            cache_allow_list: List[str] = DEFAULT_ALLOW_LIST,
     ):
         """
         Initialize a new Connection.
@@ -351,8 +351,8 @@ class AbstractConnection:
         # if credential provider or username and/or password are set, authenticate
         if self.credential_provider or (self.username or self.password):
             cred_provider = (
-                self.credential_provider
-                or UsernamePasswordCredentialProvider(self.username, self.password)
+                    self.credential_provider
+                    or UsernamePasswordCredentialProvider(self.username, self.password)
             )
             auth_args = cred_provider.get_credentials()
 
@@ -400,8 +400,8 @@ class AbstractConnection:
             self.send_command("HELLO", self.protocol)
             response = self.read_response()
             if (
-                response.get(b"proto") != self.protocol
-                and response.get("proto") != self.protocol
+                    response.get(b"proto") != self.protocol
+                    and response.get("proto") != self.protocol
             ):
                 raise ConnectionError("Invalid RESP version")
 
@@ -529,11 +529,11 @@ class AbstractConnection:
             raise ConnectionError(f"Error while reading from {host_error}: {e.args}")
 
     def read_response(
-        self,
-        disable_decoding=False,
-        *,
-        disconnect_on_error=True,
-        push_request=False,
+            self,
+            disable_decoding=False,
+            *,
+            disconnect_on_error=True,
+            push_request=False,
     ):
         """Read the response from a previously sent command"""
 
@@ -589,9 +589,9 @@ class AbstractConnection:
             for chunk in self._command_packer.pack(*cmd):
                 chunklen = len(chunk)
                 if (
-                    buffer_length > buffer_cutoff
-                    or chunklen > buffer_cutoff
-                    or isinstance(chunk, memoryview)
+                        buffer_length > buffer_cutoff
+                        or chunklen > buffer_cutoff
+                        or isinstance(chunk, memoryview)
                 ):
                     if pieces:
                         output.append(SYM_EMPTY.join(pieces))
@@ -609,7 +609,7 @@ class AbstractConnection:
         return output
 
     def _cache_invalidation_process(
-        self, data: List[Union[str, Optional[List[str]]]]
+            self, data: List[Union[str, Optional[List[str]]]]
     ) -> None:
         """
         Invalidate (delete) all valkey commands associated with a specific key.
@@ -628,9 +628,9 @@ class AbstractConnection:
         If the command is in the local cache, return the response
         """
         if (
-            self.client_cache is None
-            or command[0] in self.cache_deny_list
-            or command[0] not in self.cache_allow_list
+                self.client_cache is None
+                or command[0] in self.cache_deny_list
+                or command[0] not in self.cache_allow_list
         ):
             return None
         while self.can_read():
@@ -638,16 +638,16 @@ class AbstractConnection:
         return self.client_cache.get(command)
 
     def _add_to_local_cache(
-        self, command: Sequence[str], response: ResponseT, keys: List[KeysT]
+            self, command: Sequence[str], response: ResponseT, keys: List[KeysT]
     ):
         """
         Add the command and response to the local cache if the command
         is allowed to be cached
         """
         if (
-            self.client_cache is not None
-            and (self.cache_deny_list == [] or command[0] not in self.cache_deny_list)
-            and (self.cache_allow_list == [] or command[0] in self.cache_allow_list)
+                self.client_cache is not None
+                and (self.cache_deny_list == [] or command[0] not in self.cache_deny_list)
+                and (self.cache_allow_list == [] or command[0] in self.cache_allow_list)
         ):
             self.client_cache.set(command, response, keys)
 
@@ -668,13 +668,13 @@ class Connection(AbstractConnection):
     "Manages TCP communication to and from a Valkey server"
 
     def __init__(
-        self,
-        host="localhost",
-        port=6379,
-        socket_keepalive=False,
-        socket_keepalive_options=None,
-        socket_type=0,
-        **kwargs,
+            self,
+            host="localhost",
+            port=6379,
+            socket_keepalive=False,
+            socket_keepalive_options=None,
+            socket_type=0,
+            **kwargs,
     ):
         self.host = host
         self.port = int(port)
@@ -696,7 +696,7 @@ class Connection(AbstractConnection):
         # socket.connect()
         err = None
         for res in socket.getaddrinfo(
-            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+                self.host, self.port, self.socket_type, socket.SOCK_STREAM
         ):
             family, socktype, proto, canonname, socket_address = res
             sock = None
@@ -762,22 +762,22 @@ class SSLConnection(Connection):
     """  # noqa
 
     def __init__(
-        self,
-        ssl_keyfile=None,
-        ssl_certfile=None,
-        ssl_cert_reqs="required",
-        ssl_ca_certs=None,
-        ssl_ca_data=None,
-        ssl_check_hostname=False,
-        ssl_ca_path=None,
-        ssl_password=None,
-        ssl_validate_ocsp=False,
-        ssl_validate_ocsp_stapled=False,
-        ssl_ocsp_context=None,
-        ssl_ocsp_expected_cert=None,
-        ssl_min_version=None,
-        ssl_ciphers=None,
-        **kwargs,
+            self,
+            ssl_keyfile=None,
+            ssl_certfile=None,
+            ssl_cert_reqs="required",
+            ssl_ca_certs=None,
+            ssl_ca_data=None,
+            ssl_check_hostname=False,
+            ssl_ca_path=None,
+            ssl_password=None,
+            ssl_validate_ocsp=False,
+            ssl_validate_ocsp_stapled=False,
+            ssl_ocsp_context=None,
+            ssl_ocsp_expected_cert=None,
+            ssl_min_version=None,
+            ssl_ciphers=None,
+            **kwargs,
     ):
         """Constructor
 
@@ -846,9 +846,9 @@ class SSLConnection(Connection):
                 password=self.certificate_password,
             )
         if (
-            self.ca_certs is not None
-            or self.ca_path is not None
-            or self.ca_data is not None
+                self.ca_certs is not None
+                or self.ca_path is not None
+                or self.ca_data is not None
         ):
             context.load_verify_locations(
                 cafile=self.ca_certs, capath=self.ca_path, cadata=self.ca_data
@@ -970,63 +970,6 @@ URL_QUERY_ARGUMENT_PARSERS = {
 }
 
 
-def parse_url(url):
-    if not (
-        url.startswith("valkey://")
-        or url.startswith("valkeys://")
-        or url.startswith("unix://")
-    ):
-        raise ValueError(
-            "Valkey URL must specify one of the following "
-            "schemes (valkey://, valkeys://, unix://)"
-        )
-
-    url = urlparse(url)
-    kwargs = {}
-
-    for name, value in parse_qs(url.query).items():
-        if value and len(value) > 0:
-            value = unquote(value[0])
-            parser = URL_QUERY_ARGUMENT_PARSERS.get(name)
-            if parser:
-                try:
-                    kwargs[name] = parser(value)
-                except (TypeError, ValueError):
-                    raise ValueError(f"Invalid value for `{name}` in connection URL.")
-            else:
-                kwargs[name] = value
-
-    if url.username:
-        kwargs["username"] = unquote(url.username)
-    if url.password:
-        kwargs["password"] = unquote(url.password)
-
-    # We only support valkey://, valkeys:// and unix:// schemes.
-    if url.scheme == "unix":
-        if url.path:
-            kwargs["path"] = unquote(url.path)
-        kwargs["connection_class"] = UnixDomainSocketConnection
-
-    else:  # implied:  url.scheme in ("valkey", "valkeys"):
-        if url.hostname:
-            kwargs["host"] = unquote(url.hostname)
-        if url.port:
-            kwargs["port"] = int(url.port)
-
-        # If there's a path argument, use it as the db argument if a
-        # querystring value wasn't specified
-        if url.path and "db" not in kwargs:
-            try:
-                kwargs["db"] = int(unquote(url.path).replace("/", ""))
-            except (AttributeError, ValueError):
-                pass
-
-        if url.scheme == "valkeys":
-            kwargs["connection_class"] = SSLConnection
-
-    return kwargs
-
-
 class ConnectionPool:
     """
     Create a connection pool. ``If max_connections`` is set, then this
@@ -1089,12 +1032,12 @@ class ConnectionPool:
         return cls(**kwargs)
 
     def __init__(
-        self,
-        connection_class=Connection,
-        max_connections: Optional[int] = None,
-        **connection_kwargs,
+            self,
+            connection_class=Connection,
+            max_connections: Optional[int] = None,
+            **connection_kwargs,
     ):
-        max_connections = max_connections or 2**31
+        max_connections = max_connections or 2 ** 31
         if not isinstance(max_connections, int) or max_connections < 0:
             raise ValueError('"max_connections" must be a positive integer')
 
@@ -1347,12 +1290,12 @@ class BlockingConnectionPool(ConnectionPool):
     """
 
     def __init__(
-        self,
-        max_connections=50,
-        timeout=20,
-        connection_class=Connection,
-        queue_class=LifoQueue,
-        **connection_kwargs,
+            self,
+            max_connections=50,
+            timeout=20,
+            connection_class=Connection,
+            queue_class=LifoQueue,
+            **connection_kwargs,
     ):
         self.queue_class = queue_class
         self.timeout = timeout
