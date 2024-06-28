@@ -32,11 +32,7 @@ from valkey._parsers.helpers import (
     _ValkeyCallbacksRESP3,
 )
 from valkey.asyncio.client import ResponseCallbackT
-from valkey.asyncio.connection import (
-    Connection,
-    DefaultParser,
-    SSLConnection,
-)
+from valkey.asyncio.connection import Connection, DefaultParser, SSLConnection
 from valkey.asyncio.lock import Lock
 from valkey.asyncio.retry import Retry
 from valkey.backoff import default_backoff
