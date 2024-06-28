@@ -971,19 +971,6 @@ URL_QUERY_ARGUMENT_PARSERS = {
 
 
 def parse_url(url):
-    valid_schemes = (
-        "valkey://",
-        "valkeys://",
-        "redis://",
-        "rediss://",
-        "unix://",
-    )
-
-    if not any([url.startswith(scheme) for scheme in valid_schemes]):
-        raise ValueError(
-            "Valkey URL must specify one of the following "
-            f"schemes ({', '.join(valid_schemes)})"
-        )
 
     url = urlparse(url)
     kwargs = {}

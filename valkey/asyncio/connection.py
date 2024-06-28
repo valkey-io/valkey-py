@@ -1023,20 +1023,6 @@ class ConnectKwargs(TypedDict, total=False):
 
 
 def parse_url(url: str) -> ConnectKwargs:
-    valid_schemes = (
-        "valkey://",
-        "valkeys://",
-        "redis://",
-        "rediss://",
-        "unix://",
-    )
-
-    if not any([url.startswith(scheme) for scheme in valid_schemes]):
-        raise ValueError(
-            "Valkey URL must specify one of the following "
-            f"schemes ({', '.join(valid_schemes)})"
-        )
-
     parsed: ParseResult = urlparse(url)
     kwargs: ConnectKwargs = {}
 
