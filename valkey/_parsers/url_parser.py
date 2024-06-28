@@ -1,4 +1,5 @@
 from urllib.parse import ParseResult, parse_qs, unquote, urlparse
+from valkey.asyncio.connection import ConnectKwargs, UnixDomainSocketConnection, SSLConnection
 from types import MappingProxyType
 from typing import (
     Callable,
@@ -33,7 +34,6 @@ URL_QUERY_ARGUMENT_PARSERS: Mapping[str, Callable[..., object]] = MappingProxyTy
 
 
 def parse_url(url: str):
-    from valkey.asyncio.connection import ConnectKwargs, UnixDomainSocketConnection, SSLConnection
 
     parsed: ParseResult = urlparse(url)
     kwargs: ConnectKwargs = {}
