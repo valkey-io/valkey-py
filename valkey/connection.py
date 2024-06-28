@@ -11,7 +11,6 @@ from queue import Empty, Full, LifoQueue
 from time import time
 from typing import Any, Callable, List, Optional, Sequence, Type, Union
 
-
 from ._cache import (
     DEFAULT_ALLOW_LIST,
     DEFAULT_DENY_LIST,
