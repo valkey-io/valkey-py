@@ -983,9 +983,6 @@ class UnixDomainSocketConnection(AbstractConnection):
             )
 
 
-
-
-
 class ConnectKwargs(TypedDict, total=False):
     username: str
     password: str
@@ -994,8 +991,6 @@ class ConnectKwargs(TypedDict, total=False):
     port: int
     db: int
     path: str
-
-
 
 
 _CP = TypeVar("_CP", bound="ConnectionPool")
@@ -1057,6 +1052,7 @@ class ConnectionPool:
         arguments always win.
         """
         from .._parsers.url_parser import parse_url
+
         url_options = parse_url(url)
         kwargs.update(url_options)
         return cls(**kwargs)
