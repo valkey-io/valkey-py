@@ -19,6 +19,7 @@ from ._cache import (
     _LocalCache,
 )
 from ._parsers import Encoder, _HiredisParser, _RESP2Parser, _RESP3Parser
+from ._parsers.url_parser import to_bool
 from .backoff import NoBackoff
 from .credentials import CredentialProvider, UsernamePasswordCredentialProvider
 from .exceptions import (
@@ -946,7 +947,6 @@ class UnixDomainSocketConnection(AbstractConnection):
 
 FALSE_STRINGS = ("0", "F", "FALSE", "N", "NO")
 
-from ._parsers.url_parser import to_bool
 
 URL_QUERY_ARGUMENT_PARSERS = {
     "db": int,
