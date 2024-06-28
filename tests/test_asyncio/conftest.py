@@ -55,7 +55,7 @@ async def create_valkey(request):
         cluster_mode = VALKEY_INFO["cluster_enabled"]
         if not cluster_mode:
             single = kwargs.pop("single_connection_client", False) or single_connection
-            url_options = parse_url(url)
+            url_options = parse_url(url, True)
             url_options.update(kwargs)
             pool = valkey.ConnectionPool(**url_options)
             client = cls(connection_pool=pool)

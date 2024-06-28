@@ -276,7 +276,7 @@ def _get_client(
 
     cluster_mode = VALKEY_INFO["cluster_enabled"]
     if not cluster_mode:
-        url_options = parse_url(valkey_url)
+        url_options = parse_url(valkey_url, False)
         url_options.update(kwargs)
         pool = valkey.ConnectionPool(**url_options)
         client = cls(connection_pool=pool)

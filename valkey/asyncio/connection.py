@@ -1053,7 +1053,7 @@ class ConnectionPool:
         """
         from .._parsers.url_parser import parse_url
 
-        url_options = parse_url(url)
+        url_options = parse_url(url, True)
         kwargs.update(url_options)
         return cls(**kwargs)
 

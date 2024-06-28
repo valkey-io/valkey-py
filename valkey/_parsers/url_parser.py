@@ -2,11 +2,12 @@ from types import MappingProxyType
 from typing import Callable, Mapping, Optional
 from urllib.parse import ParseResult, parse_qs, unquote, urlparse
 
+from valkey.asyncio.connection import ConnectKwargs
+from valkey.asyncio.connection import SSLConnection as SSLConnectionAsync
 from valkey.asyncio.connection import (
-    ConnectKwargs,
-    SSLConnection,
-    UnixDomainSocketConnection,
+    UnixDomainSocketConnection as UnixDomainSocketConnectionAsync,
 )
+from valkey.connection import SSLConnection, UnixDomainSocketConnection
 
 
 def to_bool(value) -> Optional[bool]:
@@ -34,7 +35,7 @@ URL_QUERY_ARGUMENT_PARSERS: Mapping[str, Callable[..., object]] = MappingProxyTy
 )
 
 
-def parse_url(url: str):
+def parse_url(url: str, async_connection: bool):
 
     parsed: ParseResult = urlparse(url)
     kwargs: ConnectKwargs = {}
@@ -60,7 +61,11 @@ def parse_url(url: str):
     if parsed.scheme == "unix":
         if parsed.path:
             kwargs["path"] = unquote(parsed.path)
-        kwargs["connection_class"] = UnixDomainSocketConnection
+        kwargs["connection_class"] = (
+            UnixDomainSocketConnectionAsync
+            if async_connection
+            else UnixDomainSocketConnection
+        )
 
     elif parsed.scheme in ("valkey", "valkeys"):
         if parsed.hostname:
@@ -77,7 +82,9 @@ def parse_url(url: str):
                 pass
 
         if parsed.scheme == "valkeys":
-            kwargs["connection_class"] = SSLConnection
+            kwargs["connection_class"] = (
+                SSLConnectionAsync if async_connection else SSLConnection
+            )
     else:
         valid_schemes = "valkey://, valkeys://, unix://"
         raise ValueError(

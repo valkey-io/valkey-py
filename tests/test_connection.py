@@ -217,7 +217,7 @@ def test_pool_auto_close(request, from_url):
     """Verify that basic Valkey instances have auto_close_connection_pool set to True"""
 
     url: str = request.config.getoption("--valkey-url")
-    url_args = parse_url(url)
+    url_args = parse_url(url, False)
 
     def get_valkey_connection():
         if from_url:
@@ -235,7 +235,7 @@ def test_valkey_connection_pool(request, from_url):
     have auto_close_connection_pool set to False"""
 
     url: str = request.config.getoption("--valkey-url")
-    url_args = parse_url(url)
+    url_args = parse_url(url, True)
 
     pool = None
 
@@ -267,7 +267,7 @@ def test_valkey_from_pool(request, from_url):
     have auto_close_connection_pool set to True"""
 
     url: str = request.config.getoption("--valkey-url")
-    url_args = parse_url(url)
+    url_args = parse_url(url, True)
 
     pool = None
 

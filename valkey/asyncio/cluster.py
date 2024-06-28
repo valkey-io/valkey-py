@@ -206,7 +206,7 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
         :class:`~valkey.asyncio.connection.Connection` when created.
         In the case of conflicting arguments, querystring arguments are used.
         """
-        kwargs.update(parse_url(url))
+        kwargs.update(parse_url(url, False))
         if kwargs.pop("connection_class", None) is SSLConnection:
             kwargs["ssl"] = True
         return cls(**kwargs)

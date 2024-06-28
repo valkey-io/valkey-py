@@ -580,7 +580,7 @@ class ValkeyCluster(AbstractValkeyCluster, ValkeyClusterCommands):
         from_url = False
         if url is not None:
             from_url = True
-            url_options = parse_url(url)
+            url_options = parse_url(url, False)
             if "path" in url_options:
                 raise ValkeyClusterException(
                     "ValkeyCluster does not currently support Unix Domain "
