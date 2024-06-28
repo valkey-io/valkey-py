@@ -947,8 +947,6 @@ class UnixDomainSocketConnection(AbstractConnection):
 FALSE_STRINGS = ("0", "F", "FALSE", "N", "NO")
 
 
-
-
 class ConnectionPool:
     """
     Create a connection pool. ``If max_connections`` is set, then this
