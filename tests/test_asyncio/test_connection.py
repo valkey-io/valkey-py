@@ -10,7 +10,8 @@ from valkey._parsers import (
     _AsyncHiredisParser,
     _AsyncRESP2Parser,
     _AsyncRESP3Parser,
-    _AsyncRESPBase, parse_url,
+    _AsyncRESPBase,
+    parse_url,
 )
 from valkey.asyncio import ConnectionPool, Valkey
 from valkey.asyncio.connection import Connection, UnixDomainSocketConnection
