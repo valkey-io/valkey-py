@@ -9,8 +9,9 @@ import pytest
 import valkey
 from packaging.version import Version
 from valkey import Sentinel
+from valkey._parsers import parse_url
 from valkey.backoff import NoBackoff
-from valkey.connection import Connection, parse_url
+from valkey.connection import Connection
 from valkey.exceptions import ValkeyClusterException
 from valkey.retry import Retry
 

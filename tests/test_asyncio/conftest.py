@@ -5,9 +5,10 @@ import pytest
 import pytest_asyncio
 import valkey.asyncio as valkey
 from tests.conftest import VALKEY_INFO
+from valkey._parsers import parse_url
 from valkey.asyncio import Sentinel
 from valkey.asyncio.client import Monitor
-from valkey.asyncio.connection import Connection, parse_url
+from valkey.asyncio.connection import Connection
 from valkey.asyncio.retry import Retry
 from valkey.backoff import NoBackoff
 

@@ -10,10 +10,10 @@ from valkey._parsers import (
     _AsyncHiredisParser,
     _AsyncRESP2Parser,
     _AsyncRESP3Parser,
-    _AsyncRESPBase,
+    _AsyncRESPBase, parse_url,
 )
 from valkey.asyncio import ConnectionPool, Valkey
-from valkey.asyncio.connection import Connection, UnixDomainSocketConnection, parse_url
+from valkey.asyncio.connection import Connection, UnixDomainSocketConnection
 from valkey.asyncio.retry import Retry
 from valkey.backoff import NoBackoff
 from valkey.exceptions import ConnectionError, InvalidResponse, TimeoutError
