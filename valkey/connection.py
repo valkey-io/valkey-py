@@ -10,7 +10,7 @@ from itertools import chain
 from queue import Empty, Full, LifoQueue
 from time import time
 from typing import Any, Callable, List, Optional, Sequence, Type, Union
-from ._parsers.url_parser import parse_url
+
 
 from ._cache import (
     DEFAULT_ALLOW_LIST,
@@ -1023,6 +1023,7 @@ class ConnectionPool:
         class initializer. In the case of conflicting arguments, querystring
         arguments always win.
         """
+        from ._parsers.url_parser import parse_url
         url_options = parse_url(url)
 
         if "connection_class" in kwargs:
