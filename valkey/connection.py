@@ -1024,8 +1024,8 @@ class ConnectionPool:
         arguments always win.
         """
         from ._parsers.url_parser import parse_url
-        url_options = parse_url(url)
 
+        url_options = parse_url(url)
         if "connection_class" in kwargs:
             url_options["connection_class"] = kwargs["connection_class"]
 
