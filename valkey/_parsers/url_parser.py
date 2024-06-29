@@ -37,6 +37,16 @@ URL_QUERY_ARGUMENT_PARSERS: Mapping[str, Callable[..., object]] = MappingProxyTy
 
 def parse_url(url: str, async_connection: bool):
 
+    if not (
+        url.startswith("valkey://")
+        or url.startswith("valkeys://")
+        or url.startswith("unix://")
+    ):
+        raise ValueError(
+            "Valkey URL must specify one of the following "
+            "schemes (valkey://, valkeys://, unix://)"
+        )
+
     parsed: ParseResult = urlparse(url)
     kwargs: ConnectKwargs = {}
 
