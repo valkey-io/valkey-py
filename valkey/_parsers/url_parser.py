@@ -1,3 +1,4 @@
+import re
 from types import MappingProxyType
 from typing import Callable, Mapping, Optional
 from urllib.parse import ParseResult, parse_qs, unquote, urlparse
@@ -36,19 +37,16 @@ URL_QUERY_ARGUMENT_PARSERS: Mapping[str, Callable[..., object]] = MappingProxyTy
 
 
 def parse_url(url: str, async_connection: bool):
-
-    if not (
-        url.startswith("valkey://")
-        or url.startswith("valkeys://")
-        or url.startswith("unix://")
-    ):
-        raise ValueError(
-            "Valkey URL must specify one of the following "
-            "schemes (valkey://, valkeys://, unix://)"
-        )
-
+    supported_schemes = ["valkey", "valkeys", "redis", "rediss", "unix"]
     parsed: ParseResult = urlparse(url)
     kwargs: ConnectKwargs = {}
+    pattern = re.compile(
+        r"^(?:" + "|".join(map(re.escape, supported_schemes)) + r")://", re.IGNORECASE
+    )
+    if not pattern.match(url):
+        raise ValueError(
+            f"Valkey URL must specify one of the following schemes {supported_schemes}"
+        )
 
     for name, value_list in parse_qs(parsed.query).items():
         if value_list and len(value_list) > 0:
@@ -67,7 +65,7 @@ def parse_url(url: str, async_connection: bool):
     if parsed.password:
         kwargs["password"] = unquote(parsed.password)
 
-    # We only support valkey://, valkeys:// and unix:// schemes.
+    # We only support valkey://, valkeys://, redis://, rediss://, and unix:// schemes.
     if parsed.scheme == "unix":
         if parsed.path:
             kwargs["path"] = unquote(parsed.path)
@@ -77,7 +75,7 @@ def parse_url(url: str, async_connection: bool):
             else UnixDomainSocketConnection
         )
 
-    elif parsed.scheme in ("valkey", "valkeys"):
+    elif parsed.scheme in supported_schemes:
         if parsed.hostname:
             kwargs["host"] = unquote(parsed.hostname)
         if parsed.port:
@@ -91,14 +89,13 @@ def parse_url(url: str, async_connection: bool):
             except (AttributeError, ValueError):
                 pass
 
-        if parsed.scheme == "valkeys":
+        if parsed.scheme in ("valkeys", "rediss"):
             kwargs["connection_class"] = (
                 SSLConnectionAsync if async_connection else SSLConnection
             )
     else:
-        valid_schemes = "valkey://, valkeys://, unix://"
         raise ValueError(
-            f"Valkey URL must specify one of the following schemes ({valid_schemes})"
+            f"Valkey URL must specify one of the following schemes {supported_schemes}"
         )
 
     return kwargs
