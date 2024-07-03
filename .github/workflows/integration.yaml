@@ -59,7 +59,7 @@ jobs:
        matrix:
          python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', 'pypy-3.9', 'pypy-3.10']
          test-type: ['standalone', 'cluster']
-         connection-type: ['hiredis', 'plain']
+         connection-type: ['libvalkey', 'plain']
      env:
        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
      name: Python ${{ matrix.python-version }} ${{matrix.test-type}}-${{matrix.connection-type}} tests
@@ -74,8 +74,8 @@ jobs:
            pip install -U setuptools wheel
            pip install -r requirements.txt
            pip install -r dev_requirements.txt
-           if [ "${{matrix.connection-type}}" == "hiredis" ]; then
-            pip install "hiredis<3.0.0"
+           if [ "${{matrix.connection-type}}" == "libvalkey" ]; then
+            pip install libvalkey
            fi
            invoke devenv
            sleep 10 # time to settle
@@ -104,10 +104,10 @@ jobs:
       matrix:
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', 'pypy-3.9', 'pypy-3.10']
         test-type: ['standalone', 'cluster']
-        connection-type: ['hiredis', 'plain']
+        connection-type: ['libvalkey', 'plain']
         exclude:
           - test-type: 'cluster'
-            connection-type: 'hiredis'
+            connection-type: 'libvalkey'
     env:
        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
     name: RESP3 [${{ matrix.python-version }} ${{matrix.test-type}}-${{matrix.connection-type}}]
@@ -122,8 +122,8 @@ jobs:
           pip install -U setuptools wheel
           pip install -r requirements.txt
           pip install -r dev_requirements.txt
-          if [ "${{matrix.connection-type}}" == "hiredis" ]; then
-            pip install "hiredis<3.0.0"
+          if [ "${{matrix.connection-type}}" == "libvalkey" ]; then
+            pip install libvalkey
           fi
           invoke devenv
           sleep 10 # time to settle

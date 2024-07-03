@@ -27,11 +27,11 @@ To install valkey-py, simply:
 $ pip install valkey
 ```
 
-For faster performance, install valkey with hiredis support, this provides a compiled response parser, and *for most cases* requires zero code changes.
-By default, if hiredis >= 1.0 is available, valkey-py will attempt to use it for response parsing.
+For faster performance, install valkey with libvalkey support, this provides a compiled response parser, and *for most cases* requires zero code changes.
+By default, if libvalkey >= 2.3.2 is available, valkey-py will attempt to use it for response parsing.
 
 ``` bash
-$ pip install "valkey[hiredis]"
+$ pip install "valkey[libvalkey]"
 ```
 
 ## Usage

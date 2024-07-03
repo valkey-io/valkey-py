@@ -44,7 +44,7 @@ def all_tests(c, color=False):
 @task
 def tests(c, uvloop=False, protocol=2, color=False):
     """Run the valkey-py test suite against the current python,
-    with and without hiredis.
+    with and without libvalkey.
     """
     print("Starting Valkey tests")
     standalone_tests(c, uvloop=uvloop, protocol=protocol, color=color)

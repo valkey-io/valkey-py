@@ -7,8 +7,7 @@ from tests.conftest import (
     is_resp2_connection,
     skip_ifmodversion_lt,
 )
-from valkey.exceptions import ModuleError, ValkeyError
-from valkey.utils import HIREDIS_AVAILABLE
+from valkey.exceptions import ValkeyError
 
 pytestmark = pytest.mark.skip
 
@@ -96,10 +95,6 @@ async def test_bf_scandump_and_loadchunk(decoded_r: valkey.Valkey):
 
     await do_verify()
     cmds = []
-    if HIREDIS_AVAILABLE:
-        with pytest.raises(ModuleError):
-            cur = await decoded_r.bf().scandump("myBloom", 0)
-        return
 
     cur = await decoded_r.bf().scandump("myBloom", 0)
     first = cur[0]
