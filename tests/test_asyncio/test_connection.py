@@ -14,7 +14,11 @@ from valkey._parsers import (
     parse_url,
 )
 from valkey.asyncio import ConnectionPool, Valkey
-from valkey.asyncio.connection import Connection, UnixDomainSocketConnection
+from valkey.asyncio.connection import (
+    Connection,
+    SSLConnection,
+    UnixDomainSocketConnection,
+)
 from valkey.asyncio.retry import Retry
 from valkey.backoff import NoBackoff
 from valkey.exceptions import ConnectionError, InvalidResponse, TimeoutError
@@ -497,18 +501,50 @@ async def test_connection_garbage_collection(request):
 
 
 @pytest.mark.parametrize(
-    "error, expected_message",
+    "conn, error, expected_message",
     [
-        (OSError(), "Error connecting to localhost:6379. Connection reset by peer"),
-        (OSError(12), "Error connecting to localhost:6379. 12."),
+        (SSLConnection(), OSError(), "Error connecting to localhost:6379."),
+        (SSLConnection(), OSError(12), "Error 12 connecting to localhost:6379."),
         (
+            SSLConnection(),
             OSError(12, "Some Error"),
-            "Error 12 connecting to localhost:6379. [Errno 12] Some Error.",
+            "Error 12 connecting to localhost:6379. Some Error.",
+        ),
+        (
+            UnixDomainSocketConnection(path="unix:///tmp/valkey.sock"),
+            OSError(),
+            "Error connecting to unix:///tmp/valkey.sock.",
+        ),
+        (
+            UnixDomainSocketConnection(path="unix:///tmp/valkey.sock"),
+            OSError(12),
+            "Error 12 connecting to unix:///tmp/valkey.sock.",
+        ),
+        (
+            UnixDomainSocketConnection(path="unix:///tmp/valkey.sock"),
+            OSError(12, "Some Error"),
+            "Error 12 connecting to unix:///tmp/valkey.sock. Some Error.",
         ),
     ],
 )
-async def test_connect_error_message(error, expected_message):
+async def test_format_error_message(conn, error, expected_message):
     """Test that the _error_message function formats errors correctly"""
-    conn = Connection()
     error_message = conn._error_message(error)
     assert error_message == expected_message
+
+
+async def test_network_connection_failure():
+    with pytest.raises(ConnectionError) as e:
+        valkey = Valkey(host="127.0.0.1", port=9999)
+        await valkey.set("a", "b")
+    assert str(e.value).startswith("Error 111 connecting to 127.0.0.1:9999. Connect")
+
+
+async def test_unix_socket_connection_failure():
+    with pytest.raises(ConnectionError) as e:
+        valkey = Valkey(unix_socket_path="unix:///tmp/a.sock")
+        await valkey.set("a", "b")
+    assert (
+        str(e.value)
+        == "Error 2 connecting to unix:///tmp/a.sock. No such file or directory."
+    )
