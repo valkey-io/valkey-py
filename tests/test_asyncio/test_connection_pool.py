@@ -9,7 +9,6 @@ from valkey._parsers.url_parser import to_bool
 from valkey.asyncio.connection import Connection
 from valkey.utils import SSL_AVAILABLE
 
-
 from .compat import aclosing, mock
 from .conftest import asynccontextmanager
 from .test_pubsub import wait_for_message
@@ -542,6 +541,7 @@ class TestConnectionPoolUnixSocketURLParsing:
         pool = valkey.ConnectionPool.from_url("unix:///socket?a=1&b=2")
         assert pool.connection_class == valkey.UnixDomainSocketConnection
         assert pool.connection_kwargs == {"path": "/socket", "a": "1", "b": "2"}
+
 
 @pytest.mark.skipif(not SSL_AVAILABLE, reason="SSL not installed")
 class TestSSLConnectionURLParsing:
