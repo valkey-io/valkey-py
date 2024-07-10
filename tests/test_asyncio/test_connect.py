@@ -166,12 +166,13 @@ async def _assert_connect(
         await aserver.start_serving()
         try:
             await conn.connect()
+            stop_event.set()
             await conn.disconnect()
         except ConnectionError:
             finished.set()
             raise
         finally:
-            stop_event.set()
+            stop_event.set()  # Set stop_event in case of a connection error
             aserver.close()
             await aserver.wait_closed()
             await finished.wait()
