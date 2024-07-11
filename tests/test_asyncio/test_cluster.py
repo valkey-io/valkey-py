@@ -60,6 +60,7 @@ class NodeProxy:
         self.send_event = asyncio.Event()
         self.server = None
         self.task = None
+        self.pipes = None
         self.n_connections = 0
 
     async def start(self):
@@ -79,12 +80,18 @@ class NodeProxy:
             self.n_connections += 1
             pipe1 = asyncio.create_task(self.pipe(reader, valkey_writer))
             pipe2 = asyncio.create_task(self.pipe(valkey_reader, writer))
-            await asyncio.gather(pipe1, pipe2)
+            self.pipes = asyncio.gather(pipe1, pipe2)
+            await self.pipes
+        except asyncio.CancelledError:
+            writer.close()
         finally:
             valkey_writer.close()
 
     async def aclose(self):
         self.task.cancel()
+        # self.pipes can be None if handle was never called
+        if self.pipes is not None:
+            self.pipes.cancel()
         try:
             await self.task
         except asyncio.CancelledError:

@@ -1,6 +1,5 @@
 import sys
 from collections import OrderedDict
-from distutils.util import strtobool
 
 # from prettytable import PrettyTable
 from valkey import ResponseError
@@ -37,6 +36,22 @@ STATS = [
     CACHED_EXECUTION,
     INTERNAL_EXECUTION_TIME,
 ]
+
+
+def strtobool(value: str) -> bool:
+    """
+    Convert a string representation of truth to True or False.
+    True values are 'y', 'yes', 't', 'true', 'on', and '1'; false values
+    are 'n', 'no', 'f', 'false', 'off', and '0'.  Raises ValueError if
+    'value' is anything else.
+    """
+    value = value.lower()
+    if value in ("y", "yes", "t", "true", "on", "1"):
+        return True
+    elif value in ("n", "no", "f", "false", "off", "0"):
+        return False
+    else:
+        raise ValueError(f"invalid truth value {value}")
 
 
 class ResultSetColumnTypes:
@@ -270,7 +285,7 @@ class QueryResult:
         """
         value = value.decode() if isinstance(value, bytes) else value
         try:
-            scalar = True if strtobool(value) else False
+            scalar = strtobool(value)
         except ValueError:
             sys.stderr.write("unknown boolean type\n")
             scalar = None

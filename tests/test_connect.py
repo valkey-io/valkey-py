@@ -95,7 +95,13 @@ def test_tcp_ssl_tls12_custom_ciphers(tcp_address, ssl_ciphers):
         ssl_min_version=ssl.TLSVersion.TLSv1_2,
         ssl_ciphers=ssl_ciphers,
     )
-    _assert_connect(conn, tcp_address, certfile=certfile, keyfile=keyfile)
+    _assert_connect(
+        conn,
+        tcp_address,
+        certfile=certfile,
+        keyfile=keyfile,
+        ssl_version=ssl.TLSVersion.TLSv1_2,
+    )
 
 
 @pytest.mark.ssl
@@ -118,7 +124,7 @@ def test_tcp_ssl_version_mismatch(tcp_address):
             tcp_address,
             certfile=certfile,
             keyfile=keyfile,
-            ssl_version=ssl.PROTOCOL_TLSv1_2,
+            ssl_version=ssl.TLSVersion.TLSv1_3,
         )
 
 
@@ -147,7 +153,7 @@ class _ValkeyTCPServer(socketserver.TCPServer):
         *args,
         certfile=None,
         keyfile=None,
-        ssl_version=ssl.PROTOCOL_TLS,
+        ssl_version=ssl.TLSVersion.TLSv1,
         **kw,
     ) -> None:
         self._ready_event = threading.Event()
@@ -174,12 +180,12 @@ class _ValkeyTCPServer(socketserver.TCPServer):
         if self._certfile is None:
             return super().get_request()
         newsocket, fromaddr = self.socket.accept()
-        connstream = ssl.wrap_socket(
+        sslctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        sslctx.load_cert_chain(self._certfile, self._keyfile)
+        sslctx.minimum_version = self._ssl_version
+        connstream = sslctx.wrap_socket(
             newsocket,
             server_side=True,
-            certfile=self._certfile,
-            keyfile=self._keyfile,
-            ssl_version=self._ssl_version,
         )
         return connstream, fromaddr
 
