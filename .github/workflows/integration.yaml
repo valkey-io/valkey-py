@@ -80,6 +80,7 @@ jobs:
            invoke devenv
            sleep 10 # time to settle
            invoke ${{matrix.test-type}}-tests
+           invoke ${{matrix.test-type}}-tests --uvloop
 
        - uses: actions/upload-artifact@v4
          if: success() || failure()
