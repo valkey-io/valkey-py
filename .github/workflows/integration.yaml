@@ -80,7 +80,9 @@ jobs:
            invoke devenv
            sleep 10 # time to settle
            invoke ${{matrix.test-type}}-tests
-           invoke ${{matrix.test-type}}-tests --uvloop
+           if [[ "${{matrix.python-version}}" != pypy-* ]]; then
+            invoke ${{matrix.test-type}}-tests --uvloop
+           fi
 
        - uses: actions/upload-artifact@v4
          if: success() || failure()
