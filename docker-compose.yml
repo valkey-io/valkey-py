@@ -47,11 +47,12 @@ services:
       - all
 
   stunnel:
-    image: redisfab/stunnel:latest
+    build:
+      context: ./dockers/stunnel
     depends_on:
       - valkey
     ports:
-      - 6666:6666
+      - "6666:6666"
     profiles:
       - all
       - standalone
