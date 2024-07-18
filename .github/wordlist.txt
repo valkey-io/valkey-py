@@ -159,3 +159,4 @@ valkeymodules
 virtualenv
 www
 md
+yaml
