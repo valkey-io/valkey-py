@@ -5,6 +5,7 @@ Tests async overrides of commands from their mixins
 import asyncio
 import binascii
 import datetime
+import math
 import re
 import sys
 from string import ascii_letters
@@ -13,8 +14,10 @@ import pytest
 import pytest_asyncio
 import valkey
 from tests.conftest import (
+    assert_geo_is_close,
     assert_resp_response,
     assert_resp_response_in,
+    assert_resp_response_isclose,
     is_resp2_connection,
     skip_if_server_version_gte,
     skip_if_server_version_lt,
@@ -2459,7 +2462,7 @@ class TestValkeyCommands:
 
         await r.geoadd("barcelona", values)
         # valkey uses 52 bits precision, hereby small errors may be introduced.
-        assert_resp_response(
+        assert_resp_response_isclose(
             r,
             await r.geopos("barcelona", "place1", "place2"),
             [
@@ -2519,7 +2522,30 @@ class TestValkeyCommands:
 
     @skip_unless_arch_bits(64)
     @skip_if_server_version_lt("3.2.0")
-    async def test_georadius_with(self, r: valkey.Valkey):
+    @pytest.mark.parametrize(
+        "georadius_kwargs, expected_georadius_result",
+        [
+            (
+                {"withdist": True, "withcoord": True, "withhash": True},
+                [b"place1", 0.0881, 3471609698139488],
+            ),
+            (
+                {"withdist": True, "withcoord": True},
+                [b"place1", 0.0881],
+            ),
+            (
+                {"withhash": True, "withcoord": True},
+                [b"place1", 3471609698139488],
+            ),
+            (
+                {"withdist": True, "withhash": True},
+                [b"place1", 0.0881, 3471609698139488],
+            ),
+        ],
+    )
+    async def test_georadius_with(
+        self, r: valkey.Valkey, georadius_kwargs, expected_georadius_result
+    ):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2530,33 +2556,23 @@ class TestValkeyCommands:
 
         # test a bunch of combinations to test the parse response
         # function.
-        assert await r.georadius(
+        georadius_result = await r.georadius(
             "barcelona",
             2.191,
             41.433,
             1,
             unit="km",
-            withdist=True,
-            withcoord=True,
-            withhash=True,
-        ) == [
-            [
-                b"place1",
-                0.0881,
-                3471609698139488,
-                (2.19093829393386841, 41.43379028184083523),
-            ]
-        ]
+            **georadius_kwargs,
+        )
 
-        assert await r.georadius(
-            "barcelona", 2.191, 41.433, 1, unit="km", withdist=True, withcoord=True
-        ) == [[b"place1", 0.0881, (2.19093829393386841, 41.43379028184083523)]]
-
-        assert await r.georadius(
-            "barcelona", 2.191, 41.433, 1, unit="km", withhash=True, withcoord=True
-        ) == [
-            [b"place1", 3471609698139488, (2.19093829393386841, 41.43379028184083523)]
-        ]
+        assert len(georadius_result) == 1
+        if "withcoord" in georadius_kwargs:
+            assert_geo_is_close(
+                georadius_result[0][-1], (2.19093829393386841, 41.43379028184083523)
+            )
+            assert georadius_result[0][:-1] == expected_georadius_result
+        else:
+            assert georadius_result == [expected_georadius_result]
 
         # test no values.
         assert (
@@ -2566,9 +2582,7 @@ class TestValkeyCommands:
                 1,
                 1,
                 unit="km",
-                withdist=True,
-                withcoord=True,
-                withhash=True,
+                **georadius_kwargs,
             )
             == []
         )
@@ -2632,7 +2646,8 @@ class TestValkeyCommands:
             "barcelona", 2.191, 41.433, 1000, store_dist="places_barcelona"
         )
         # instead of save the geo score, the distance is saved.
-        assert await r.zscore("places_barcelona", "place1") == 88.05060698409301
+        z_score = await r.zscore("places_barcelona", "place1")
+        assert math.isclose(z_score, 88.05060698409301)
 
     @skip_unless_arch_bits(64)
     @skip_if_server_version_lt("3.2.0")
@@ -2650,21 +2665,22 @@ class TestValkeyCommands:
         ]
         assert await r.georadiusbymember("barcelona", "place1", 10) == [b"place1"]
 
-        assert await r.georadiusbymember(
+        radius_place2, radius_place1 = await r.georadiusbymember(
             "barcelona", "place1", 4000, withdist=True, withcoord=True, withhash=True
-        ) == [
-            [
-                b"\x80place2",
-                3067.4157,
-                3471609625421029,
-                (2.187376320362091, 41.40634178640635),
-            ],
-            [
-                b"place1",
-                0.0,
-                3471609698139488,
-                (2.1909382939338684, 41.433790281840835),
-            ],
+        )
+
+        assert_geo_is_close(radius_place2[-1], (2.187376320362091, 41.40634178640635))
+        assert radius_place2[:-1] == [
+            b"\x80place2",
+            3067.4157,
+            3471609625421029,
+        ]
+
+        assert_geo_is_close(radius_place1[-1], (2.1909382939338684, 41.433790281840835))
+        assert radius_place1[:-1] == [
+            b"place1",
+            0.0,
+            3471609698139488,
         ]
 
     @skip_if_server_version_lt("5.0.0")

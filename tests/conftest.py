@@ -1,4 +1,5 @@
 import argparse
+import math
 import time
 from typing import Callable, TypeVar
 from unittest import mock
@@ -491,6 +492,28 @@ def assert_resp_response(r, response, resp2_expected, resp3_expected):
         assert response == resp2_expected
     else:
         assert response == resp3_expected
+
+
+def assert_geo_is_close(coords, expected_coords):
+    """
+    Verifies that the coordinates are close within the floating point tolerance
+
+    Valkey uses 52-bit presicion
+    """
+    for a, b in zip(coords, expected_coords):
+        assert math.isclose(a, b)
+
+
+def assert_resp_response_isclose(r, response, resp2_expected, resp3_expected):
+    """Verifies that the responses are close within the floating point tolerance"""
+    protocol = get_protocol_version(r)
+
+    if protocol in [2, "2", None]:
+        assert_geo_is_close(response[0], resp2_expected[0])
+        assert response[1:] == resp2_expected[1:]
+    else:
+        assert_geo_is_close(response[0], resp3_expected[0])
+        assert response[1:] == resp3_expected[1:]
 
 
 def assert_resp_response_in(r, response, resp2_expected, resp3_expected):
