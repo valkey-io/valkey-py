@@ -105,9 +105,6 @@ jobs:
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', 'pypy-3.9', 'pypy-3.10']
         test-type: ['standalone', 'cluster']
         connection-type: ['libvalkey', 'plain']
-        exclude:
-          - test-type: 'cluster'
-            connection-type: 'libvalkey'
     env:
        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
     name: RESP3 [${{ matrix.python-version }} ${{matrix.test-type}}-${{matrix.connection-type}}]
