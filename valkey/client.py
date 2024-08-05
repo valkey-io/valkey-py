@@ -44,7 +44,7 @@ from valkey.exceptions import (
 from valkey.lock import Lock
 from valkey.retry import Retry
 from valkey.utils import (
-    HIREDIS_AVAILABLE,
+    LIBVALKEY_AVAILABLE,
     _set_info_logger,
     get_lib_version,
     safe_str,
@@ -807,7 +807,7 @@ class PubSub:
             # register a callback that re-subscribes to any channels we
             # were listening to when we were disconnected
             self.connection.register_connect_callback(self.on_connect)
-            if self.push_handler_func is not None and not HIREDIS_AVAILABLE:
+            if self.push_handler_func is not None and not LIBVALKEY_AVAILABLE:
                 self.connection._parser.set_pubsub_push_handler(self.push_handler_func)
         connection = self.connection
         kwargs = {"check_health": not self.subscribed}

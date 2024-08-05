@@ -4,14 +4,12 @@ from functools import wraps
 from typing import Any, Dict, Mapping, Union
 
 try:
-    import hiredis  # noqa
+    import libvalkey  # noqa
 
-    # Only support Hiredis >= 1.0:
-    HIREDIS_AVAILABLE = not hiredis.__version__.startswith("0.")
-    HIREDIS_PACK_AVAILABLE = hasattr(hiredis, "pack_command")
+    # Only support libvalkey 4.0.0 and above
+    LIBVALKEY_AVAILABLE = int(libvalkey.__version__.split(".")[0]) >= 4
 except ImportError:
-    HIREDIS_AVAILABLE = False
-    HIREDIS_PACK_AVAILABLE = False
+    LIBVALKEY_AVAILABLE = False
 
 try:
     import ssl  # noqa

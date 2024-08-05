@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 import valkey
 from valkey.exceptions import ConnectionError
-from valkey.utils import HIREDIS_AVAILABLE
+from valkey.utils import LIBVALKEY_AVAILABLE
 
 from .conftest import _get_client, is_resp2_connection, skip_if_server_version_lt
 
@@ -588,7 +588,7 @@ class TestPubSubRESP3Handler:
     def my_handler(self, message):
         self.message = ["my handler", message]
 
-    @pytest.mark.skipif(HIREDIS_AVAILABLE, reason="PythonParser only")
+    @pytest.mark.skipif(LIBVALKEY_AVAILABLE, reason="PythonParser only")
     def test_push_handler(self, r):
         if is_resp2_connection(r):
             return
@@ -600,7 +600,7 @@ class TestPubSubRESP3Handler:
         assert wait_for_message(p) is None
         assert self.message == ["my handler", [b"message", b"foo", b"test message"]]
 
-    @pytest.mark.skipif(HIREDIS_AVAILABLE, reason="PythonParser only")
+    @pytest.mark.skipif(LIBVALKEY_AVAILABLE, reason="PythonParser only")
     @skip_if_server_version_lt("7.0.0")
     def test_push_handler_sharded_pubsub(self, r):
         if is_resp2_connection(r):
@@ -1136,7 +1136,7 @@ class TestBaseException:
         # timeout waiting for another message which never arrives
         assert is_connected()
         with patch("valkey._parsers._RESP2Parser.read_response") as mock1, patch(
-            "valkey._parsers._HiredisParser.read_response"
+            "valkey._parsers._LibvalkeyParser.read_response"
         ) as mock2, patch("valkey._parsers._RESP3Parser.read_response") as mock3:
             mock1.side_effect = BaseException("boom")
             mock2.side_effect = BaseException("boom")

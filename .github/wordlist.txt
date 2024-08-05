@@ -89,7 +89,6 @@ firsttimersonly
 fo
 genindex
 gmail
-hiredis
 html
 http
 https
@@ -101,6 +100,7 @@ json
 keyslot
 keyspace
 kwarg
+libvalkey
 linters
 localhost
 lua

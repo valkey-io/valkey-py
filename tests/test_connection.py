@@ -6,18 +6,18 @@ from unittest.mock import patch
 import pytest
 import valkey
 from valkey import ConnectionPool, Valkey
-from valkey._parsers import _HiredisParser, _RESP2Parser, _RESP3Parser, parse_url
+from valkey._parsers import _LibvalkeyParser, _RESP2Parser, _RESP3Parser, parse_url
 from valkey.backoff import NoBackoff
 from valkey.connection import Connection, SSLConnection, UnixDomainSocketConnection
 from valkey.exceptions import ConnectionError, InvalidResponse, TimeoutError
 from valkey.retry import Retry
-from valkey.utils import HIREDIS_AVAILABLE
+from valkey.utils import LIBVALKEY_AVAILABLE
 
 from .conftest import skip_if_server_version_lt
 from .mocks import MockSocket
 
 
-@pytest.mark.skipif(HIREDIS_AVAILABLE, reason="PythonParser only")
+@pytest.mark.skipif(LIBVALKEY_AVAILABLE, reason="PythonParser only")
 @pytest.mark.onlynoncluster
 def test_invalid_response(r):
     raw = b"x"
@@ -130,17 +130,17 @@ class TestConnection:
 @pytest.mark.onlynoncluster
 @pytest.mark.parametrize(
     "parser_class",
-    [_RESP2Parser, _RESP3Parser, _HiredisParser],
-    ids=["RESP2Parser", "RESP3Parser", "HiredisParser"],
+    [_RESP2Parser, _RESP3Parser, _LibvalkeyParser],
+    ids=["RESP2Parser", "RESP3Parser", "LibvalkeyParser"],
 )
 def test_connection_parse_response_resume(r: valkey.Valkey, parser_class):
     """
     This test verifies that the Connection parser,
-    be that PythonParser or HiredisParser,
+    be that PythonParser or LibvalkeyParser,
     can be interrupted at IO time and then resume parsing.
     """
-    if parser_class is _HiredisParser and not HIREDIS_AVAILABLE:
-        pytest.skip("Hiredis not available)")
+    if parser_class is _LibvalkeyParser and not LIBVALKEY_AVAILABLE:
+        pytest.skip("Libvalkey not available)")
     args = dict(r.connection_pool.connection_kwargs)
     args["parser_class"] = parser_class
     conn = Connection(**args)

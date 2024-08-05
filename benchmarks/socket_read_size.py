@@ -1,12 +1,12 @@
 from base import Benchmark
 
-from valkey.connection import PythonParser, _HiredisParser
+from valkey.connection import PythonParser, _LibvalkeyParser
 
 
 class SocketReadBenchmark(Benchmark):
 
     ARGUMENTS = (
-        {"name": "parser", "values": [PythonParser, _HiredisParser]},
+        {"name": "parser", "values": [PythonParser, _LibvalkeyParser]},
         {
             "name": "value_size",
             "values": [10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000],

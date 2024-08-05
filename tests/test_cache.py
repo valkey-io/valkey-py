@@ -9,7 +9,7 @@ from tests.conftest import _get_client
 from valkey import ValkeyError
 from valkey._cache import AbstractCache, EvictionPolicy, _LocalCache
 from valkey.typing import KeyT, ResponseT
-from valkey.utils import HIREDIS_AVAILABLE
+from valkey.utils import LIBVALKEY_AVAILABLE
 
 
 @pytest.fixture()
@@ -34,7 +34,7 @@ def local_cache():
     return _LocalCache()
 
 
-@pytest.mark.skipif(HIREDIS_AVAILABLE, reason="PythonParser only")
+@pytest.mark.skipif(LIBVALKEY_AVAILABLE, reason="PythonParser only")
 class TestLocalCache:
     @pytest.mark.parametrize("r", [{"cache": _LocalCache()}], indirect=True)
     @pytest.mark.onlynoncluster
@@ -417,7 +417,7 @@ class TestLocalCache:
         assert r.get("foo") == b"barbar"
 
 
-@pytest.mark.skipif(HIREDIS_AVAILABLE, reason="PythonParser only")
+@pytest.mark.skipif(LIBVALKEY_AVAILABLE, reason="PythonParser only")
 @pytest.mark.onlycluster
 class TestClusterLocalCache:
     @pytest.mark.parametrize("r", [{"cache": _LocalCache()}], indirect=True)
@@ -484,7 +484,7 @@ class TestClusterLocalCache:
         assert cache.get(("GET", "b")) is None
 
 
-@pytest.mark.skipif(HIREDIS_AVAILABLE, reason="PythonParser only")
+@pytest.mark.skipif(LIBVALKEY_AVAILABLE, reason="PythonParser only")
 @pytest.mark.onlynoncluster
 class TestSentinelLocalCache:
 
@@ -524,7 +524,7 @@ class TestSentinelLocalCache:
         assert master.get("foo") == "barbar"
 
 
-@pytest.mark.skipif(HIREDIS_AVAILABLE, reason="PythonParser only")
+@pytest.mark.skipif(LIBVALKEY_AVAILABLE, reason="PythonParser only")
 @pytest.mark.onlynoncluster
 class TestCustomCache:
     class _CustomCache(AbstractCache):

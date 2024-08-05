@@ -1,6 +1,5 @@
 from valkey.client import NEVER_DECODE
-from valkey.exceptions import ModuleError
-from valkey.utils import HIREDIS_AVAILABLE, deprecated_function
+from valkey.utils import deprecated_function
 
 BF_RESERVE = "BF.RESERVE"
 BF_ADD = "BF.ADD"
@@ -139,8 +138,6 @@ class BFCommands:
         This command will return successive (iter, data) pairs until (0, NULL) to indicate completion.
         For more information see `BF.SCANDUMP <https://valkey.io/commands/bf.scandump>`_.
         """  # noqa
-        if HIREDIS_AVAILABLE:
-            raise ModuleError("This command cannot be used when hiredis is available.")
 
         params = [key, iter]
         options = {}

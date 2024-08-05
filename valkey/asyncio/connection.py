@@ -45,7 +45,7 @@ from valkey.exceptions import (
     ValkeyError,
 )
 from valkey.typing import EncodableT, KeysT, ResponseT
-from valkey.utils import HIREDIS_AVAILABLE, get_lib_version, str_if_bytes
+from valkey.utils import LIBVALKEY_AVAILABLE, get_lib_version, str_if_bytes
 
 from .._cache import (
     DEFAULT_ALLOW_LIST,
@@ -57,7 +57,7 @@ from .._cache import (
 from .._parsers import (
     BaseParser,
     Encoder,
-    _AsyncHiredisParser,
+    _AsyncLibvalkeyParser,
     _AsyncRESP2Parser,
     _AsyncRESP3Parser,
 )
@@ -76,9 +76,9 @@ class _Sentinel(enum.Enum):
 SENTINEL = _Sentinel.sentinel
 
 
-DefaultParser: Type[Union[_AsyncRESP2Parser, _AsyncRESP3Parser, _AsyncHiredisParser]]
-if HIREDIS_AVAILABLE:
-    DefaultParser = _AsyncHiredisParser
+DefaultParser: Type[Union[_AsyncRESP2Parser, _AsyncRESP3Parser, _AsyncLibvalkeyParser]]
+if LIBVALKEY_AVAILABLE:
+    DefaultParser = _AsyncLibvalkeyParser
 else:
     DefaultParser = _AsyncRESP2Parser
 
@@ -557,7 +557,7 @@ class AbstractConnection:
             if (
                 read_timeout is not None
                 and self.protocol in ["3", 3]
-                and not HIREDIS_AVAILABLE
+                and not LIBVALKEY_AVAILABLE
             ):
                 async with async_timeout(read_timeout):
                     response = await self._parser.read_response(
@@ -568,7 +568,7 @@ class AbstractConnection:
                     response = await self._parser.read_response(
                         disable_decoding=disable_decoding
                     )
-            elif self.protocol in ["3", 3] and not HIREDIS_AVAILABLE:
+            elif self.protocol in ["3", 3] and not LIBVALKEY_AVAILABLE:
                 response = await self._parser.read_response(
                     disable_decoding=disable_decoding, push_request=push_request
                 )

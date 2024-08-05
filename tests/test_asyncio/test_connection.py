@@ -7,7 +7,7 @@ import pytest
 import valkey
 from tests.conftest import skip_if_server_version_lt
 from valkey._parsers import (
-    _AsyncHiredisParser,
+    _AsyncLibvalkeyParser,
     _AsyncRESP2Parser,
     _AsyncRESP3Parser,
     _AsyncRESPBase,
@@ -18,7 +18,7 @@ from valkey.asyncio.connection import Connection, UnixDomainSocketConnection
 from valkey.asyncio.retry import Retry
 from valkey.backoff import NoBackoff
 from valkey.exceptions import ConnectionError, InvalidResponse, TimeoutError
-from valkey.utils import HIREDIS_AVAILABLE
+from valkey.utils import LIBVALKEY_AVAILABLE
 
 from .compat import mock
 from .mocks import MockStream
@@ -177,7 +177,7 @@ async def test_connect_timeout_error_without_retry():
 async def test_connection_parse_response_resume(r: valkey.Valkey):
     """
     This test verifies that the Connection parser,
-    be that PythonParser or HiredisParser,
+    be that PythonParser or LibvalkeyParser,
     can be interrupted at IO time and then resume parsing.
     """
     conn = Connection(**r.connection_pool.connection_kwargs)
@@ -205,8 +205,8 @@ async def test_connection_parse_response_resume(r: valkey.Valkey):
 @pytest.mark.onlynoncluster
 @pytest.mark.parametrize(
     "parser_class",
-    [_AsyncRESP2Parser, _AsyncRESP3Parser, _AsyncHiredisParser],
-    ids=["AsyncRESP2Parser", "AsyncRESP3Parser", "AsyncHiredisParser"],
+    [_AsyncRESP2Parser, _AsyncRESP3Parser, _AsyncLibvalkeyParser],
+    ids=["AsyncRESP2Parser", "AsyncRESP3Parser", "AsyncLibvalkeyParser"],
 )
 async def test_connection_disconect_race(parser_class, connect_args):
     """
@@ -220,8 +220,8 @@ async def test_connection_disconect_race(parser_class, connect_args):
     This test verifies that a read in progress can finish even
     if the `disconnect()` method is called.
     """
-    if parser_class == _AsyncHiredisParser and not HIREDIS_AVAILABLE:
-        pytest.skip("Hiredis not available")
+    if parser_class == _AsyncLibvalkeyParser and not LIBVALKEY_AVAILABLE:
+        pytest.skip("libvalkey not available")
 
     connect_args["parser_class"] = parser_class
 
@@ -234,7 +234,7 @@ async def test_connection_disconect_race(parser_class, connect_args):
     state = 0
 
     # Mock read function, which wait for a close to happen before returning
-    # Can either be invoked as two `read()` calls (HiredisParser)
+    # Can either be invoked as two `read()` calls (LibvalkeyParser)
     # or as a `readline()` followed by `readexact()` (PythonParser)
     chunks = [b"$13\r\n", b"Hello, World!\r\n"]
 
@@ -264,7 +264,7 @@ async def test_connection_disconect_race(parser_class, connect_args):
     writer = mock.Mock(spec=asyncio.StreamWriter)
     writer.transport.get_extra_info.side_effect = None
 
-    # for HiredisParser
+    # for LibvalkeyParser
     reader.read.side_effect = read
     # for PythonParser
     reader.readline.side_effect = read
