@@ -60,9 +60,10 @@ jobs:
          python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', 'pypy-3.9', 'pypy-3.10']
          test-type: ['standalone', 'cluster']
          connection-type: ['libvalkey', 'plain']
+         protocol-version: ['2','3']
      env:
        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
-     name: Python ${{ matrix.python-version }} ${{matrix.test-type}}-${{matrix.connection-type}} tests
+     name: Python ${{ matrix.python-version }} RESP${{ matrix.protocol-version }} ${{matrix.test-type}}-${{matrix.connection-type}} tests
      steps:
        - uses: actions/checkout@v4
        - uses: actions/setup-python@v5
@@ -79,15 +80,15 @@ jobs:
            fi
            invoke devenv
            sleep 10 # time to settle
-           invoke ${{matrix.test-type}}-tests
+           invoke ${{matrix.test-type}}-tests --protocol=${{ matrix.protocol-version }}
            if [[ "${{matrix.python-version}}" != pypy-* ]]; then
-            invoke ${{matrix.test-type}}-tests --uvloop
+            invoke ${{matrix.test-type}}-tests --uvloop --protocol=${{ matrix.protocol-version }}
            fi
 
        - uses: actions/upload-artifact@v4
          if: success() || failure()
          with:
-           name: pytest-results-${{matrix.test-type}}-${{matrix.connection-type}}-${{matrix.python-version}}
+           name: pytest-results-${{matrix.test-type}}-${{matrix.connection-type}}-${{matrix.python-version}}-RESP${{ matrix.protocol-version }}
            path: '${{matrix.test-type}}*results.xml'
 
        - name: Upload codecov coverage
@@ -95,51 +96,6 @@ jobs:
          with:
            fail_ci_if_error: false
            token: ${{ secrets.CODECOV_TOKEN }}
-
-
-   resp3_tests:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', 'pypy-3.9', 'pypy-3.10']
-        test-type: ['standalone', 'cluster']
-        connection-type: ['libvalkey', 'plain']
-    env:
-       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
-    name: RESP3 [${{ matrix.python-version }} ${{matrix.test-type}}-${{matrix.connection-type}}]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-      - name: run tests
-        run: |
-          pip install -U setuptools wheel
-          pip install -r requirements.txt
-          pip install -r dev_requirements.txt
-          if [ "${{matrix.connection-type}}" == "libvalkey" ]; then
-            pip install "libvalkey>=4.0.0b1"
-          fi
-          invoke devenv
-          sleep 10 # time to settle
-          invoke ${{matrix.test-type}}-tests --protocol=3
-          if [[ "${{matrix.python-version}}" != pypy-* ]]; then
-            invoke ${{matrix.test-type}}-tests --uvloop --protocol=3
-          fi
-
-      - uses: actions/upload-artifact@v4
-        if: success() || failure()
-        with:
-          name: pytest-results-${{matrix.test-type}}-${{matrix.connection-type}}-${{matrix.python-version}}-resp3
-          path: '${{matrix.test-type}}*results.xml'
-
-      - name: Upload codecov coverage
-        uses: codecov/codecov-action@v4
-        with:
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
 
 
    build_and_test_package:
