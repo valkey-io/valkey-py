@@ -70,7 +70,7 @@ from valkey.exceptions import (
 )
 from valkey.typing import ChannelT, EncodableT, KeyT
 from valkey.utils import (
-    HIREDIS_AVAILABLE,
+    LIBVALKEY_AVAILABLE,
     _set_info_logger,
     deprecated_function,
     get_lib_version,
@@ -913,7 +913,7 @@ class PubSub:
             self.connection.register_connect_callback(self.on_connect)
         else:
             await self.connection.connect()
-        if self.push_handler_func is not None and not HIREDIS_AVAILABLE:
+        if self.push_handler_func is not None and not LIBVALKEY_AVAILABLE:
             self.connection._parser.set_pubsub_push_handler(self.push_handler_func)
 
     async def _disconnect_raise_connect(self, conn, error):

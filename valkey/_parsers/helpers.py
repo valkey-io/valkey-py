@@ -783,9 +783,6 @@ _ValkeyCallbacks = {
 
 _ValkeyCallbacksRESP2 = {
     **string_keys_to_dict(
-        "SDIFF SINTER SMEMBERS SUNION", lambda r: r and set(r) or set()
-    ),
-    **string_keys_to_dict(
         "ZDIFF ZINTER ZPOPMAX ZPOPMIN ZRANGE ZRANGEBYSCORE ZRANK ZREVRANGE "
         "ZREVRANGEBYSCORE ZREVRANK ZUNION",
         zset_score_pairs,

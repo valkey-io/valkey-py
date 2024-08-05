@@ -18,7 +18,7 @@ from ._cache import (
     AbstractCache,
     _LocalCache,
 )
-from ._parsers import Encoder, _HiredisParser, _RESP2Parser, _RESP3Parser
+from ._parsers import Encoder, _LibvalkeyParser, _RESP2Parser, _RESP3Parser
 from .backoff import NoBackoff
 from .credentials import CredentialProvider, UsernamePasswordCredentialProvider
 from .exceptions import (
@@ -35,15 +35,14 @@ from .retry import Retry
 from .typing import KeysT, ResponseT
 from .utils import (
     CRYPTOGRAPHY_AVAILABLE,
-    HIREDIS_AVAILABLE,
-    HIREDIS_PACK_AVAILABLE,
+    LIBVALKEY_AVAILABLE,
     SSL_AVAILABLE,
     get_lib_version,
     str_if_bytes,
 )
 
-if HIREDIS_AVAILABLE:
-    import hiredis
+if LIBVALKEY_AVAILABLE:
+    import libvalkey
 
 SYM_STAR = b"*"
 SYM_DOLLAR = b"$"
@@ -54,14 +53,14 @@ DEFAULT_RESP_VERSION = 2
 
 SENTINEL = object()
 
-DefaultParser: Type[Union[_RESP2Parser, _RESP3Parser, _HiredisParser]]
-if HIREDIS_AVAILABLE:
-    DefaultParser = _HiredisParser
+DefaultParser: Type[Union[_RESP2Parser, _RESP3Parser, _LibvalkeyParser]]
+if LIBVALKEY_AVAILABLE:
+    DefaultParser = _LibvalkeyParser
 else:
     DefaultParser = _RESP2Parser
 
 
-class HiredisRespSerializer:
+class LibvalkeyRespSerializer:
     def pack(self, *args: List):
         """Pack a series of arguments into the Valkey protocol"""
         output = []
@@ -71,7 +70,7 @@ class HiredisRespSerializer:
         elif b" " in args[0]:
             args = tuple(args[0].split()) + args[1:]
         try:
-            output.append(hiredis.pack_command(args))
+            output.append(libvalkey.pack_command(args))
         except TypeError:
             _, value, traceback = sys.exc_info()
             raise DataError(value).with_traceback(traceback)
@@ -258,8 +257,8 @@ class AbstractConnection:
     def _construct_command_packer(self, packer):
         if packer is not None:
             return packer
-        elif HIREDIS_PACK_AVAILABLE:
-            return HiredisRespSerializer()
+        elif LIBVALKEY_AVAILABLE:
+            return LibvalkeyRespSerializer()
         else:
             return PythonRespSerializer(self._buffer_cutoff, self.encoder.encode)
 
@@ -539,7 +538,7 @@ class AbstractConnection:
         host_error = self._host_error()
 
         try:
-            if self.protocol in ["3", 3] and not HIREDIS_AVAILABLE:
+            if self.protocol in ["3", 3] and not LIBVALKEY_AVAILABLE:
                 response = self._parser.read_response(
                     disable_decoding=disable_decoding, push_request=push_request
                 )

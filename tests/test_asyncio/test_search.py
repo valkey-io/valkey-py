@@ -9,11 +9,7 @@ import valkey.asyncio as valkey
 import valkey.commands.search
 import valkey.commands.search.aggregation as aggregations
 import valkey.commands.search.reducers as reducers
-from tests.conftest import (
-    assert_resp_response,
-    is_resp2_connection,
-    skip_ifmodversion_lt,
-)
+from tests.conftest import is_resp2_connection, skip_ifmodversion_lt
 from valkey.commands.search import AsyncSearch
 from valkey.commands.search.field import GeoField, NumericField, TagField, TextField
 from valkey.commands.search.indexDefinition import IndexDefinition
@@ -849,7 +845,7 @@ async def test_tags(decoded_r: valkey.Valkey):
         assert 1 == res["total_results"]
 
         q2 = await decoded_r.ft().tagvals("tags")
-        assert set(tags.split(",") + tags2.split(",")) == q2
+        assert set(tags.split(",") + tags2.split(",")) == set(q2)
 
 
 @pytest.mark.valkeymod
@@ -973,7 +969,7 @@ async def test_dict_operations(decoded_r: valkey.Valkey):
 
     # Dump dict and inspect content
     res = await decoded_r.ft().dict_dump("custom_dict")
-    assert_resp_response(decoded_r, res, ["item1", "item3"], {"item1", "item3"})
+    assert res == ["item1", "item3"]
 
     # Remove rest of the items before reload
     await decoded_r.ft().dict_del("custom_dict", *res)

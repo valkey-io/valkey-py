@@ -1,7 +1,7 @@
 import pytest
 import valkey
 from valkey.connection import Connection
-from valkey.utils import HIREDIS_PACK_AVAILABLE
+from valkey.utils import LIBVALKEY_AVAILABLE
 
 from .conftest import _get_client
 
@@ -76,8 +76,8 @@ class TestEncodingErrors:
 
 
 @pytest.mark.skipif(
-    HIREDIS_PACK_AVAILABLE,
-    reason="Packing via hiredis does not preserve memoryviews",
+    LIBVALKEY_AVAILABLE,
+    reason="Packing via libvalkey does not preserve memoryviews",
 )
 class TestMemoryviewsAreNotPacked:
     def test_memoryviews_are_not_packed(self):

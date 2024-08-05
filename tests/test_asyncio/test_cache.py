@@ -3,7 +3,7 @@ import time
 import pytest
 import pytest_asyncio
 from valkey._cache import EvictionPolicy, _LocalCache
-from valkey.utils import HIREDIS_AVAILABLE
+from valkey.utils import LIBVALKEY_AVAILABLE
 
 
 @pytest_asyncio.fixture
@@ -19,7 +19,7 @@ async def local_cache():
     yield _LocalCache()
 
 
-@pytest.mark.skipif(HIREDIS_AVAILABLE, reason="PythonParser only")
+@pytest.mark.skipif(LIBVALKEY_AVAILABLE, reason="PythonParser only")
 class TestLocalCache:
     @pytest.mark.parametrize("r", [{"cache": _LocalCache()}], indirect=True)
     @pytest.mark.onlynoncluster
@@ -299,7 +299,7 @@ class TestLocalCache:
         assert await r.get("c") == "1"
 
 
-@pytest.mark.skipif(HIREDIS_AVAILABLE, reason="PythonParser only")
+@pytest.mark.skipif(LIBVALKEY_AVAILABLE, reason="PythonParser only")
 @pytest.mark.onlycluster
 class TestClusterLocalCache:
     @pytest.mark.parametrize("r", [{"cache": _LocalCache()}], indirect=True)
@@ -368,7 +368,7 @@ class TestClusterLocalCache:
         assert cache.get(("GET", "b")) is None
 
 
-@pytest.mark.skipif(HIREDIS_AVAILABLE, reason="PythonParser only")
+@pytest.mark.skipif(LIBVALKEY_AVAILABLE, reason="PythonParser only")
 @pytest.mark.onlynoncluster
 class TestSentinelLocalCache:
 

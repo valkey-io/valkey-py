@@ -10,7 +10,7 @@ else:
 
 from ..exceptions import ConnectionError, InvalidResponse, ValkeyError
 from ..typing import EncodableT
-from ..utils import HIREDIS_AVAILABLE
+from ..utils import LIBVALKEY_AVAILABLE
 from .base import AsyncBaseParser, BaseParser
 from .socket import (
     NONBLOCKING_EXCEPTION_ERROR_NUMBERS,
@@ -19,25 +19,25 @@ from .socket import (
     SERVER_CLOSED_CONNECTION_ERROR,
 )
 
-# Used to signal that hiredis-py does not have enough data to parse.
+# Used to signal that libvalkey-py does not have enough data to parse.
 # Using `False` or `None` is not reliable, given that the parser can
 # return `False` or `None` for legitimate reasons from RESP payloads.
 NOT_ENOUGH_DATA = object()
 
 
-class _HiredisReaderArgs(TypedDict, total=False):
+class _LibvalkeyReaderArgs(TypedDict, total=False):
     protocolError: Callable[[str], Exception]
     replyError: Callable[[str], Exception]
     encoding: Optional[str]
     errors: Optional[str]
 
 
-class _HiredisParser(BaseParser):
-    "Parser class for connections using Hiredis"
+class _LibvalkeyParser(BaseParser):
+    "Parser class for connections using libvalkey"
 
     def __init__(self, socket_read_size):
-        if not HIREDIS_AVAILABLE:
-            raise ValkeyError("Hiredis is not installed")
+        if not LIBVALKEY_AVAILABLE:
+            raise ValkeyError("libvalkey is not installed")
         self.socket_read_size = socket_read_size
         self._buffer = bytearray(socket_read_size)
 
@@ -48,7 +48,7 @@ class _HiredisParser(BaseParser):
             pass
 
     def on_connect(self, connection, **kwargs):
-        import hiredis
+        import libvalkey
 
         self._sock = connection._sock
         self._socket_timeout = connection.socket_timeout
@@ -57,11 +57,12 @@ class _HiredisParser(BaseParser):
             "replyError": self.parse_error,
             "errors": connection.encoder.encoding_errors,
             "notEnoughData": NOT_ENOUGH_DATA,
+            "convertSetsToLists": True,
         }
 
         if connection.encoder.decode_responses:
             kwargs["encoding"] = connection.encoder.encoding
-        self._reader = hiredis.Reader(**kwargs)
+        self._reader = libvalkey.Reader(**kwargs)
         self._next_response = NOT_ENOUGH_DATA
 
     def on_disconnect(self):
@@ -144,31 +145,32 @@ class _HiredisParser(BaseParser):
         return response
 
 
-class _AsyncHiredisParser(AsyncBaseParser):
-    """Async implementation of parser class for connections using Hiredis"""
+class _AsyncLibvalkeyParser(AsyncBaseParser):
+    """Async implementation of parser class for connections using libvalkey"""
 
     __slots__ = ("_reader",)
 
     def __init__(self, socket_read_size: int):
-        if not HIREDIS_AVAILABLE:
-            raise ValkeyError("Hiredis is not available.")
+        if not LIBVALKEY_AVAILABLE:
+            raise ValkeyError("libvalkey is not available.")
         super().__init__(socket_read_size=socket_read_size)
         self._reader = None
 
     def on_connect(self, connection):
-        import hiredis
+        import libvalkey
 
         self._stream = connection._reader
-        kwargs: _HiredisReaderArgs = {
+        kwargs: _LibvalkeyReaderArgs = {
             "protocolError": InvalidResponse,
             "replyError": self.parse_error,
             "notEnoughData": NOT_ENOUGH_DATA,
+            "convertSetsToLists": True,
         }
         if connection.encoder.decode_responses:
             kwargs["encoding"] = connection.encoder.encoding
             kwargs["errors"] = connection.encoder.encoding_errors
 
-        self._reader = hiredis.Reader(**kwargs)
+        self._reader = libvalkey.Reader(**kwargs)
         self._connected = True
 
     def on_disconnect(self):

@@ -24,12 +24,7 @@ from valkey.commands.search.query import GeoFilter, NumericFilter, Query
 from valkey.commands.search.result import Result
 from valkey.commands.search.suggestion import Suggestion
 
-from .conftest import (
-    _get_client,
-    assert_resp_response,
-    is_resp2_connection,
-    skip_ifmodversion_lt,
-)
+from .conftest import _get_client, is_resp2_connection, skip_ifmodversion_lt
 
 pytestmark = pytest.mark.skip
 
@@ -891,7 +886,7 @@ def test_dict_operations(client):
 
     # Dump dict and inspect content
     res = client.ft().dict_dump("custom_dict")
-    assert_resp_response(client, res, ["item1", "item3"], {"item1", "item3"})
+    assert res == ["item1", "item3"]
 
     # Remove rest of the items before reload
     client.ft().dict_del("custom_dict", *res)
