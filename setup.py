@@ -57,6 +57,6 @@ setup(
     ],
     extras_require={
         "libvalkey": ["libvalkey>=4.0.0b1"],
-        "ocsp": ["cryptography>=36.0.1", "pyopenssl==20.0.1", "requests>=2.26.0"],
+        "ocsp": ["cryptography>=36.0.1", "pyopenssl==23.2.1", "requests>=2.31.0"],
     },
 )
