@@ -1,5 +1,6 @@
 import binascii
 import datetime
+import math
 import re
 import threading
 import time
@@ -21,8 +22,10 @@ from valkey.client import EMPTY_RESPONSE, NEVER_DECODE
 
 from .conftest import (
     _get_client,
+    assert_geo_is_close,
     assert_resp_response,
     assert_resp_response_in,
+    assert_resp_response_isclose,
     is_resp2_connection,
     skip_if_server_version_gte,
     skip_if_server_version_lt,
@@ -3543,7 +3546,7 @@ class TestValkeyCommands:
         )
         r.geoadd("barcelona", values)
         # valkey uses 52 bits precision, hereby small errors may be introduced.
-        assert_resp_response(
+        assert_resp_response_isclose(
             r,
             r.geopos("barcelona", "place1", "place2"),
             [
@@ -3605,33 +3608,34 @@ class TestValkeyCommands:
         )
 
         r.geoadd("barcelona", values)
-        assert r.geosearch("barcelona", member="place1", radius=4000) == [
-            b"\x80place2",
-            b"place1",
-        ]
         assert r.geosearch("barcelona", member="place1", radius=10) == [b"place1"]
 
-        assert r.geosearch(
+        geosearch_place2, geosearch_place1 = r.geosearch(
             "barcelona",
             member="place1",
             radius=4000,
             withdist=True,
             withcoord=True,
             withhash=True,
-        ) == [
-            [
-                b"\x80place2",
-                3067.4157,
-                3471609625421029,
-                (2.187376320362091, 41.40634178640635),
-            ],
-            [
-                b"place1",
-                0.0,
-                3471609698139488,
-                (2.1909382939338684, 41.433790281840835),
-            ],
+        )
+
+        # All but the coordinates are identical
+        geosearch_place2[:-1] == [
+            b"\x80place2",
+            3067.4157,
+            3471609625421029,
         ]
+        assert_geo_is_close(
+            geosearch_place2[-1], (2.187376320362091, 41.40634178640635)
+        )
+        geosearch_place1[:-1] == [
+            b"place1",
+            0.0,
+            3471609698139488,
+        ]
+        assert_geo_is_close(
+            geosearch_place1[-1], (2.1909382939338684, 41.433790281840835)
+        )
 
     @skip_if_server_version_lt("6.2.0")
     def test_geosearch_sort(self, r):
@@ -3650,7 +3654,28 @@ class TestValkeyCommands:
 
     @skip_unless_arch_bits(64)
     @skip_if_server_version_lt("6.2.0")
-    def test_geosearch_with(self, r):
+    @pytest.mark.parametrize(
+        "geosearch_kwargs, expected_geosearch_result",
+        [
+            (
+                {"withdist": True, "withcoord": True, "withhash": True},
+                [b"place1", 0.0881, 3471609698139488],
+            ),
+            (
+                {"withdist": True, "withcoord": True},
+                [b"place1", 0.0881],
+            ),
+            (
+                {"withhash": True, "withcoord": True},
+                [b"place1", 3471609698139488],
+            ),
+            (
+                {"withdist": True, "withhash": True},
+                [b"place1", 0.0881, 3471609698139488],
+            ),
+        ],
+    )
+    def test_geosearch_with(self, r, geosearch_kwargs, expected_geosearch_result):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -3660,44 +3685,23 @@ class TestValkeyCommands:
 
         # test a bunch of combinations to test the parse response
         # function.
-        assert r.geosearch(
+        geosearch_result = r.geosearch(
             "barcelona",
             longitude=2.191,
             latitude=41.433,
             radius=1,
             unit="km",
-            withdist=True,
-            withcoord=True,
-            withhash=True,
-        ) == [
-            [
-                b"place1",
-                0.0881,
-                3471609698139488,
-                (2.19093829393386841, 41.43379028184083523),
-            ]
-        ]
-        assert r.geosearch(
-            "barcelona",
-            longitude=2.191,
-            latitude=41.433,
-            radius=1,
-            unit="km",
-            withdist=True,
-            withcoord=True,
-        ) == [[b"place1", 0.0881, (2.19093829393386841, 41.43379028184083523)]]
-        assert r.geosearch(
-            "barcelona",
-            longitude=2.191,
-            latitude=41.433,
-            radius=1,
-            unit="km",
-            withhash=True,
-            withcoord=True,
-        ) == [
-            [b"place1", 3471609698139488, (2.19093829393386841, 41.43379028184083523)]
-        ]
-        # test no values.
+            **geosearch_kwargs,
+        )
+        assert len(geosearch_result) == 1
+        if "withcoord" in geosearch_kwargs:
+            assert_geo_is_close(
+                geosearch_result[0][-1], (2.1909382939338684, 41.433790281840835)
+            )
+            assert geosearch_result[0][:-1] == expected_geosearch_result
+        else:
+            assert geosearch_result == [expected_geosearch_result]
+
         assert (
             r.geosearch(
                 "barcelona",
@@ -3705,9 +3709,7 @@ class TestValkeyCommands:
                 latitude=1,
                 radius=1,
                 unit="km",
-                withdist=True,
-                withcoord=True,
-                withhash=True,
+                **geosearch_kwargs,
             )
             == []
         )
@@ -3793,7 +3795,7 @@ class TestValkeyCommands:
             storedist=True,
         )
         # instead of save the geo score, the distance is saved.
-        assert r.zscore("places_barcelona", "place1") == 88.05060698409301
+        assert math.isclose(r.zscore("places_barcelona", "place1"), 88.05060698409301)
 
     @skip_if_server_version_lt("3.2.0")
     def test_georadius_Issue2609(self, r):
@@ -3837,7 +3839,28 @@ class TestValkeyCommands:
 
     @skip_unless_arch_bits(64)
     @skip_if_server_version_lt("3.2.0")
-    def test_georadius_with(self, r):
+    @pytest.mark.parametrize(
+        "georadius_kwargs, expected_georadius_result",
+        [
+            (
+                {"withdist": True, "withcoord": True, "withhash": True},
+                [b"place1", 0.0881, 3471609698139488],
+            ),
+            (
+                {"withdist": True, "withcoord": True},
+                [b"place1", 0.0881],
+            ),
+            (
+                {"withhash": True, "withcoord": True},
+                [b"place1", 3471609698139488],
+            ),
+            (
+                {"withdist": True, "withhash": True},
+                [b"place1", 0.0881, 3471609698139488],
+            ),
+        ],
+    )
+    def test_georadius_with(self, r, georadius_kwargs, expected_georadius_result):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -3848,48 +3871,26 @@ class TestValkeyCommands:
 
         # test a bunch of combinations to test the parse response
         # function.
-        assert r.georadius(
+        georadius_result = r.georadius(
             "barcelona",
             2.191,
             41.433,
             1,
             unit="km",
-            withdist=True,
-            withcoord=True,
-            withhash=True,
-        ) == [
-            [
-                b"place1",
-                0.0881,
-                3471609698139488,
-                (2.19093829393386841, 41.43379028184083523),
-            ]
-        ]
+            **georadius_kwargs,
+        )
 
-        assert r.georadius(
-            "barcelona", 2.191, 41.433, 1, unit="km", withdist=True, withcoord=True
-        ) == [[b"place1", 0.0881, (2.19093829393386841, 41.43379028184083523)]]
-
-        assert r.georadius(
-            "barcelona", 2.191, 41.433, 1, unit="km", withhash=True, withcoord=True
-        ) == [
-            [b"place1", 3471609698139488, (2.19093829393386841, 41.43379028184083523)]
-        ]
+        assert len(georadius_result) == 1
+        if "withcoord" in georadius_kwargs:
+            assert_geo_is_close(
+                georadius_result[0][-1], (2.19093829393386841, 41.43379028184083523)
+            )
+            assert georadius_result[0][:-1] == expected_georadius_result
+        else:
+            assert georadius_result == [expected_georadius_result]
 
         # test no values.
-        assert (
-            r.georadius(
-                "barcelona",
-                2,
-                1,
-                1,
-                unit="km",
-                withdist=True,
-                withcoord=True,
-                withhash=True,
-            )
-            == []
-        )
+        assert r.georadius("barcelona", 2, 1, 1, unit="km", **georadius_kwargs) == []
 
     @skip_if_server_version_lt("6.2.0")
     def test_georadius_count(self, r):
@@ -3949,11 +3950,14 @@ class TestValkeyCommands:
         r.geoadd("barcelona", values)
         r.georadius("barcelona", 2.191, 41.433, 1000, store_dist="places_barcelona")
         # instead of save the geo score, the distance is saved.
-        assert r.zscore("places_barcelona", "place1") == 88.05060698409301
+        assert math.isclose(r.zscore("places_barcelona", "place1"), 88.05060698409301)
 
     @skip_unless_arch_bits(64)
     @skip_if_server_version_lt("3.2.0")
     def test_georadiusmember(self, r):
+        """
+        Checks that r.georadiusbymember can return point, distance, and coordinate data
+        """
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -3961,28 +3965,32 @@ class TestValkeyCommands:
         )
 
         r.geoadd("barcelona", values)
-        assert r.georadiusbymember("barcelona", "place1", 4000) == [
+        assert r.georadiusbymember(name="barcelona", member="place1", radius=4000) == [
             b"\x80place2",
             b"place1",
         ]
         assert r.georadiusbymember("barcelona", "place1", 10) == [b"place1"]
 
-        assert r.georadiusbymember(
+        radius_place2, radius_place1 = r.georadiusbymember(
             "barcelona", "place1", 4000, withdist=True, withcoord=True, withhash=True
-        ) == [
-            [
-                b"\x80place2",
-                3067.4157,
-                3471609625421029,
-                (2.187376320362091, 41.40634178640635),
-            ],
-            [
-                b"place1",
-                0.0,
-                3471609698139488,
-                (2.1909382939338684, 41.433790281840835),
-            ],
+        )
+
+        # coordinates are in the last position
+
+        assert radius_place2[:-1] == [
+            b"\x80place2",
+            3067.4157,
+            3471609625421029,
         ]
+
+        assert_geo_is_close(radius_place2[-1], (2.187376320362091, 41.40634178640635))
+
+        assert radius_place1[:-1] == [
+            b"place1",
+            0.0,
+            3471609698139488,
+        ]
+        assert_geo_is_close(radius_place1[-1], (2.1909382939338684, 41.433790281840835))
 
     @skip_if_server_version_lt("6.2.0")
     def test_georadiusmember_count(self, r):
