@@ -846,7 +846,9 @@ class SSLConnection(Connection):
             context.load_verify_locations(
                 cafile=self.ca_certs, capath=self.ca_path, cadata=self.ca_data
             )
-        if self.ssl_min_version is not None:
+        if self.ssl_min_version is None:
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
+        else:
             context.minimum_version = self.ssl_min_version
         if self.ssl_ciphers:
             context.set_ciphers(self.ssl_ciphers)
