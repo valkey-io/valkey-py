@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 import pytest
-from valkey.backoff import ExponentialBackoff, NoBackoff
+from valkey.backoff import AbstractBackoff, ExponentialBackoff, NoBackoff
 from valkey.client import Valkey
 from valkey.connection import Connection, UnixDomainSocketConnection
 from valkey.exceptions import (
@@ -15,7 +15,7 @@ from valkey.retry import Retry
 from .conftest import _get_client
 
 
-class BackoffMock:
+class BackoffMock(AbstractBackoff):
     def __init__(self):
         self.reset_calls = 0
         self.calls = 0

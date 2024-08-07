@@ -37,6 +37,7 @@ from .utils import (
     CRYPTOGRAPHY_AVAILABLE,
     LIBVALKEY_AVAILABLE,
     SSL_AVAILABLE,
+    format_error_message,
     get_lib_version,
     str_if_bytes,
 )
@@ -336,9 +337,8 @@ class AbstractConnection:
     def _host_error(self):
         pass
 
-    @abstractmethod
     def _error_message(self, exception):
-        pass
+        return format_error_message(self._host_error(), exception)
 
     def on_connect(self):
         "Initialize the connection, authenticate and select a database"
@@ -731,27 +731,6 @@ class Connection(AbstractConnection):
     def _host_error(self):
         return f"{self.host}:{self.port}"
 
-    def _error_message(self, exception):
-        # args for socket.error can either be (errno, "message")
-        # or just "message"
-
-        host_error = self._host_error()
-
-        if len(exception.args) == 1:
-            try:
-                return f"Error connecting to {host_error}. \
-                        {exception.args[0]}."
-            except AttributeError:
-                return f"Connection Error: {exception.args[0]}"
-        else:
-            try:
-                return (
-                    f"Error {exception.args[0]} connecting to "
-                    f"{host_error}. {exception.args[1]}."
-                )
-            except AttributeError:
-                return f"Connection Error: {exception.args[0]}"
-
 
 class SSLConnection(Connection):
     """Manages SSL connections to and from the Valkey server(s).
@@ -832,8 +811,24 @@ class SSLConnection(Connection):
         super().__init__(**kwargs)
 
     def _connect(self):
-        "Wrap the socket with SSL support"
+        "Wrap the socket with SSL support, handling potential errors."
         sock = super()._connect()
+        try:
+            return self._wrap_socket_with_ssl(sock)
+        except (OSError, ValkeyError):
+            sock.close()
+            raise
+
+    def _wrap_socket_with_ssl(self, sock):
+        """
+        Wraps the socket with SSL support.
+
+        Args:
+            sock: The plain socket to wrap with SSL.
+
+        Returns:
+            An SSL wrapped socket.
+        """
         context = ssl.create_default_context()
         context.check_hostname = self.check_hostname
         context.verify_mode = self.cert_reqs
@@ -851,11 +846,12 @@ class SSLConnection(Connection):
             context.load_verify_locations(
                 cafile=self.ca_certs, capath=self.ca_path, cadata=self.ca_data
             )
-        if self.ssl_min_version is not None:
+        if self.ssl_min_version is None:
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
+        else:
             context.minimum_version = self.ssl_min_version
         if self.ssl_ciphers:
             context.set_ciphers(self.ssl_ciphers)
-        sslsock = context.wrap_socket(sock, server_hostname=self.host)
         if self.ssl_validate_ocsp is True and CRYPTOGRAPHY_AVAILABLE is False:
             raise ValkeyError("cryptography is not installed.")
 
@@ -864,6 +860,8 @@ class SSLConnection(Connection):
                 "Either an OCSP staple or pure OCSP connection must be validated "
                 "- not both."
             )
+
+        sslsock = context.wrap_socket(sock, server_hostname=self.host)
 
         # validation for the stapled case
         if self.ssl_validate_ocsp_stapled:
@@ -907,9 +905,9 @@ class UnixDomainSocketConnection(AbstractConnection):
     "Manages UDS communication to and from a Valkey server"
 
     def __init__(self, path="", socket_timeout=None, **kwargs):
+        super().__init__(**kwargs)
         self.path = path
         self.socket_timeout = socket_timeout
-        super().__init__(**kwargs)
 
     def repr_pieces(self):
         pieces = [("path", self.path), ("db", self.db)]
@@ -921,26 +919,17 @@ class UnixDomainSocketConnection(AbstractConnection):
         "Create a Unix domain socket connection"
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.settimeout(self.socket_connect_timeout)
-        sock.connect(self.path)
+        try:
+            sock.connect(self.path)
+        except OSError:
+            # Prevent ResourceWarnings for unclosed sockets.
+            sock.close()
+            raise
         sock.settimeout(self.socket_timeout)
         return sock
 
     def _host_error(self):
         return self.path
-
-    def _error_message(self, exception):
-        # args for socket.error can either be (errno, "message")
-        # or just "message"
-        host_error = self._host_error()
-        if len(exception.args) == 1:
-            return (
-                f"Error connecting to unix socket: {host_error}. {exception.args[0]}."
-            )
-        else:
-            return (
-                f"Error {exception.args[0]} connecting to unix socket: "
-                f"{host_error}. {exception.args[1]}."
-            )
 
 
 FALSE_STRINGS = ("0", "F", "FALSE", "N", "NO")

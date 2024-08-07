@@ -12,7 +12,6 @@ pytest-asyncio
 pytest-cov
 pytest-timeout
 ujson>=4.2.0
-urllib3<2
 uvloop
 vulture>=2.3.0
 wheel>=0.30.0
