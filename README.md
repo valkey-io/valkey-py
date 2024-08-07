@@ -47,7 +47,7 @@ True
 b'bar'
 ```
 
-The above code connects to localhost on port 6379, sets a value in Redis, and retrieves it. All responses are returned as bytes in Python, to receive decoded strings, set *decode_responses=True*.  For this, and more connection options, see [these examples](https://valkey-py.readthedocs.io/en/stable/examples.html).
+The above code connects to localhost on port 6379, sets a value in Redis, and retrieves it. All responses are returned as bytes in Python, to receive decoded strings, set *decode_responses=True*.  For this, and more connection options, see [these examples](https://valkey-py.readthedocs.io/en/latest/examples.html).
 
 ### Migration from redis-py
 
@@ -72,18 +72,18 @@ To enable support for RESP3 change your connection object to include *protocol=3
 
 ### Connection Pools
 
-By default, valkey-py uses a connection pool to manage connections. Each instance of a Valkey class receives its own connection pool. You can however define your own [valkey.ConnectionPool](https://valkey-py.readthedocs.io/en/stable/connections.html#connection-pools).
+By default, valkey-py uses a connection pool to manage connections. Each instance of a Valkey class receives its own connection pool. You can however define your own [valkey.ConnectionPool](https://valkey-py.readthedocs.io/en/latest/connections.html#connection-pools).
 
 ``` python
 >>> pool = valkey.ConnectionPool(host='localhost', port=6379, db=0)
 >>> r = valkey.Valkey(connection_pool=pool)
 ```
 
-Alternatively, you might want to look at [Async connections](https://valkey-py.readthedocs.io/en/stable/examples/asyncio_examples.html), or [Cluster connections](https://valkey-py.readthedocs.io/en/stable/connections.html#cluster-client), or even [Async Cluster connections](https://valkey-py.readthedocs.io/en/stable/connections.html#async-cluster-client).
+Alternatively, you might want to look at [Async connections](https://valkey-py.readthedocs.io/en/latest/examples/asyncio_examples.html), or [Cluster connections](https://valkey-py.readthedocs.io/en/latest/connections.html#cluster-client), or even [Async Cluster connections](https://valkey-py.readthedocs.io/en/latest/connections.html#async-cluster-client).
 
 ### Valkey Commands
 
-There is built-in support for all of the [out-of-the-box Valkey commands](https://valkey.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) except where a word (i.e. del) is reserved by the language. The complete set of commands can be found [here](https://github.com/valkey-io/valkey-py/tree/main/valkey/commands), or [the documentation](https://valkey-py.readthedocs.io/en/stable/commands.html).
+There is built-in support for all of the [out-of-the-box Valkey commands](https://valkey.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) except where a word (i.e. del) is reserved by the language. The complete set of commands can be found [here](https://github.com/valkey-io/valkey-py/tree/main/valkey/commands), or [the documentation](https://valkey-py.readthedocs.io/en/latest/commands.html).
 
 ## Advanced Topics
 
@@ -105,7 +105,7 @@ to adhere to the official command syntax. There are a few exceptions:
     #151](https://github.com/redis/redis-py/issues/151#issuecomment-1545015)
     for details).
 
-For more details, please see the documentation on [advanced topics page](https://valkey-py.readthedocs.io/en/stable/advanced_features.html).
+For more details, please see the documentation on [advanced topics page](https://valkey-py.readthedocs.io/en/latest/advanced_features.html).
 
 ### Pipelines
 
