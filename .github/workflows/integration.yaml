@@ -76,7 +76,7 @@ jobs:
            pip install -r requirements.txt
            pip install -r dev_requirements.txt
            if [ "${{matrix.connection-type}}" == "libvalkey" ]; then
-            pip install "libvalkey>=4.0.0b1"
+            pip install "libvalkey>=4.0.0"
            fi
            invoke devenv
            sleep 10 # time to settle
