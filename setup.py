@@ -36,7 +36,7 @@ setup(
     author_email="valkey-py@lists.valkey.io",
     python_requires=">=3.8",
     install_requires=[
-        'async-timeout>=4.0.3; python_version<="3.12"',
+        'async-timeout>=4.0.2; python_version<="3.12"',
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
