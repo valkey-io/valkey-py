@@ -28,14 +28,12 @@ class TestScripting:
         yield valkey
         await valkey.script_flush()
 
-    @pytest.mark.asyncio(forbid_global_loop=True)
     async def test_eval(self, r):
         await r.flushdb()
         await r.set("a", 2)
         # 2 * 3 == 6
         assert await r.eval(multiply_script, 1, "a", 3) == 6
 
-    @pytest.mark.asyncio(forbid_global_loop=True)
     @skip_if_server_version_lt("6.2.0")
     async def test_script_flush(self, r):
         await r.set("a", 2)
@@ -55,14 +53,12 @@ class TestScripting:
             await r.script_load(multiply_script)
             await r.script_flush("NOTREAL")
 
-    @pytest.mark.asyncio(forbid_global_loop=True)
     async def test_evalsha(self, r):
         await r.set("a", 2)
         sha = await r.script_load(multiply_script)
         # 2 * 3 == 6
         assert await r.evalsha(sha, 1, "a", 3) == 6
 
-    @pytest.mark.asyncio(forbid_global_loop=True)
     async def test_evalsha_script_not_loaded(self, r):
         await r.set("a", 2)
         sha = await r.script_load(multiply_script)
@@ -71,7 +67,6 @@ class TestScripting:
         with pytest.raises(exceptions.NoScriptError):
             await r.evalsha(sha, 1, "a", 3)
 
-    @pytest.mark.asyncio(forbid_global_loop=True)
     async def test_script_loading(self, r):
         # get the sha, then clear the cache
         sha = await r.script_load(multiply_script)
@@ -80,7 +75,6 @@ class TestScripting:
         await r.script_load(multiply_script)
         assert await r.script_exists(sha) == [True]
 
-    @pytest.mark.asyncio(forbid_global_loop=True)
     async def test_script_object(self, r):
         await r.script_flush()
         await r.set("a", 2)
@@ -97,7 +91,6 @@ class TestScripting:
         # Test first evalsha block
         assert await multiply(keys=["a"], args=[3]) == 6
 
-    @pytest.mark.asyncio(forbid_global_loop=True)
     async def test_script_object_in_pipeline(self, r):
         await r.script_flush()
         multiply = r.register_script(multiply_script)
@@ -127,7 +120,6 @@ class TestScripting:
         assert await pipe.execute() == [True, b"2", 6]
         assert await r.script_exists(multiply.sha) == [True]
 
-    @pytest.mark.asyncio(forbid_global_loop=True)
     async def test_eval_msgpack_pipeline_error_in_lua(self, r):
         msgpack_hello = r.register_script(msgpack_hello_script)
         assert msgpack_hello.sha
