@@ -66,7 +66,7 @@ master_doc = "index"
 # General information about the project.
 project = "valkey-py"
 current_year = datetime.datetime.now().year
-copyright = f"{current_year}, Valkey Inc"
+copyright = f"{current_year}, Redis Ltd"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -229,7 +229,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass
 # [howto/manual]).
 latex_documents = [
-    ("index", "valkey-py.tex", "valkey-py Documentation", "Valkey Inc", "manual")
+    ("index", "valkey-py.tex", "valkey-py Documentation", "Valkey", "manual")
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -273,7 +273,7 @@ texinfo_documents = [
         "index",
         "valkey-py",
         "valkey-py Documentation",
-        "Valkey Inc",
+        "Valkey",
         "valkey-py",
         "One line description of project.",
         "Miscellaneous",
@@ -290,6 +290,6 @@ texinfo_documents = [
 # texinfo_show_urls = 'footnote'
 
 epub_title = "valkey-py"
-epub_author = "Valkey Inc"
-epub_publisher = "Valkey Inc"
-epub_copyright = "2023, Valkey Inc"
+epub_author = "Valkey"
+epub_publisher = "Valkey"
+epub_copyright = "2023, Redis Ltd"
