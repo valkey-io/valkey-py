@@ -5103,6 +5103,10 @@ class HashCommands(CommandsProtocol):
         lt: bool = False,
     ) -> ResponseT:
         """
+        :meta private:
+
+        Command not available in Valkey
+
         Sets or updates the expiration time for fields within a hash key, using relative
         time in seconds.
 
@@ -5164,6 +5168,10 @@ class HashCommands(CommandsProtocol):
         lt: bool = False,
     ) -> ResponseT:
         """
+        :meta private:
+
+        Command not available in Valkey
+
         Sets or updates the expiration time for fields within a hash key, using relative
         time in milliseconds.
 
@@ -5225,6 +5233,10 @@ class HashCommands(CommandsProtocol):
         lt: bool = False,
     ) -> ResponseT:
         """
+        :meta private:
+
+        Command not available in Valkey
+
         Sets or updates the expiration time for fields within a hash key, using an
         absolute Unix timestamp in seconds.
 
@@ -5292,6 +5304,10 @@ class HashCommands(CommandsProtocol):
         lt: bool = False,
     ) -> ResponseT:
         """
+        :meta private:
+
+        Command not available in Valkey
+
         Sets or updates the expiration time for fields within a hash key, using an
         absolute Unix timestamp in milliseconds.
 
@@ -5350,6 +5366,10 @@ class HashCommands(CommandsProtocol):
 
     def hpersist(self, name: KeyT, *fields: str) -> ResponseT:
         """
+        :meta private:
+
+        Command not available in Valkey
+
         Removes the expiration time for each specified field in a hash.
 
         For more information, see https://redis.io/commands/hpersist
@@ -5370,6 +5390,10 @@ class HashCommands(CommandsProtocol):
 
     def hexpiretime(self, key: KeyT, *fields: str) -> ResponseT:
         """
+        :meta private:
+
+        Command not available in Valkey
+
         Returns the expiration times of hash fields as Unix timestamps in seconds.
 
         For more information, see https://redis.io/commands/hexpiretime
@@ -5393,6 +5417,10 @@ class HashCommands(CommandsProtocol):
 
     def hpexpiretime(self, key: KeyT, *fields: str) -> ResponseT:
         """
+        :meta private:
+
+        Command not available in Valkey
+
         Returns the expiration times of hash fields as Unix timestamps in milliseconds.
 
         For more information, see https://redis.io/commands/hpexpiretime
@@ -5416,6 +5444,10 @@ class HashCommands(CommandsProtocol):
 
     def httl(self, key: KeyT, *fields: str) -> ResponseT:
         """
+        :meta private:
+
+        Command not available in Valkey
+
         Returns the TTL (Time To Live) in seconds for each specified field within a hash
         key.
 
@@ -5439,6 +5471,10 @@ class HashCommands(CommandsProtocol):
 
     def hpttl(self, key: KeyT, *fields: str) -> ResponseT:
         """
+        :meta private:
+
+        Command not available in Valkey
+
         Returns the TTL (Time To Live) in milliseconds for each specified field within a
         hash key.
 
