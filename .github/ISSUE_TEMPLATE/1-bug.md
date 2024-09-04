@@ -1,5 +1,10 @@
-Thanks for wanting to report an issue you've found in valkey-py. Please delete this text and fill in the template below.  
-It is of course not always possible to reduce your code to a small test case, but it's highly appreciated to have as much data as possible. Thank you!
+<!--
+Thanks for reporting an issue you've found in valkey-py.
+Please delete this text and fill in the template below.
+It is of course not always possible to reduce your code to a
+small test case, but it's highly appreciated to have as much
+data as possible. Thank you!
+-->
 
 **Version**: What valkey-py and what valkey version is the issue happening on?
 
