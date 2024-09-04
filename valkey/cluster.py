@@ -1648,7 +1648,10 @@ class NodesManager:
         self.nodes_cache = tmp_nodes_cache
         self.slots_cache = tmp_slots
         # Set the default node
-        self.default_node = self.get_nodes_by_server_type(PRIMARY)[0]
+        try:
+            self.default_node = self.get_nodes_by_server_type(PRIMARY)[0]
+        except IndexError:
+            raise ValkeyClusterException("No primary nodes found in the cluster")
         if self._dynamic_startup_nodes:
             # Populate the startup nodes with all discovered nodes
             self.startup_nodes = tmp_nodes_cache
