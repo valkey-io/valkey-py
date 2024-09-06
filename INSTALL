@@ -2,5 +2,5 @@
 Please use
  python setup.py install
 
-and report errors to Salvatore Mesoraca (salvatore.mesoraca@aiven.io)
+and report errors to via https://github.com/valkey-io/valkey-py/issues/new
 
