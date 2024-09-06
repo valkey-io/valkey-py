@@ -44,6 +44,9 @@ def int_or_str(value):
         return value
 
 
+__version__: str
+VERSION: tuple[int | str, ...]
+
 try:
     __version__ = metadata.version("valkey")
 except metadata.PackageNotFoundError:
