@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, Literal, Union
 
 FIELDNAME: Any
 
@@ -9,7 +9,7 @@ class Limit:
     def build_args(self): ...
 
 class Reducer:
-    NAME: ClassVar[None]
+    NAME: ClassVar[Union[str, None]]
     def __init__(self, *args) -> None: ...
     def alias(self, alias): ...
     @property

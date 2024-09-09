@@ -20,3 +20,21 @@ class Search(SearchCommands):
         def commit(self): ...
 
     def __init__(self, client, index_name: str = "idx") -> None: ...
+
+class AsyncSearch(SearchCommands):
+    class BatchIndexer:
+        def __init__(self, client, chunk_size: int = 1000) -> None: ...
+        async def add_document(
+            self,
+            doc_id,
+            nosave: bool = False,
+            score: float = 1.0,
+            payload: Incomplete | None = None,
+            replace: bool = False,
+            partial: bool = False,
+            no_create: bool = False,
+            **fields,
+        ): ...
+        async def commit(self): ...
+
+    def __init__(self, client, index_name: str = "idx") -> None: ...

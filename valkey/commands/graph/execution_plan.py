@@ -166,10 +166,10 @@ class ExecutionPlan:
             args.pop(0)
             if len(args) > 0 and "Records produced" in args[-1]:
                 records_produced = int(
-                    re.search("Records produced: (\\d+)", args[-1]).group(1)
+                    re.search("Records produced: (\\d+)", args[-1]).group(1)  # type: ignore[union-attr]
                 )
                 execution_time = float(
-                    re.search("Execution time: (\\d+.\\d+) ms", args[-1]).group(1)
+                    re.search("Execution time: (\\d+.\\d+) ms", args[-1]).group(1)  # type: ignore[union-attr]
                 )
                 profile_stats = ProfileStats(records_produced, execution_time)
                 args.pop(-1)
@@ -186,7 +186,7 @@ class ExecutionPlan:
                 # set the current operation and move next
                 child = _create_operation(current_op.split("|"))
                 if current:
-                    current = stack.pop()
+                    current = stack.pop()  # type: ignore[unreachable]
                     current.append_child(child)
                 current = child
                 i += 1
@@ -194,7 +194,7 @@ class ExecutionPlan:
                 # if the operation is child of the current operation
                 # add it as child and set as current operation
                 child = _create_operation(current_op.split("|"))
-                current.append_child(child)
+                current.append_child(child)  # type: ignore[union-attr]
                 stack.append(current)
                 current = child
                 level += 1
