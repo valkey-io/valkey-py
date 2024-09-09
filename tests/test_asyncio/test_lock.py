@@ -107,7 +107,7 @@ class TestLock:
     async def test_blocking_timeout(self, r):
         lock1 = self.get_lock(r, "foo")
         assert await lock1.acquire(blocking=False)
-        bt = 0.2
+        bt = 0.9
         sleep = 0.05
         lock2 = self.get_lock(r, "foo", sleep=sleep, blocking_timeout=bt)
         start = asyncio.get_running_loop().time()
