@@ -22,7 +22,7 @@ class Reducer:
     See the `valkeyearch.reducers` module for the actual reducers.
     """
 
-    NAME = None
+    NAME: Union[str, None] = None
 
     def __init__(self, *args: List[str]) -> None:
         self._args = args

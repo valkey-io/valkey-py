@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 
 from valkey import DataError
 
@@ -18,10 +18,10 @@ class Field:
     def __init__(
         self,
         name: str,
-        args: List[str] = None,
+        args: Union[List[str], None] = None,
         sortable: bool = False,
         no_index: bool = False,
-        as_name: str = None,
+        as_name: Union[str, None] = None,
     ):
         if args is None:
             args = []
@@ -63,11 +63,11 @@ class TextField(Field):
         name: str,
         weight: float = 1.0,
         no_stem: bool = False,
-        phonetic_matcher: str = None,
+        phonetic_matcher: Union[str, None] = None,
         withsuffixtrie: bool = False,
         **kwargs,
     ):
-        Field.__init__(self, name, args=[Field.TEXT, Field.WEIGHT, weight], **kwargs)
+        Field.__init__(self, name, args=[Field.TEXT, Field.WEIGHT, weight], **kwargs)  # type: ignore[list-item]
 
         if no_stem:
             Field.append_arg(self, self.NOSTEM)
@@ -180,5 +180,5 @@ class VectorField(Field):
             attr_li.extend([key, value])
 
         Field.__init__(
-            self, name, args=[Field.VECTOR, algorithm, len(attr_li), *attr_li], **kwargs
+            self, name, args=[Field.VECTOR, algorithm, len(attr_li), *attr_li], **kwargs  # type: ignore[list-item]
         )

@@ -1,3 +1,6 @@
+from typing import Dict, List
+
+
 def tags(*t):
     """
     Indicate that the values should be matched to a tag field
@@ -182,7 +185,7 @@ class Node:
 
         self.params = []
 
-        kvparams = {}
+        kvparams: Dict[str, List[Value]] = {}
         for k, v in kwparams.items():
             curvals = kvparams.setdefault(k, [])
             if isinstance(v, (str, int, float)):
