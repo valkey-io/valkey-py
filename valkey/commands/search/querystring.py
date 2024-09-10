@@ -185,7 +185,7 @@ class Node:
 
         self.params = []
 
-        kvparams: Dict[str, List[Value]] = {}
+        kvparams = {}
         for k, v in kwparams.items():
             curvals = kvparams.setdefault(k, [])
             if isinstance(v, (str, int, float)):

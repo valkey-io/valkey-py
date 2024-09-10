@@ -151,7 +151,7 @@ class first_value(Reducer):
             and isinstance(byfields[0], type)
             and issubclass(byfields[0], SortDirection)
         ):
-            byfields = [byfields[0](field)]
+            byfields = [byfields[0](field)]  # type: ignore[assignment]
 
         for f in byfields:
             fieldstrs += [f.field, f.DIRSTRING]
