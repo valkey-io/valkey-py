@@ -8,7 +8,7 @@ setup(
     long_description_content_type="text/markdown",
     keywords=["Valkey", "key-value store", "database"],
     license="MIT",
-    version="6.0.0",
+    version="6.0.1",
     packages=find_packages(
         include=[
             "valkey",
