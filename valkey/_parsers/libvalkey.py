@@ -3,7 +3,7 @@ import socket
 import sys
 from typing import Callable, List, Optional, TypedDict, Union
 
-if sys.version_info.major >= 3 and sys.version_info.minor >= 11:
+if sys.version_info >= (3, 11, 3):
     from asyncio import timeout as async_timeout
 else:
     from async_timeout import timeout as async_timeout

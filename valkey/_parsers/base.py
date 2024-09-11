@@ -3,7 +3,7 @@ from abc import ABC
 from asyncio import IncompleteReadError, StreamReader, TimeoutError
 from typing import List, Optional, Union
 
-if sys.version_info.major >= 3 and sys.version_info.minor >= 11:
+if sys.version_info >= (3, 11, 3):
     from asyncio import timeout as async_timeout
 else:
     from async_timeout import timeout as async_timeout
