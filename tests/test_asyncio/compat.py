@@ -1,6 +1,8 @@
 import asyncio
 from unittest import mock
 
+__all__ = ["mock", "aclosing", "create_task"]
+
 try:
     mock.AsyncMock
 except AttributeError:

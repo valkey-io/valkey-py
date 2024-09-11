@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 import valkey
 from tests.conftest import skip_if_server_version_lt
@@ -308,7 +310,7 @@ class TestPipeline:
     async def test_transaction_callable(self, r):
         await r.set("a", 1)
         await r.set("b", 2)
-        has_run = []
+        has_run: list[str] = []
 
         async def my_transaction(pipe):
             a_value = await pipe.get("a")
