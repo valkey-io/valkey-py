@@ -186,7 +186,7 @@ class ExecutionPlan:
                 # set the current operation and move next
                 child = _create_operation(current_op.split("|"))
                 if current:
-                    current = stack.pop()  # type: ignore[unreachable]
+                    current = stack.pop()
                     current.append_child(child)
                 current = child
                 i += 1
