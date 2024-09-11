@@ -46,7 +46,7 @@ def int_or_str(value):
 
 
 __version__: str
-VERSION: Tuple[Union[int | str], ...]
+VERSION: Tuple[Union[int, str], ...]
 
 try:
     __version__ = metadata.version("valkey")

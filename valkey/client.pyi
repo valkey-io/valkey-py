@@ -150,6 +150,7 @@ class Valkey(AbstractValkey, ValkeyModuleCommands, CoreCommands[_StrType], Senti
         retry: Retry | None = ...,
     ) -> Valkey[bytes]: ...
     connection_pool: Any
+    connection: Any
     response_callbacks: Any
     @overload
     def __init__(
@@ -188,6 +189,8 @@ class Valkey(AbstractValkey, ValkeyModuleCommands, CoreCommands[_StrType], Senti
         single_connection_client: bool = False,
         health_check_interval: float = 0,
         client_name: str | None = None,
+        lib_name: str | None = None,
+        lib_version: str | None = None,
         username: str | None = None,
         retry: Retry | None = None,
         valkey_connect_func: _ConnectFunc | None = None,
@@ -230,6 +233,8 @@ class Valkey(AbstractValkey, ValkeyModuleCommands, CoreCommands[_StrType], Senti
         single_connection_client: bool = False,
         health_check_interval: float = 0,
         client_name: str | None = None,
+        lib_name: str | None = None,
+        lib_version: str | None = None,
         username: str | None = None,
         retry: Retry | None = None,
         valkey_connect_func: _ConnectFunc | None = None,
@@ -271,6 +276,8 @@ class Valkey(AbstractValkey, ValkeyModuleCommands, CoreCommands[_StrType], Senti
         single_connection_client: bool = False,
         health_check_interval: float = 0,
         client_name: str | None = None,
+        lib_name: str | None = None,
+        lib_version: str | None = None,
         username: str | None = None,
         retry: Retry | None = None,
         valkey_connect_func: _ConnectFunc | None = None,
@@ -571,7 +578,7 @@ class Pipeline(Valkey[_StrType]):
     def blpop(self, keys: _Value | Iterable[_Value], timeout: float = 0) -> Pipeline[_StrType]: ...  # type: ignore[override]
     def brpop(self, keys: _Value | Iterable[_Value], timeout: float = 0) -> Pipeline[_StrType]: ...  # type: ignore[override]
     def brpoplpush(self, src, dst, timeout=0) -> Pipeline[_StrType]: ...
-    def lindex(self, name: _Key, index: int) -> Pipeline[_StrType]: ...  # type: ignore[override]
+    def lindex(self, name: _Key, index: int | str) -> Pipeline[_StrType]: ...  # type: ignore[override]
     def linsert(  # type: ignore[override]
         self, name: _Key, where: Literal["BEFORE", "AFTER", "before", "after"], refvalue: _Value, value: _Value
     ) -> Pipeline[_StrType]: ...
@@ -612,8 +619,8 @@ class Pipeline(Valkey[_StrType]):
     def scan_iter(self, match: _Key | None = None, count: int | None = None, _type: str | None = None) -> Iterator[Any]: ...  # type: ignore[override]
     def sscan(self, name: _Key, cursor: int = 0, match: _Key | None = None, count: int | None = None) -> Pipeline[_StrType]: ...  # type: ignore[override]
     def sscan_iter(self, name: _Key, match: _Key | None = None, count: int | None = None) -> Iterator[Any]: ...
-    def hscan(self, name: _Key, cursor: int = 0, match: _Key | None = None, count: int | None = None) -> Pipeline[_StrType]: ...  # type: ignore[override]
-    def hscan_iter(self, name, match: _Key | None = None, count: int | None = None) -> Iterator[Any]: ...
+    def hscan(self, name: _Key, cursor: int = 0, match: _Key | None = None, count: int | None = None, no_values: bool | None = None) -> Pipeline[_StrType]: ...  # type: ignore[override]
+    def hscan_iter(self, name, match: _Key | None = None, count: int | None = None, no_values: bool | None = None) -> Iterator[Any]: ...
     def zscan_iter(
         self, name: _Key, match: _Key | None = None, count: int | None = None, score_cast_func: Callable[[_StrType], Any] = ...
     ) -> Iterator[Any]: ...

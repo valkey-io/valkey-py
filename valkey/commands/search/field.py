@@ -148,7 +148,7 @@ class VectorField(Field):
     See https://oss.valkey.com/valkeyearch/Vectors/#vector_fields.
     """
 
-    def __init__(self, name: str, algorithm: str, attributes: dict, **kwargs):
+    def __init__(self, name: str, algorithm: str, attributes: dict, **kwargs):  # type: ignore[type-arg]
         """
         Create Vector Field. Notice that Vector cannot have sortable or no_index tag,
         although it's also a Field.
