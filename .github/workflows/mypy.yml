@@ -27,6 +27,7 @@ jobs:
       run: |
         pip install mypy cryptography pyopenssl requests
         pip install types-setuptools
+        pip install types-cachetools
         pip install -r dev_requirements.txt
         pip install .[libvalkey]
 
