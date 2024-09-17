@@ -1,0 +1,67 @@
+[project]
+name = "valkey"
+description = "Python client for Valkey forked from redis-py"
+readme = "README.md"
+keywords = ["Valkey", "key-value store", "database"]
+license = { text = "MIT License" }
+version = "6.0.2"
+
+authors = [
+  { name = "valkey-py authors", email = "valkey-py@lists.valkey.io" }
+]
+
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+
+requires-python = ">=3.8"
+
+dependencies =[
+  'async-timeout>=4.0.3; python_version<"3.11.3"',
+]
+
+[project.optional-dependencies]
+libvalkey = ["libvalkey>=4.0.0"]
+ocsp = ["cryptography>=36.0.1", "pyopenssl==23.2.1", "requests>=2.31.0"]
+
+[project.urls]
+Homepage = "https://github.com/valkey-io/valkey-py"
+Documentation = "https://valkey-py.readthedocs.io/en/latest/"
+Changes = "https://github.com/valkey-io/valkey-py/releases"
+Code = "https://github.com/valkey-io/valkey-py"
+"Issue tracker" = "https://github.com/valkey-io/valkey-py/issues"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = [
+  "valkey",
+  "valkey._parsers",
+  "valkey.asyncio",
+  "valkey.commands",
+  "valkey.commands.bf",
+  "valkey.commands.json",
+  "valkey.commands.search",
+  "valkey.commands.timeseries",
+  "valkey.commands.graph",
+  "valkey.parsers",
+]
+
+[tool.setuptools.package-data]
+valkey = ["py.typed"]
