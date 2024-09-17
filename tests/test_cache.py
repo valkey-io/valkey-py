@@ -8,7 +8,9 @@ import valkey
 from tests.conftest import _get_client
 from valkey import ValkeyError
 from valkey._cache import AbstractCache, EvictionPolicy, _LocalCache
-from valkey.typing import KeyT, ResponseT
+
+# It is defined, just not in __all__
+from valkey.typing import KeyT, ResponseT  # type: ignore[attr-defined]
 from valkey.utils import LIBVALKEY_AVAILABLE
 
 
@@ -529,7 +531,7 @@ class TestSentinelLocalCache:
 class TestCustomCache:
     class _CustomCache(AbstractCache):
         def __init__(self):
-            self.responses = cachetools.LRUCache(maxsize=1000)
+            self.responses = cachetools.LRUCache(maxsize=1000)  # type: ignore[var-annotated]
             self.keys_to_commands = defaultdict(list)
             self.commands_to_keys = defaultdict(list)
 

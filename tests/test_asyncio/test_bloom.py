@@ -16,7 +16,7 @@ def intlist(obj):
     return [int(v) for v in obj]
 
 
-async def test_create(decoded_r: valkey.Valkey):
+async def test_create(decoded_r: valkey.Valkey[str]):
     """Test CREATE/RESERVE calls"""
     assert await decoded_r.bf().create("bloom", 0.01, 1000)
     assert await decoded_r.bf().create("bloom_e", 0.01, 1000, expansion=1)
@@ -31,11 +31,11 @@ async def test_create(decoded_r: valkey.Valkey):
 
 
 @pytest.mark.experimental
-async def test_tdigest_create(decoded_r: valkey.Valkey):
+async def test_tdigest_create(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.tdigest().create("tDigest", 100)
 
 
-async def test_bf_add(decoded_r: valkey.Valkey):
+async def test_bf_add(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.bf().create("bloom", 0.01, 1000)
     assert 1 == await decoded_r.bf().add("bloom", "foo")
     assert 0 == await decoded_r.bf().add("bloom", "foo")
@@ -47,7 +47,7 @@ async def test_bf_add(decoded_r: valkey.Valkey):
     assert [1, 0] == intlist(await decoded_r.bf().mexists("bloom", "foo", "noexist"))
 
 
-async def test_bf_insert(decoded_r: valkey.Valkey):
+async def test_bf_insert(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.bf().create("bloom", 0.01, 1000)
     assert [1] == intlist(await decoded_r.bf().insert("bloom", ["foo"]))
     assert [0, 1] == intlist(await decoded_r.bf().insert("bloom", ["foo", "bar"]))
@@ -77,7 +77,7 @@ async def test_bf_insert(decoded_r: valkey.Valkey):
     )
 
 
-async def test_bf_scandump_and_loadchunk(decoded_r: valkey.Valkey):
+async def test_bf_scandump_and_loadchunk(decoded_r: valkey.Valkey[str]):
     # Store a filter
     await decoded_r.bf().create("myBloom", "0.0001", "1000")
 
@@ -124,7 +124,7 @@ async def test_bf_scandump_and_loadchunk(decoded_r: valkey.Valkey):
     await decoded_r.bf().create("myBloom", "0.0001", "10000000")
 
 
-async def test_bf_info(decoded_r: valkey.Valkey):
+async def test_bf_info(decoded_r: valkey.Valkey[str]):
     expansion = 4
     # Store a filter
     await decoded_r.bf().create("nonscaling", "0.0001", "1000", noScale=True)
@@ -155,7 +155,7 @@ async def test_bf_info(decoded_r: valkey.Valkey):
         assert True
 
 
-async def test_bf_card(decoded_r: valkey.Valkey):
+async def test_bf_card(decoded_r: valkey.Valkey[str]):
     # return 0 if the key does not exist
     assert await decoded_r.bf().card("not_exist") == 0
 
@@ -169,7 +169,7 @@ async def test_bf_card(decoded_r: valkey.Valkey):
         await decoded_r.bf().card("setKey")
 
 
-async def test_cf_add_and_insert(decoded_r: valkey.Valkey):
+async def test_cf_add_and_insert(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.cf().create("cuckoo", 1000)
     assert await decoded_r.cf().add("cuckoo", "filter")
     assert not await decoded_r.cf().addnx("cuckoo", "filter")
@@ -194,7 +194,7 @@ async def test_cf_add_and_insert(decoded_r: valkey.Valkey):
     )
 
 
-async def test_cf_exists_and_del(decoded_r: valkey.Valkey):
+async def test_cf_exists_and_del(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.cf().create("cuckoo", 1000)
     assert await decoded_r.cf().add("cuckoo", "filter")
     assert await decoded_r.cf().exists("cuckoo", "filter")
@@ -205,7 +205,7 @@ async def test_cf_exists_and_del(decoded_r: valkey.Valkey):
     assert 0 == await decoded_r.cf().count("cuckoo", "filter")
 
 
-async def test_cms(decoded_r: valkey.Valkey):
+async def test_cms(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.cms().initbydim("dim", 1000, 5)
     assert await decoded_r.cms().initbyprob("prob", 0.01, 0.01)
     assert await decoded_r.cms().incrby("dim", ["foo"], [5])
@@ -221,7 +221,7 @@ async def test_cms(decoded_r: valkey.Valkey):
 
 
 @pytest.mark.onlynoncluster
-async def test_cms_merge(decoded_r: valkey.Valkey):
+async def test_cms_merge(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.cms().initbydim("A", 1000, 5)
     assert await decoded_r.cms().initbydim("B", 1000, 5)
     assert await decoded_r.cms().initbydim("C", 1000, 5)
@@ -237,7 +237,7 @@ async def test_cms_merge(decoded_r: valkey.Valkey):
     assert [16, 15, 21] == await decoded_r.cms().query("C", "foo", "bar", "baz")
 
 
-async def test_topk(decoded_r: valkey.Valkey):
+async def test_topk(decoded_r: valkey.Valkey[str]):
     # test list with empty buckets
     assert await decoded_r.topk().reserve("topk", 3, 50, 4, 0.9)
     assert [
@@ -317,7 +317,7 @@ async def test_topk(decoded_r: valkey.Valkey):
     assert 0.9 == round(float(info["decay"]), 1)
 
 
-async def test_topk_incrby(decoded_r: valkey.Valkey):
+async def test_topk_incrby(decoded_r: valkey.Valkey[str]):
     await decoded_r.flushdb()
     assert await decoded_r.topk().reserve("topk", 3, 10, 3, 1)
     assert [None, None, None] == await decoded_r.topk().incrby(
@@ -332,7 +332,7 @@ async def test_topk_incrby(decoded_r: valkey.Valkey):
 
 
 @pytest.mark.experimental
-async def test_tdigest_reset(decoded_r: valkey.Valkey):
+async def test_tdigest_reset(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.tdigest().create("tDigest", 10)
     # reset on empty histogram
     assert await decoded_r.tdigest().reset("tDigest")
@@ -348,7 +348,7 @@ async def test_tdigest_reset(decoded_r: valkey.Valkey):
 
 
 @pytest.mark.onlynoncluster
-async def test_tdigest_merge(decoded_r: valkey.Valkey):
+async def test_tdigest_merge(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.tdigest().create("to-tDigest", 10)
     assert await decoded_r.tdigest().create("from-tDigest", 10)
     # insert data-points into sketch
@@ -375,7 +375,7 @@ async def test_tdigest_merge(decoded_r: valkey.Valkey):
 
 
 @pytest.mark.experimental
-async def test_tdigest_min_and_max(decoded_r: valkey.Valkey):
+async def test_tdigest_min_and_max(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.tdigest().create("tDigest", 100)
     # insert data-points into sketch
     assert await decoded_r.tdigest().add("tDigest", [1, 2, 3])
@@ -385,8 +385,8 @@ async def test_tdigest_min_and_max(decoded_r: valkey.Valkey):
 
 
 @pytest.mark.experimental
-@skip_ifmodversion_lt("2.4.0", "bf")
-async def test_tdigest_quantile(decoded_r: valkey.Valkey):
+@skip_ifmodversion_lt("2.4.0", "bf")  # type: ignore[misc]
+async def test_tdigest_quantile(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.tdigest().create("tDigest", 500)
     # insert data-points into sketch
     assert await decoded_r.tdigest().add(
@@ -413,7 +413,7 @@ async def test_tdigest_quantile(decoded_r: valkey.Valkey):
 
 
 @pytest.mark.experimental
-async def test_tdigest_cdf(decoded_r: valkey.Valkey):
+async def test_tdigest_cdf(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.tdigest().create("tDigest", 100)
     # insert data-points into sketch
     assert await decoded_r.tdigest().add("tDigest", list(range(1, 10)))
@@ -424,8 +424,8 @@ async def test_tdigest_cdf(decoded_r: valkey.Valkey):
 
 
 @pytest.mark.experimental
-@skip_ifmodversion_lt("2.4.0", "bf")
-async def test_tdigest_trimmed_mean(decoded_r: valkey.Valkey):
+@skip_ifmodversion_lt("2.4.0", "bf")  # type: ignore[misc]
+async def test_tdigest_trimmed_mean(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.tdigest().create("tDigest", 100)
     # insert data-points into sketch
     assert await decoded_r.tdigest().add("tDigest", list(range(1, 10)))
@@ -434,7 +434,7 @@ async def test_tdigest_trimmed_mean(decoded_r: valkey.Valkey):
 
 
 @pytest.mark.experimental
-async def test_tdigest_rank(decoded_r: valkey.Valkey):
+async def test_tdigest_rank(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.tdigest().create("t-digest", 500)
     assert await decoded_r.tdigest().add("t-digest", list(range(0, 20)))
     assert -1 == (await decoded_r.tdigest().rank("t-digest", -1))[0]
@@ -444,7 +444,7 @@ async def test_tdigest_rank(decoded_r: valkey.Valkey):
 
 
 @pytest.mark.experimental
-async def test_tdigest_revrank(decoded_r: valkey.Valkey):
+async def test_tdigest_revrank(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.tdigest().create("t-digest", 500)
     assert await decoded_r.tdigest().add("t-digest", list(range(0, 20)))
     assert -1 == (await decoded_r.tdigest().revrank("t-digest", 20))[0]
@@ -453,7 +453,7 @@ async def test_tdigest_revrank(decoded_r: valkey.Valkey):
 
 
 @pytest.mark.experimental
-async def test_tdigest_byrank(decoded_r: valkey.Valkey):
+async def test_tdigest_byrank(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.tdigest().create("t-digest", 500)
     assert await decoded_r.tdigest().add("t-digest", list(range(1, 11)))
     assert 1 == (await decoded_r.tdigest().byrank("t-digest", 0))[0]
@@ -464,7 +464,7 @@ async def test_tdigest_byrank(decoded_r: valkey.Valkey):
 
 
 @pytest.mark.experimental
-async def test_tdigest_byrevrank(decoded_r: valkey.Valkey):
+async def test_tdigest_byrevrank(decoded_r: valkey.Valkey[str]):
     assert await decoded_r.tdigest().create("t-digest", 500)
     assert await decoded_r.tdigest().add("t-digest", list(range(1, 11)))
     assert 10 == (await decoded_r.tdigest().byrevrank("t-digest", 0))[0]
@@ -474,7 +474,7 @@ async def test_tdigest_byrevrank(decoded_r: valkey.Valkey):
         (await decoded_r.tdigest().byrevrank("t-digest", -1))[0]
 
 
-# # async def test_pipeline(decoded_r: valkey.Valkey):
+# # async def test_pipeline(decoded_r: valkey.Valkey[str]):
 #     pipeline = await decoded_r.bf().pipeline()
 #     assert not await decoded_r.bf().execute_command("get pipeline")
 #
