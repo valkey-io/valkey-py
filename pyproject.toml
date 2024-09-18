@@ -37,6 +37,35 @@ dependencies =[
 [project.optional-dependencies]
 libvalkey = ["libvalkey>=4.0.0"]
 ocsp = ["cryptography>=36.0.1", "pyopenssl==23.2.1", "requests>=2.31.0"]
+dev = [
+  "black",
+  "cachetools",
+  "click",
+  "flake8-isort",
+  "flake8",
+  "flynt",
+  "invoke",
+  "mock",
+  "packaging>=20.4",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-cov",
+  "pytest-timeout",
+  "ujson>=4.2.0",
+  "uvloop",
+  "vulture>=2.3.0",
+  "wheel>=0.30.0",
+]
+docs = [
+  "sphinx>=5.0,<7.0",
+  "docutils<0.18",
+  "nbsphinx",
+  "sphinx_gallery",
+  "ipython",
+  "sphinx-autodoc-typehints",
+  "furo",
+  "pandoc",
+]
 
 [project.urls]
 Homepage = "https://github.com/valkey-io/valkey-py"

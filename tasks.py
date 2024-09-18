@@ -20,7 +20,7 @@ def devenv(c):
 @task
 def build_docs(c):
     """Generates the sphinx documentation."""
-    run("pip install -r docs/requirements.txt")
+    run("pip install '.[docs]'")
     run("make -C docs html")
 
 

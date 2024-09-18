@@ -89,12 +89,11 @@ Here's how to get started with your code contribution:
 1.  Create your own fork of valkey-py
 2.  Do the changes in your fork
 3.
-    *Create a virtualenv and install the development dependencies from the dev_requirements.txt file:*
+    *Create a virtualenv and install the development dependencies:*
 
         a.  python -m venv .venv
         b.  source .venv/bin/activate
-        c.  pip install -r dev_requirements.txt
-        c.  pip install -r requirements.txt
+        c.  pip install '.[dev]'
 
 4.  If you need a development environment, run `invoke devenv`. Note: this relies on docker-compose to build environments, and assumes that you have a version supporting [docker profiles](https://docs.docker.com/compose/profiles/).
 5.  While developing, make sure the tests pass by running `invoke tests`
@@ -106,7 +105,7 @@ To see what else is part of the automation, run `invoke -l`
 ## The Development Environment
 
 Running `invoke devenv` installs the development dependencies specified
-in the dev_requirements.txt. It starts all of the dockers used by this
+in pyproject.toml. It starts all of the dockers used by this
 project, and leaves them running. These can be easily cleaned up with
 `invoke clean`. NOTE: it is assumed that the user running these tests,
 can execute docker and its various commands.
