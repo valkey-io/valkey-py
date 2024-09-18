@@ -27,8 +27,7 @@ jobs:
 
       - name: Build package
         run: |
-          python setup.py build
-          python setup.py sdist bdist_wheel
+          python -m build -sw
 
       - name: Basic package test prior to upload
         run: |
