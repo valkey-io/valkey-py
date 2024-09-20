@@ -105,7 +105,7 @@ To see what else is part of the automation, run `invoke -l`
 ## The Development Environment
 
 Running `invoke devenv` installs the development dependencies specified
-in pyproject.toml. It starts all of the dockers used by this
+in `pyproject.toml`. It starts all of the dockers used by this
 project, and leaves them running. These can be easily cleaned up with
 `invoke clean`. NOTE: it is assumed that the user running these tests,
 can execute docker and its various commands.
