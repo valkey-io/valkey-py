@@ -2489,6 +2489,248 @@ class TestValkeyCommands:
     async def test_old_geopos_no_value(self, r: valkey.asyncio.Valkey[str]):
         assert await r.geopos("barcelona", "place1", "place2") == []
 
+    @skip_if_server_version_lt("6.2.0")
+    async def test_geosearch(self, r: valkey.Valkey):
+        values = (
+            (2.1909389952632, 41.433791470673, "place1")
+            + (2.1873744593677, 41.406342043777, b"\x80place2")
+            + (2.583333, 41.316667, "place3")
+        )
+        await r.geoadd("barcelona", values)
+        assert await r.geosearch(
+            "barcelona", longitude=2.191, latitude=41.433, radius=1000
+        ) == [b"place1"]
+        assert await r.geosearch(
+            "barcelona", longitude=2.187, latitude=41.406, radius=1000
+        ) == [b"\x80place2"]
+        assert await r.geosearch(
+            "barcelona", longitude=2.191, latitude=41.433, height=1000, width=1000
+        ) == [b"place1"]
+        assert await r.geosearch(
+            "barcelona", member="place3", radius=100, unit="km"
+        ) == [
+            b"\x80place2",
+            b"place1",
+            b"place3",
+        ]
+        # test count
+        assert await r.geosearch(
+            "barcelona", member="place3", radius=100, unit="km", count=2
+        ) == [b"place3", b"\x80place2"]
+        search_res = await r.geosearch(
+            "barcelona", member="place3", radius=100, unit="km", count=1, any=1
+        )
+        assert search_res[0] in [b"place1", b"place3", b"\x80place2"]
+
+    @skip_unless_arch_bits(64)
+    @skip_if_server_version_lt("6.2.0")
+    async def test_geosearch_member(self, r: valkey.Valkey):
+        values = (2.1909389952632, 41.433791470673, "place1") + (
+            2.1873744593677,
+            41.406342043777,
+            b"\x80place2",
+        )
+
+        await r.geoadd("barcelona", values)
+        assert await r.geosearch("barcelona", member="place1", radius=10) == [b"place1"]
+
+        geosearch_place2, geosearch_place1 = await r.geosearch(
+            "barcelona",
+            member="place1",
+            radius=4000,
+            withdist=True,
+            withcoord=True,
+            withhash=True,
+        )
+
+        # All but the coordinates are identical
+        assert geosearch_place2[:-1] == [
+            b"\x80place2",
+            3067.4157,
+            3471609625421029,
+        ]
+        assert_geo_is_close(
+            geosearch_place2[-1], (2.187376320362091, 41.40634178640635)
+        )
+        assert geosearch_place1[:-1] == [
+            b"place1",
+            0.0,
+            3471609698139488,
+        ]
+        assert_geo_is_close(
+            geosearch_place1[-1], (2.1909382939338684, 41.433790281840835)
+        )
+
+    @skip_if_server_version_lt("6.2.0")
+    async def test_geosearch_sort(self, r: valkey.Valkey):
+        values = (2.1909389952632, 41.433791470673, "place1") + (
+            2.1873744593677,
+            41.406342043777,
+            "place2",
+        )
+        await r.geoadd("barcelona", values)
+        assert await r.geosearch(
+            "barcelona", longitude=2.191, latitude=41.433, radius=3000, sort="ASC"
+        ) == [b"place1", b"place2"]
+        assert await r.geosearch(
+            "barcelona", longitude=2.191, latitude=41.433, radius=3000, sort="DESC"
+        ) == [b"place2", b"place1"]
+
+    @skip_unless_arch_bits(64)
+    @skip_if_server_version_lt("6.2.0")
+    @pytest.mark.parametrize(
+        "geosearch_kwargs, expected_geosearch_result",
+        [
+            (
+                {"withdist": True, "withcoord": True, "withhash": True},
+                [b"place1", 0.0881, 3471609698139488],
+            ),
+            (
+                {"withdist": True, "withcoord": True},
+                [b"place1", 0.0881],
+            ),
+            (
+                {"withhash": True, "withcoord": True},
+                [b"place1", 3471609698139488],
+            ),
+            (
+                {"withdist": True, "withhash": True},
+                [b"place1", 0.0881, 3471609698139488],
+            ),
+        ],
+    )
+    async def test_geosearch_with(
+        self,
+        r: valkey.Valkey,
+        geosearch_kwargs: Dict[str, Any],
+        expected_geosearch_result: List[Any],
+    ):
+        values = (2.1909389952632, 41.433791470673, "place1") + (
+            2.1873744593677,
+            41.406342043777,
+            "place2",
+        )
+        await r.geoadd("barcelona", values)
+
+        # test a bunch of combinations to test the parse response
+        # function.
+        geosearch_result = await r.geosearch(
+            "barcelona",
+            longitude=2.191,
+            latitude=41.433,
+            radius=1,
+            unit="km",
+            **geosearch_kwargs,
+        )
+        assert len(geosearch_result) == 1
+        if "withcoord" in geosearch_kwargs:
+            assert_geo_is_close(
+                geosearch_result[0][-1], (2.1909382939338684, 41.433790281840835)
+            )
+            assert geosearch_result[0][:-1] == expected_geosearch_result
+        else:
+            assert geosearch_result == [expected_geosearch_result]
+
+        assert (
+            await r.geosearch(
+                "barcelona",
+                longitude=2,
+                latitude=1,
+                radius=1,
+                unit="km",
+                **geosearch_kwargs,
+            )
+            == []
+        )
+
+    @skip_if_server_version_lt("6.2.0")
+    async def test_geosearch_negative(self, r: valkey.Valkey):
+        # not specifying member nor longitude and latitude
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch("barcelona")
+        # specifying member and longitude and latitude
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch(
+                "barcelona", member="Paris", longitude=2, latitude=1
+            )
+        # specifying one of longitude and latitude
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch("barcelona", longitude=2)
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch("barcelona", latitude=2)
+
+        # not specifying radius nor width and height
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch("barcelona", member="Paris")
+        # specifying radius and width and height
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch(
+                "barcelona", member="Paris", radius=3, width=2, height=1
+            )
+        # specifying one of width and height
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch("barcelona", member="Paris", width=2)
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch("barcelona", member="Paris", height=2)
+
+        # invalid sort
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch(
+                "barcelona", member="Paris", width=2, height=2, sort="wrong"
+            )
+
+        # invalid unit
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch(
+                "barcelona", member="Paris", width=2, height=2, unit="miles"
+            )
+
+        # use any without count
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch("barcelona", member="place3", radius=100, any=1)
+
+    @pytest.mark.onlynoncluster
+    @skip_if_server_version_lt("6.2.0")
+    async def test_geosearchstore(self, r: valkey.Valkey):
+        values = (2.1909389952632, 41.433791470673, "place1") + (
+            2.1873744593677,
+            41.406342043777,
+            "place2",
+        )
+
+        await r.geoadd("barcelona", values)
+        await r.geosearchstore(
+            "places_barcelona",
+            "barcelona",
+            longitude=2.191,
+            latitude=41.433,
+            radius=1000,
+        )
+        assert await r.zrange("places_barcelona", 0, -1) == [b"place1"]
+
+    @pytest.mark.onlynoncluster
+    @skip_unless_arch_bits(64)
+    @skip_if_server_version_lt("6.2.0")
+    async def test_geosearchstore_dist(self, r: valkey.Valkey):
+        values = (2.1909389952632, 41.433791470673, "place1") + (
+            2.1873744593677,
+            41.406342043777,
+            "place2",
+        )
+
+        await r.geoadd("barcelona", values)
+        await r.geosearchstore(
+            "places_barcelona",
+            "barcelona",
+            longitude=2.191,
+            latitude=41.433,
+            radius=1000,
+            storedist=True,
+        )
+        # instead of save the geo score, the distance is saved.
+        score = await r.zscore("places_barcelona", "place1")
+        assert math.isclose(score, 88.05060698409301)
+
     @skip_if_server_version_lt("3.2.0")
     async def test_georadius(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
