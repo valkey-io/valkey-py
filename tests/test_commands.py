@@ -3623,7 +3623,7 @@ class TestValkeyCommands:
         )
 
         # All but the coordinates are identical
-        geosearch_place2[:-1] == [
+        assert geosearch_place2[:-1] == [
             b"\x80place2",
             3067.4157,
             3471609625421029,
@@ -3631,7 +3631,7 @@ class TestValkeyCommands:
         assert_geo_is_close(
             geosearch_place2[-1], (2.187376320362091, 41.40634178640635)
         )
-        geosearch_place1[:-1] == [
+        assert geosearch_place1[:-1] == [
             b"place1",
             0.0,
             3471609698139488,
