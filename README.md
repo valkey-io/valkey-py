@@ -9,7 +9,7 @@ The Python interface to the Valkey key-value store.
 [![pre-release](https://img.shields.io/github/v/release/valkey-io/valkey-py?include_prereleases&label=latest-prerelease)](https://github.com/valkey-io/valkey-py/releases)
 [![codecov](https://codecov.io/gh/valkey-io/valkey-py/branch/main/graph/badge.svg?token=yenl5fzxxr)](https://codecov.io/gh/valkey-io/valkey-py)
 
-[Installation](#installation) |  [Usage](#usage) | [Advanced Topics](#advanced-topics) | [Contributing](https://github.com/valkey-io/valkey-py/blob/main/CONTRIBUTING.md)
+[Installation](#installation) |  [Usage](#usage) | [Documentation](#documentation) | [Advanced Topics](#advanced-topics) | [Contributing](https://github.com/valkey-io/valkey-py/blob/main/CONTRIBUTING.md)
 
 ---------------------------------------------
 
@@ -84,6 +84,10 @@ Alternatively, you might want to look at [Async connections](https://valkey-py.r
 ### Valkey Commands
 
 There is built-in support for all of the [out-of-the-box Valkey commands](https://valkey.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) except where a word (i.e. del) is reserved by the language. The complete set of commands can be found [here](https://github.com/valkey-io/valkey-py/tree/main/valkey/commands), or [the documentation](https://valkey-py.readthedocs.io/en/latest/commands.html).
+
+## Documentation
+
+Check out the [documentation](https://valkey-py.readthedocs.io/en/latest/index.html)
 
 ## Advanced Topics
 
