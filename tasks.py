@@ -28,7 +28,9 @@ def build_docs(c):
 def linters(c, color=False):
     """Run code linters"""
     run(f"flake8 --color {'always' if color else 'never'} tests valkey")
-    run(f"black {'--color' if color else ''} --target-version py37 --check --diff tests valkey")
+    run(
+        f"black {'--color' if color else ''} --target-version py37 --check --diff tests valkey"
+    )
     run(f"isort {'--color' if color else ''} --check-only --diff tests valkey")
     run("vulture valkey whitelist.py --min-confidence 80")
     run("flynt --fail-on-change --dry-run tests valkey")
@@ -42,40 +44,43 @@ def all_tests(c, color=False):
 
 
 @task
-def tests(c, uvloop=False, protocol=2, color=False):
+def tests(c, uvloop=False, protocol=2, color=False, pytest_args=None):
     """Run the valkey-py test suite against the current python,
     with and without libvalkey.
     """
     print("Starting Valkey tests")
+    print("pytest_args:", pytest_args)
     standalone_tests(c, uvloop=uvloop, protocol=protocol, color=color)
     cluster_tests(c, uvloop=uvloop, protocol=protocol, color=color)
 
 
 @task
-def standalone_tests(c, uvloop=False, protocol=2, color=False):
+def standalone_tests(c, uvloop=False, protocol=2, color=False, pytest_args=None):
     """Run tests against a standalone valkey instance"""
+    color_arg = f"--color={'yes' if color else 'no'}"
+    shared_args = f"{color_arg} --protocol={protocol} --cov=./ --cov-report=xml:coverage_valkey.xml -W always -m 'not onlycluster'"
+    pytest_args = pytest_args or ""
     if uvloop:
         run(
-            f"pytest --color={'yes' if color else 'no'} --protocol={protocol} --cov=./ --cov-report=xml:coverage_valkey.xml -W always -m 'not onlycluster' --uvloop --junit-xml=standalone-uvloop-results.xml"
+            f"pytest {shared_args} --uvloop --junit-xml=standalone-uvloop-results.xml {pytest_args}"
         )
     else:
-        run(
-            f"pytest --color={'yes' if color else 'no'} --protocol={protocol} --cov=./ --cov-report=xml:coverage_valkey.xml -W always -m 'not onlycluster' --junit-xml=standalone-results.xml"
-        )
+        run(f"pytest {shared_args} --junit-xml=standalone-results.xml {pytest_args}")
 
 
 @task
-def cluster_tests(c, uvloop=False, protocol=2, color=False):
+def cluster_tests(c, uvloop=False, protocol=2, color=False, pytest_args=None):
     """Run tests against a valkey cluster"""
     cluster_url = "valkey://localhost:16379/0"
+    color_arg = f"--color={'yes' if color else 'no'}"
+    shared_args = f"{color_arg} --protocol={protocol} --cov=./ --cov-report=xml:coverage_cluster.xml -W always -m 'not onlynoncluster and not valkeymod' --valkey-url={cluster_url}"
+    pytest_args = pytest_args or ""
     if uvloop:
         run(
-            f"pytest --color={'yes' if color else 'no'} --protocol={protocol} --cov=./ --cov-report=xml:coverage_cluster.xml -W always -m 'not onlynoncluster and not valkeymod' --valkey-url={cluster_url} --junit-xml=cluster-uvloop-results.xml --uvloop"
+            f"pytest {shared_args} --junit-xml=cluster-uvloop-results.xml --uvloop {pytest_args}"
         )
     else:
-        run(
-            f"pytest --color={'yes' if color else 'no'} --protocol={protocol} --cov=./ --cov-report=xml:coverage_clusteclient.xml -W always -m 'not onlynoncluster and not valkeymod' --valkey-url={cluster_url} --junit-xml=cluster-results.xml"
-        )
+        run(f"pytest {shared_args} --junit-xml=cluster-results.xml {pytest_args}")
 
 
 @task
