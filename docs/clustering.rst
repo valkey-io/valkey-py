@@ -197,11 +197,7 @@ Pattern subscribe and publish do not currently work properly due to key
 slots. If we hash a pattern like fo\* we will receive a keyslot for that
 string but there are endless possibilities for channel names based on
 this pattern - unknowable in advance. This feature is not disabled but
-the commands are not currently recommended for use. See
-`valkey-py-cluster
-documentation <https://valkey-py-cluster.readthedocs.io/en/stable/pubsub.html>`__
-for more.
-
+the commands are not currently recommended for use.
 .. code:: python
 
    >>> p1 = rc.pubsub()
