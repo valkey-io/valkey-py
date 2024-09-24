@@ -198,6 +198,7 @@ slots. If we hash a pattern like fo\* we will receive a keyslot for that
 string but there are endless possibilities for channel names based on
 this pattern - unknowable in advance. This feature is not disabled but
 the commands are not currently recommended for use.
+
 .. code:: python
 
    >>> p1 = rc.pubsub()
