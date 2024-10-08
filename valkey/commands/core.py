@@ -69,14 +69,6 @@ class ACLCommands(CommandsProtocol):
         pieces: list[EncodableT] = [category] if category else []
         return self.execute_command("ACL CAT", *pieces, **kwargs)
 
-    def acl_dryrun(self, username, *args, **kwargs):
-        """
-        Simulate the execution of a given command by a given ``username``.
-
-        For more information see https://valkey.io/commands/acl-dryrun
-        """
-        return self.execute_command("ACL DRYRUN", username, *args, **kwargs)
-
     def acl_deluser(self, *username: str, **kwargs) -> ResponseT:
         """
         Delete the ACL for the specified ``username``\\s
@@ -84,6 +76,14 @@ class ACLCommands(CommandsProtocol):
         For more information see https://valkey.io/commands/acl-deluser
         """
         return self.execute_command("ACL DELUSER", *username, **kwargs)
+
+    def acl_dryrun(self, username, *args, **kwargs):
+        """
+        Simulate the execution of a given command by a given ``username``.
+
+        For more information see https://valkey.io/commands/acl-dryrun
+        """
+        return self.execute_command("ACL DRYRUN", username, *args, **kwargs)
 
     def acl_genpass(self, bits: Union[int, None] = None, **kwargs) -> ResponseT:
         """Generate a random password value.
