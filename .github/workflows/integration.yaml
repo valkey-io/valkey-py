@@ -27,7 +27,7 @@ jobs:
 
    dependency-audit:
      name: Dependency audit
-     runs-on: ubuntu-latest
+     runs-on: ubuntu-22.04
      steps:
        - uses: actions/checkout@v4
        - uses: pypa/gh-action-pip-audit@v1.1.0
