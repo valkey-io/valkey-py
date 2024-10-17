@@ -47,8 +47,8 @@ jobs:
            cache: 'pip'
        - name: run code linters
          run: |
-           pip install -r dev_requirements.txt
-           invoke linters
+           pip install tox
+           tox -e lint
 
    populate-cache:
      runs-on: ubuntu-latest
@@ -103,22 +103,24 @@ jobs:
          run: docker image load -i ./custom-cache/all.tar
 
        - name: run tests
+         env:
+           # Set CI to true to avoid pytest from truncating "short test summary info"
+           # (see https://github.com/pytest-dev/pytest/pull/9933)
+           CI: True
          run: |
-           pip install -U setuptools wheel
-           pip install -r requirements.txt
-           pip install -r dev_requirements.txt
+           pip install tox
            if [ "${{matrix.connection-type}}" == "libvalkey" ]; then
             pip install "libvalkey>=4.0.0"
            fi
-           invoke devenv
+           tox -e docker
            if [[ "${{matrix.test-type}}" == "standalone" ]]; then
             ./util/wait-for-it.sh localhost:6379
            else
             ./util/wait-for-it.sh localhost:16379
            fi
-           invoke ${{matrix.test-type}}-tests --protocol=${{ matrix.protocol-version }}
+           tox -e ${{matrix.test-type}}-nouvloop-protocol${{matrix.protocol-version}}
            if [[ "${{matrix.python-version}}" != pypy-* ]]; then
-            invoke ${{matrix.test-type}}-tests --uvloop --protocol=${{ matrix.protocol-version }}
+            tox -e ${{matrix.test-type}}-uvloop-protocol${{matrix.protocol-version}}
            fi
 
        - uses: actions/upload-artifact@v4
