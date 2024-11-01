@@ -2490,7 +2490,7 @@ class TestValkeyCommands:
         assert await r.geopos("barcelona", "place1", "place2") == []
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_geosearch(self, r: valkey.Valkey):
+    async def test_geosearch(self, r: valkey.asyncio.Valkey[str]):
         values = (
             (2.1909389952632, 41.433791470673, "place1")
             + (2.1873744593677, 41.406342043777, b"\x80place2")
@@ -2518,13 +2518,13 @@ class TestValkeyCommands:
             "barcelona", member="place3", radius=100, unit="km", count=2
         ) == [b"place3", b"\x80place2"]
         search_res = await r.geosearch(
-            "barcelona", member="place3", radius=100, unit="km", count=1, any=1
+            "barcelona", member="place3", radius=100, unit="km", count=1, any=True
         )
         assert search_res[0] in [b"place1", b"place3", b"\x80place2"]
 
     @skip_unless_arch_bits(64)
     @skip_if_server_version_lt("6.2.0")
-    async def test_geosearch_member(self, r: valkey.Valkey):
+    async def test_geosearch_member(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2562,7 +2562,7 @@ class TestValkeyCommands:
         )
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_geosearch_sort(self, r: valkey.Valkey):
+    async def test_geosearch_sort(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2601,9 +2601,9 @@ class TestValkeyCommands:
     )
     async def test_geosearch_with(
         self,
-        r: valkey.Valkey,
-        geosearch_kwargs: Dict[str, Any],
-        expected_geosearch_result: List[Any],
+        r: valkey.asyncio.Valkey[str],
+        geosearch_kwargs: dict[str, Any],
+        expected_geosearch_result: list[Any],
     ):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -2644,7 +2644,7 @@ class TestValkeyCommands:
         )
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_geosearch_negative(self, r: valkey.Valkey):
+    async def test_geosearch_negative(self, r: valkey.asyncio.Valkey[str]):
         # not specifying member nor longitude and latitude
         with pytest.raises(exceptions.DataError):
             assert await r.geosearch("barcelona")
@@ -2687,11 +2687,11 @@ class TestValkeyCommands:
 
         # use any without count
         with pytest.raises(exceptions.DataError):
-            assert await r.geosearch("barcelona", member="place3", radius=100, any=1)
+            assert await r.geosearch("barcelona", member="place3", radius=100, any=True)
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.2.0")
-    async def test_geosearchstore(self, r: valkey.Valkey):
+    async def test_geosearchstore(self, r: valkey.asyncio.Valkey[bytes]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2711,7 +2711,7 @@ class TestValkeyCommands:
     @pytest.mark.onlynoncluster
     @skip_unless_arch_bits(64)
     @skip_if_server_version_lt("6.2.0")
-    async def test_geosearchstore_dist(self, r: valkey.Valkey):
+    async def test_geosearchstore_dist(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2729,6 +2729,7 @@ class TestValkeyCommands:
         )
         # instead of save the geo score, the distance is saved.
         score = await r.zscore("places_barcelona", "place1")
+        assert score is not None
         assert math.isclose(score, 88.05060698409301)
 
     @skip_if_server_version_lt("3.2.0")
