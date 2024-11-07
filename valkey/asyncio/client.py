@@ -205,7 +205,7 @@ class Valkey(
         port: int = 6379,
         db: Union[str, int] = 0,
         password: Optional[str] = None,
-        socket_timeout: Optional[float] = None,
+        socket_timeout: Optional[float] = 5,
         socket_connect_timeout: Optional[float] = None,
         socket_keepalive: Optional[bool] = None,
         socket_keepalive_options: Optional[Mapping[int, Union[int, bytes]]] = None,

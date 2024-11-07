@@ -259,7 +259,7 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
         socket_connect_timeout: Optional[float] = None,
         socket_keepalive: bool = False,
         socket_keepalive_options: Optional[Mapping[int, Union[int, bytes]]] = None,
-        socket_timeout: Optional[float] = None,
+        socket_timeout: Optional[float] = 5,
         retry: Optional["Retry"] = None,
         retry_on_error: Optional[List[Type[Exception]]] = None,
         # SSL related kwargs
