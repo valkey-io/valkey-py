@@ -137,7 +137,7 @@ class AbstractConnection:
         self,
         db: int = 0,
         password: Optional[str] = None,
-        socket_timeout: Optional[float] = None,
+        socket_timeout: Optional[float] = 5,
         socket_connect_timeout: Optional[float] = None,
         retry_on_timeout: bool = False,
         retry_on_error=SENTINEL,
