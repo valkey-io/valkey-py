@@ -702,11 +702,15 @@ class TestValkeyCommands:
     @skip_if_server_version_lt("7.3.240")
     @pytest.mark.onlynoncluster
     def test_client_kill_filter_by_maxage(self, r, request):
-        _get_client(valkey.Valkey, request, flushdb=False)
+        client = _get_client(valkey.Valkey, request, flushdb=False)
+        client_name = "test-kill-by-maxage"
+        client.client_setname(client_name)
         time.sleep(4)
-        assert len(r.client_list()) >= 2
+        clients = r.client_list()
+        assert client_name in [c["name"] for c in clients]
         r.client_kill_filter(maxage=2)
-        assert len(r.client_list()) == 1
+        clients = r.client_list()
+        assert client_name not in [c["name"] for c in clients]
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.9.50")
