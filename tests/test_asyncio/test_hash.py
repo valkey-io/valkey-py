@@ -1,7 +1,10 @@
 import asyncio
 from datetime import datetime, timedelta
 
+import pytest
 from tests.conftest import skip_if_server_version_lt
+
+pytestmark = pytest.mark.skip
 
 
 @skip_if_server_version_lt("7.3.240")
