@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import pytest
 import valkey
+from packaging.version import Version
 from valkey import exceptions
 from valkey._parsers.helpers import (
     _ValkeyCallbacks,
@@ -3425,13 +3426,18 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("3.0.0")
-    def test_readonly_invalid_cluster_state(self, r):
-        with pytest.raises(exceptions.ValkeyError):
-            r.readonly()
+    def test_readonly(self, r, valkey_version):
+        # NOTE: Valkey 8.0.0 changes the behaviour of READONLY
+        # See https://github.com/valkey-io/valkey/pull/325
+        if valkey_version < Version("8.0.0"):
+            with pytest.raises(exceptions.ValkeyError):
+                r.readonly()
+        else:
+            assert r.readonly() is True
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("3.0.0")
-    def test_readonly(self, mock_cluster_resp_ok):
+    def test_readonly_mock(self, mock_cluster_resp_ok):
         assert mock_cluster_resp_ok.readonly() is True
 
     # GEO COMMANDS
