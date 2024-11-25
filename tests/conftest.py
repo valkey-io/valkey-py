@@ -456,6 +456,11 @@ def master_host(request):
     return parts.hostname, (parts.port or 6379)
 
 
+@pytest.fixture()
+def valkey_version():
+    return Version(VALKEY_INFO["version"])
+
+
 def wait_for_command(client, monitor, command, key=None):
     # issue a command with a key name that's local to this process.
     # if we find a command with our key before the command we're waiting

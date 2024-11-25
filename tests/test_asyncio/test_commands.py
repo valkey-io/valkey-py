@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 import pytest_asyncio
 import valkey
+from packaging.version import Version
 from tests.conftest import (
     assert_geo_is_close,
     assert_resp_response,
@@ -2382,13 +2383,18 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("3.0.0")
     @pytest.mark.onlynoncluster
-    async def test_readonly_invalid_cluster_state(self, r: valkey.asyncio.Valkey[str]):
-        with pytest.raises(exceptions.ValkeyError):
-            await r.readonly()
+    async def test_readonly(self, r: valkey.asyncio.Valkey[str], valkey_version: Version):
+        # NOTE: Valkey 8.0.0 changes the behaviour of READONLY
+        # See https://github.com/valkey-io/valkey/pull/325
+        if valkey_version < Version("8.0.0"):
+            with pytest.raises(exceptions.ValkeyError):
+                await r.readonly()
+        else:
+            assert await r.readonly() is True
 
     @skip_if_server_version_lt("3.0.0")
     @pytest.mark.onlynoncluster
-    async def test_readonly(self, mock_cluster_resp_ok):
+    async def test_mock_readonly(self, mock_cluster_resp_ok):
         assert await mock_cluster_resp_ok.readonly() is True
 
     # GEO COMMANDS
