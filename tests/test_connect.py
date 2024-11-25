@@ -100,7 +100,6 @@ def test_tcp_ssl_tls12_custom_ciphers(tcp_address, ssl_ciphers):
         tcp_address,
         certfile=certfile,
         keyfile=keyfile,
-        ssl_version=ssl.TLSVersion.TLSv1_2,
     )
 
 
@@ -141,7 +140,7 @@ def test_tcp_ssl_version_mismatch(tcp_address):
             tcp_address,
             certfile=certfile,
             keyfile=keyfile,
-            ssl_version=ssl.TLSVersion.TLSv1_3,
+            maximum_ssl_version=ssl.TLSVersion.TLSv1_2,
         )
 
 
@@ -170,14 +169,16 @@ class _ValkeyTCPServer(socketserver.TCPServer):
         *args,
         certfile=None,
         keyfile=None,
-        ssl_version=ssl.TLSVersion.TLSv1,
+        minimum_ssl_version=ssl.TLSVersion.TLSv1_2,
+        maximum_ssl_version=ssl.TLSVersion.TLSv1_3,
         **kw,
     ) -> None:
         self._ready_event = threading.Event()
         self._stop_requested = False
         self._certfile = certfile
         self._keyfile = keyfile
-        self._ssl_version = ssl_version
+        self._minimum_ssl_version = minimum_ssl_version
+        self._maximum_ssl_version = maximum_ssl_version
         super().__init__(*args, **kw)
 
     def service_actions(self):
@@ -199,7 +200,8 @@ class _ValkeyTCPServer(socketserver.TCPServer):
         newsocket, fromaddr = self.socket.accept()
         sslctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         sslctx.load_cert_chain(self._certfile, self._keyfile)
-        sslctx.minimum_version = self._ssl_version
+        sslctx.minimum_version = self._minimum_ssl_version
+        sslctx.maximum_version = self._maximum_ssl_version
         connstream = sslctx.wrap_socket(
             newsocket,
             server_side=True,
