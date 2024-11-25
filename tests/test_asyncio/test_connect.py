@@ -125,7 +125,7 @@ async def test_tcp_ssl_version_mismatch(tcp_address):
             tcp_address,
             certfile=certfile,
             keyfile=keyfile,
-            ssl_version=ssl.TLSVersion.TLSv1_2,
+            maximum_ssl_version=ssl.TLSVersion.TLSv1_2,
         )
     await conn.disconnect()
 
@@ -135,7 +135,8 @@ async def _assert_connect(
     server_address,
     certfile=None,
     keyfile=None,
-    ssl_version=None,
+    minimum_ssl_version=ssl.TLSVersion.TLSv1_2,
+    maximum_ssl_version=ssl.TLSVersion.TLSv1_3,
 ):
     stop_event = asyncio.Event()
     finished = asyncio.Event()
@@ -153,9 +154,8 @@ async def _assert_connect(
     elif certfile:
         host, port = server_address
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        if ssl_version is not None:
-            context.minimum_version = ssl_version
-            context.maximum_version = ssl_version
+        context.minimum_version = minimum_ssl_version
+        context.maximum_version = maximum_ssl_version
         context.load_cert_chain(certfile=certfile, keyfile=keyfile)
         server = await asyncio.start_server(_handler, host=host, port=port, ssl=context)
     else:
