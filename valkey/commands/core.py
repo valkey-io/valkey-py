@@ -24,7 +24,10 @@ from typing import (
 from valkey.exceptions import ConnectionError, DataError, NoScriptError, ValkeyError
 from valkey.typing import (
     AbsExpiryT,
+    AnyEncodableT,
+    AnyFieldT,
     AnyKeyT,
+    AnyStreamIdT,
     BitfieldOffsetT,
     ChannelT,
     CommandsProtocol,
@@ -3508,7 +3511,7 @@ class StreamCommands(CommandsProtocol):
     def xadd(
         self,
         name: KeyT,
-        fields: Dict[FieldT, EncodableT],
+        fields: Mapping[AnyFieldT, AnyEncodableT],
         id: StreamIdT = "*",
         maxlen: Union[int, None] = None,
         approximate: bool = True,
@@ -3933,7 +3936,7 @@ class StreamCommands(CommandsProtocol):
 
     def xread(
         self,
-        streams: Dict[KeyT, StreamIdT],
+        streams: Mapping[AnyKeyT, AnyStreamIdT],
         count: Union[int, None] = None,
         block: Union[int, None] = None,
     ) -> ResponseT:
@@ -3973,7 +3976,7 @@ class StreamCommands(CommandsProtocol):
         self,
         groupname: str,
         consumername: str,
-        streams: Dict[KeyT, StreamIdT],
+        streams: Mapping[AnyKeyT, AnyStreamIdT],
         count: Union[int, None] = None,
         block: Union[int, None] = None,
         noack: bool = False,
