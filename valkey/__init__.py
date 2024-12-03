@@ -1,4 +1,5 @@
 from importlib import metadata
+from typing import Tuple, Union
 
 from valkey import asyncio  # noqa
 from valkey.backoff import default_backoff
@@ -43,6 +44,9 @@ def int_or_str(value):
     except ValueError:
         return value
 
+
+__version__: str
+VERSION: Tuple[Union[int, str], ...]
 
 try:
     __version__ = metadata.version("valkey")

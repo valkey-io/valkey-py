@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import binascii
 import datetime
 import math
@@ -6,6 +8,7 @@ import threading
 import time
 from asyncio import CancelledError
 from string import ascii_letters
+from typing import Any
 from unittest import mock
 from unittest.mock import patch
 
@@ -545,7 +548,7 @@ class TestValkeyCommands:
         assert_resp_response(r, r.client_getname(), "valkey_py_test", b"valkey_py_test")
 
     @skip_if_server_version_lt("7.2.0")
-    def test_client_setinfo(self, r: valkey.Valkey):
+    def test_client_setinfo(self, r: valkey.Valkey[str]):
         r.ping()
         info = r.client_info()
         assert info["lib-name"] == "valkey-py"
@@ -776,7 +779,7 @@ class TestValkeyCommands:
         # assert data['maxmemory'].isdigit()
 
     @skip_if_server_version_lt("7.0.0")
-    def test_config_get_multi_params(self, r: valkey.Valkey):
+    def test_config_get_multi_params(self, r: valkey.Valkey[str]):
         res = r.config_get("*max-*-entries*", "maxmemory")
         assert "maxmemory" in res
         assert "hash-max-listpack-entries" in res
@@ -797,7 +800,7 @@ class TestValkeyCommands:
         assert r.config_get()["timeout"] == "0"
 
     @skip_if_server_version_lt("7.0.0")
-    def test_config_set_multi_params(self, r: valkey.Valkey):
+    def test_config_set_multi_params(self, r: valkey.Valkey[str]):
         r.config_set("timeout", 70, "maxmemory", 100)
         assert r.config_get()["timeout"] == "70"
         assert r.config_get()["maxmemory"] == "100"
@@ -960,13 +963,13 @@ class TestValkeyCommands:
         time.sleep(0.3)
         assert r.bgsave(True)
 
-    def test_never_decode_option(self, r: valkey.Valkey):
-        opts = {NEVER_DECODE: []}
+    def test_never_decode_option(self, r: valkey.Valkey[str]):
+        opts: dict[str, list[Any]] = {NEVER_DECODE: []}
         r.delete("a")
         assert r.execute_command("EXISTS", "a", **opts) == 0
 
-    def test_empty_response_option(self, r: valkey.Valkey):
-        opts = {EMPTY_RESPONSE: []}
+    def test_empty_response_option(self, r: valkey.Valkey[str]):
+        opts: dict[str, list[Any]] = {EMPTY_RESPONSE: []}
         r.delete("a")
         assert r.execute_command("EXISTS", "a", **opts) == 0
 
@@ -2869,7 +2872,7 @@ class TestValkeyCommands:
         assert r.zrank("a", "a6") is None
 
     @skip_if_server_version_lt("7.2.0")
-    def test_zrank_withscore(self, r: valkey.Valkey):
+    def test_zrank_withscore(self, r: valkey.Valkey[str]):
         r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
         assert r.zrank("a", "a1") == 0
         assert r.zrank("a", "a2") == 1
@@ -3487,7 +3490,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("6.2.0")
     def test_geoadd_nx(self, r):
-        values = (2.1909389952632, 41.433791470673, "place1") + (
+        values: Any = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
             "place2",
@@ -3503,7 +3506,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("6.2.0")
     def test_geoadd_xx(self, r):
-        values = (2.1909389952632, 41.433791470673, "place1")
+        values: Any = (2.1909389952632, 41.433791470673, "place1")
         assert r.geoadd("a", values) == 1
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -3515,7 +3518,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("6.2.0")
     def test_geoadd_ch(self, r):
-        values = (2.1909389952632, 41.433791470673, "place1")
+        values: Any = (2.1909389952632, 41.433791470673, "place1")
         assert r.geoadd("a", values) == 1
         values = (2.1909389952632, 31.433791470673, "place1") + (
             2.1873744593677,
@@ -4136,7 +4139,7 @@ class TestValkeyCommands:
         assert r.xadd(stream, {"foo": "bar"}, approximate=True, minid=m3)
 
     @skip_if_server_version_lt("7.0.0")
-    def test_xadd_explicit_ms(self, r: valkey.Valkey):
+    def test_xadd_explicit_ms(self, r: valkey.Valkey[str]):
         stream = "stream"
         message_id = r.xadd(stream, {"foo": "bar"}, "9999999999999999999-*")
         ms = message_id[: message_id.index(b"-")]
@@ -4313,7 +4316,7 @@ class TestValkeyCommands:
         assert r.xinfo_groups(stream) == expected
 
     @skip_if_server_version_lt("7.0.0")
-    def test_xgroup_create_entriesread(self, r: valkey.Valkey):
+    def test_xgroup_create_entriesread(self, r: valkey.Valkey[str]):
         stream = "stream"
         group = "group"
         r.xadd(stream, {"foo": "bar"})
@@ -4492,7 +4495,7 @@ class TestValkeyCommands:
         r.xgroup_create(stream, group, 0)
 
         # xpending on a group that has no consumers yet
-        expected = {"pending": 0, "min": None, "max": None, "consumers": []}
+        expected: dict[str, Any] = {"pending": 0, "min": None, "max": None, "consumers": []}
         assert r.xpending(stream, group) == expected
 
         # read 1 message from the group with each consumer
@@ -4871,7 +4874,7 @@ class TestValkeyCommands:
         assert resp == [0, None, 255]
 
     @skip_if_server_version_lt("6.0.0")
-    def test_bitfield_ro(self, r: valkey.Valkey):
+    def test_bitfield_ro(self, r: valkey.Valkey[str]):
         bf = r.bitfield("a")
         resp = bf.set("u8", 8, 255).execute()
         assert resp == [0]
@@ -4915,25 +4918,25 @@ class TestValkeyCommands:
         assert isinstance(r.memory_usage("foo"), int)
 
     @skip_if_server_version_lt("7.0.0")
-    def test_latency_histogram_not_implemented(self, r: valkey.Valkey):
+    def test_latency_histogram_not_implemented(self, r: valkey.Valkey[str]):
         with pytest.raises(NotImplementedError):
             r.latency_histogram()
 
-    def test_latency_graph_not_implemented(self, r: valkey.Valkey):
+    def test_latency_graph_not_implemented(self, r: valkey.Valkey[str]):
         with pytest.raises(NotImplementedError):
             r.latency_graph()
 
-    def test_latency_doctor_not_implemented(self, r: valkey.Valkey):
+    def test_latency_doctor_not_implemented(self, r: valkey.Valkey[str]):
         with pytest.raises(NotImplementedError):
             r.latency_doctor()
 
-    def test_latency_history(self, r: valkey.Valkey):
+    def test_latency_history(self, r: valkey.Valkey[str]):
         assert r.latency_history("command") == []
 
-    def test_latency_latest(self, r: valkey.Valkey):
+    def test_latency_latest(self, r: valkey.Valkey[str]):
         assert r.latency_latest() == []
 
-    def test_latency_reset(self, r: valkey.Valkey):
+    def test_latency_reset(self, r: valkey.Valkey[str]):
         assert r.latency_reset() == 0
 
     @skip_if_server_version_lt("4.0.0")
@@ -4954,7 +4957,7 @@ class TestValkeyCommands:
             r.command_docs("set")
 
     @skip_if_server_version_lt("7.0.0")
-    def test_command_list(self, r: valkey.Valkey):
+    def test_command_list(self, r: valkey.Valkey[str]):
         assert len(r.command_list()) > 300
         assert len(r.command_list(module="fakemod")) == 0
         assert len(r.command_list(category="list")) > 15
@@ -4993,7 +4996,7 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("7.0.0")
-    def test_command_getkeysandflags(self, r: valkey.Valkey):
+    def test_command_getkeysandflags(self, r: valkey.Valkey[str]):
         res = r.command_getkeysandflags("LMOVE", "mylist1", "mylist2", "left", "left")
         assert res == [
             [b"mylist1", [b"RW", b"access", b"delete"]],
@@ -5013,7 +5016,7 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("7.0.0")
-    def test_module_loadex(self, r: valkey.Valkey):
+    def test_module_loadex(self, r: valkey.Valkey[str]):
         with pytest.raises(valkey.exceptions.ModuleError) as excinfo:
             r.module_loadex("/some/fake/path")
             assert "Error loading the extension." in str(excinfo.value)
@@ -5072,14 +5075,14 @@ class TestValkeyCommands:
             assert r.replicaof("NO ONE")
         assert r.replicaof("NO", "ONE")
 
-    def test_shutdown(self, r: valkey.Valkey):
-        r.execute_command = mock.MagicMock()
+    def test_shutdown(self, r: valkey.Valkey[str]):
+        r.execute_command = mock.MagicMock()  # type: ignore[method-assign]
         r.execute_command("SHUTDOWN", "NOSAVE")
         r.execute_command.assert_called_once_with("SHUTDOWN", "NOSAVE")
 
     @skip_if_server_version_lt("7.0.0")
-    def test_shutdown_with_params(self, r: valkey.Valkey):
-        r.execute_command = mock.MagicMock()
+    def test_shutdown_with_params(self, r: valkey.Valkey[str]):
+        r.execute_command = mock.MagicMock()  # type: ignore[method-assign]
         r.execute_command("SHUTDOWN", "SAVE", "NOW", "FORCE")
         r.execute_command.assert_called_once_with("SHUTDOWN", "SAVE", "NOW", "FORCE")
         r.execute_command("SHUTDOWN", "ABORT")
@@ -5103,7 +5106,7 @@ class TestValkeyCommands:
         assert b"FULLRESYNC" in res
 
     @pytest.mark.onlynoncluster
-    def test_interrupted_command(self, r: valkey.Valkey):
+    def test_interrupted_command(self, r: valkey.Valkey[str]):
         """
         Regression test for issue #1128:  An Un-handled BaseException
         will leave the socket with un-read response to a previous

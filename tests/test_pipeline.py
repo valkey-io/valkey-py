@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from contextlib import closing
 from unittest import mock
 
@@ -309,7 +311,7 @@ class TestPipeline:
     def test_transaction_callable(self, r):
         r["a"] = 1
         r["b"] = 2
-        has_run = []
+        has_run: list[str] = []
 
         def my_transaction(pipe):
             a_value = pipe.get("a")

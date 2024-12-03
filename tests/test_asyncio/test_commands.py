@@ -2,6 +2,8 @@
 Tests async overrides of commands from their mixins
 """
 
+from __future__ import annotations
+
 import asyncio
 import binascii
 import datetime
@@ -9,7 +11,7 @@ import math
 import re
 import sys
 from string import ascii_letters
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -35,15 +37,15 @@ from valkey._parsers.helpers import (
 from valkey.client import EMPTY_RESPONSE, NEVER_DECODE
 
 if sys.version_info >= (3, 11, 3):
-    from asyncio import timeout as async_timeout
+    from asyncio import timeout as async_timeout  # type: ignore[unused-ignore,assignment,no-redef,import-not-found,attr-defined]
 else:
-    from async_timeout import timeout as async_timeout
+    from async_timeout import timeout as async_timeout  # type: ignore[unused-ignore,assignment,no-redef,import-not-found]
 
 VALKEY_6_VERSION = "5.9.0"
 
 
 @pytest_asyncio.fixture()
-async def r_teardown(r: valkey.Valkey):
+async def r_teardown(r: valkey.asyncio.Valkey[str]):
     """
     A special fixture which removes the provided names from the database after use
     """
@@ -59,7 +61,7 @@ async def r_teardown(r: valkey.Valkey):
 
 
 @pytest_asyncio.fixture()
-async def slowlog(r: valkey.Valkey):
+async def slowlog(r: valkey.asyncio.Valkey[str]):
     current_config = await r.config_get()
     old_slower_than_value = current_config["slowlog-log-slower-than"]
     old_max_legnth_value = current_config["slowlog-max-len"]
@@ -73,13 +75,13 @@ async def slowlog(r: valkey.Valkey):
     await r.config_set("slowlog-max-len", old_max_legnth_value)
 
 
-async def valkey_server_time(client: valkey.Valkey):
+async def valkey_server_time(client: valkey.asyncio.Valkey[bytes]):
     seconds, milliseconds = await client.time()
     timestamp = float(f"{seconds}.{milliseconds}")
     return datetime.datetime.fromtimestamp(timestamp)
 
 
-async def get_stream_message(client: valkey.Valkey, stream: str, message_id: str):
+async def get_stream_message(client: valkey.asyncio.Valkey[str], stream: str, message_id: str):
     """Fetch a stream message and format it as a (message_id, fields) pair"""
     response = await client.xrange(stream, min=message_id, max=message_id)
     assert len(response) == 1
@@ -91,7 +93,7 @@ async def get_stream_message(client: valkey.Valkey, stream: str, message_id: str
 class TestResponseCallbacks:
     """Tests for the response callback system"""
 
-    async def test_response_callbacks(self, r: valkey.Valkey):
+    async def test_response_callbacks(self, r: valkey.asyncio.Valkey[str]):
         callbacks = _ValkeyCallbacks
         if is_resp2_connection(r):
             callbacks.update(_ValkeyCallbacksRESP2)
@@ -99,32 +101,32 @@ class TestResponseCallbacks:
             callbacks.update(_ValkeyCallbacksRESP3)
         assert r.response_callbacks == callbacks
         assert id(r.response_callbacks) != id(_ValkeyCallbacks)
-        r.set_response_callback("GET", lambda x: "static")
+        r.set_response_callback("GET", lambda x: "static")  # type: ignore[arg-type]
         await r.set("a", "foo")
         assert await r.get("a") == "static"
 
-    async def test_case_insensitive_command_names(self, r: valkey.Valkey):
+    async def test_case_insensitive_command_names(self, r: valkey.asyncio.Valkey[str]):
         assert r.response_callbacks["ping"] == r.response_callbacks["PING"]
 
 
 class TestValkeyCommands:
-    async def test_command_on_invalid_key_type(self, r: valkey.Valkey):
+    async def test_command_on_invalid_key_type(self, r: valkey.asyncio.Valkey[str]):
         await r.lpush("a", "1")
         with pytest.raises(valkey.ResponseError):
             await r.get("a")
 
     # SERVER INFORMATION
     @skip_if_server_version_lt(VALKEY_6_VERSION)
-    async def test_acl_cat_no_category(self, r: valkey.Valkey):
+    async def test_acl_cat_no_category(self, r: valkey.asyncio.Valkey[str]):
         categories = await r.acl_cat()
         assert isinstance(categories, list)
-        assert "read" in categories or b"read" in categories
+        assert "read" in categories or b"read" in categories  # type: ignore[comparison-overlap]
 
     @skip_if_server_version_lt(VALKEY_6_VERSION)
-    async def test_acl_cat_with_category(self, r: valkey.Valkey):
+    async def test_acl_cat_with_category(self, r: valkey.asyncio.Valkey[str]):
         commands = await r.acl_cat("read")
         assert isinstance(commands, list)
-        assert "get" in commands or b"get" in commands
+        assert "get" in commands or b"get" in commands  # type: ignore[comparison-overlap]
 
     @skip_if_server_version_lt(VALKEY_6_VERSION)
     async def test_acl_deluser(self, r_teardown):
@@ -136,7 +138,7 @@ class TestValkeyCommands:
         assert await r.acl_deluser(username) == 1
 
     @skip_if_server_version_lt(VALKEY_6_VERSION)
-    async def test_acl_genpass(self, r: valkey.Valkey):
+    async def test_acl_genpass(self, r: valkey.asyncio.Valkey[str]):
         password = await r.acl_genpass()
         assert isinstance(password, (str, bytes))
 
@@ -311,24 +313,24 @@ class TestValkeyCommands:
             await r.acl_setuser(username, passwords="+mypass", nopass=True)
 
     @skip_if_server_version_lt(VALKEY_6_VERSION)
-    async def test_acl_users(self, r: valkey.Valkey):
+    async def test_acl_users(self, r: valkey.asyncio.Valkey[str]):
         users = await r.acl_users()
         assert isinstance(users, list)
         assert len(users) > 0
 
     @skip_if_server_version_lt(VALKEY_6_VERSION)
-    async def test_acl_whoami(self, r: valkey.Valkey):
+    async def test_acl_whoami(self, r: valkey.asyncio.Valkey[str]):
         username = await r.acl_whoami()
         assert isinstance(username, (str, bytes))
 
     @pytest.mark.onlynoncluster
-    async def test_client_list(self, r: valkey.Valkey):
+    async def test_client_list(self, r: valkey.asyncio.Valkey[str]):
         clients = await r.client_list()
         assert isinstance(clients[0], dict)
         assert "addr" in clients[0]
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_client_list_type(self, r: valkey.Valkey):
+    async def test_client_list_type(self, r: valkey.asyncio.Valkey[str]):
         with pytest.raises(exceptions.ValkeyError):
             await r.client_list(_type="not a client type")
         for client_type in ["normal", "master", "replica", "pubsub"]:
@@ -337,12 +339,12 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("5.0.0")
     @pytest.mark.onlynoncluster
-    async def test_client_id(self, r: valkey.Valkey):
+    async def test_client_id(self, r: valkey.asyncio.Valkey[str]):
         assert await r.client_id() > 0
 
     @skip_if_server_version_lt("5.0.0")
     @pytest.mark.onlynoncluster
-    async def test_client_unblock(self, r: valkey.Valkey):
+    async def test_client_unblock(self, r: valkey.asyncio.Valkey[str]):
         myid = await r.client_id()
         assert not await r.client_unblock(myid)
         assert not await r.client_unblock(myid, error=True)
@@ -350,19 +352,19 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("2.6.9")
     @pytest.mark.onlynoncluster
-    async def test_client_getname(self, r: valkey.Valkey):
+    async def test_client_getname(self, r: valkey.asyncio.Valkey[str]):
         assert await r.client_getname() is None
 
     @skip_if_server_version_lt("2.6.9")
     @pytest.mark.onlynoncluster
-    async def test_client_setname(self, r: valkey.Valkey):
+    async def test_client_setname(self, r: valkey.asyncio.Valkey[str]):
         assert await r.client_setname("valkey_py_test")
         assert_resp_response(
             r, await r.client_getname(), "valkey_py_test", b"valkey_py_test"
         )
 
     @skip_if_server_version_lt("7.2.0")
-    async def test_client_setinfo(self, r: valkey.Valkey):
+    async def test_client_setinfo(self, r: valkey.asyncio.Valkey[str]):
         await r.ping()
         info = await r.client_info()
         assert info["lib-name"] == "valkey-py"
@@ -385,7 +387,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("2.6.9")
     @pytest.mark.onlynoncluster
-    async def test_client_kill(self, r: valkey.Valkey, r2):
+    async def test_client_kill(self, r: valkey.asyncio.Valkey[str], r2):
         await r.client_setname("valkey-py-c1")
         await r2.client_setname("valkey-py-c2")
         clients = [
@@ -398,7 +400,7 @@ class TestValkeyCommands:
         clients_by_name = {client.get("name"): client for client in clients}
 
         client_addr = clients_by_name["valkey-py-c2"].get("addr")
-        assert await r.client_kill(client_addr) is True
+        assert await r.client_kill(client_addr) is True  # type: ignore[arg-type]
 
         clients = [
             client
@@ -409,22 +411,22 @@ class TestValkeyCommands:
         assert clients[0].get("name") == "valkey-py-c1"
 
     @skip_if_server_version_lt("2.8.12")
-    async def test_client_kill_filter_invalid_params(self, r: valkey.Valkey):
+    async def test_client_kill_filter_invalid_params(self, r: valkey.asyncio.Valkey[str]):
         # empty
         with pytest.raises(exceptions.DataError):
             await r.client_kill_filter()
 
         # invalid skipme
         with pytest.raises(exceptions.DataError):
-            await r.client_kill_filter(skipme="yeah")  # type: ignore
+            await r.client_kill_filter(skipme="yeah")
 
         # invalid type
         with pytest.raises(exceptions.DataError):
-            await r.client_kill_filter(_type="caster")  # type: ignore
+            await r.client_kill_filter(_type="caster")
 
     @skip_if_server_version_lt("2.8.12")
     @pytest.mark.onlynoncluster
-    async def test_client_kill_filter_by_id(self, r: valkey.Valkey, r2):
+    async def test_client_kill_filter_by_id(self, r: valkey.asyncio.Valkey[str], r2):
         await r.client_setname("valkey-py-c1")
         await r2.client_setname("valkey-py-c2")
         clients = [
@@ -450,7 +452,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("2.8.12")
     @pytest.mark.onlynoncluster
-    async def test_client_kill_filter_by_addr(self, r: valkey.Valkey, r2):
+    async def test_client_kill_filter_by_addr(self, r: valkey.asyncio.Valkey[str], r2):
         await r.client_setname("valkey-py-c1")
         await r2.client_setname("valkey-py-c2")
         clients = [
@@ -475,7 +477,7 @@ class TestValkeyCommands:
         assert clients[0].get("name") == "valkey-py-c1"
 
     @skip_if_server_version_lt("2.6.9")
-    async def test_client_list_after_client_setname(self, r: valkey.Valkey):
+    async def test_client_list_after_client_setname(self, r: valkey.asyncio.Valkey[str]):
         await r.client_setname("valkey_py_test")
         clients = await r.client_list()
         # we don't know which client ours will be
@@ -483,7 +485,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("2.9.50")
     @pytest.mark.onlynoncluster
-    async def test_client_pause(self, r: valkey.Valkey):
+    async def test_client_pause(self, r: valkey.asyncio.Valkey[str]):
         assert await r.client_pause(1)
         assert await r.client_pause(timeout=1)
         with pytest.raises(exceptions.ValkeyError):
@@ -491,19 +493,19 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("7.2.0")
     @pytest.mark.onlynoncluster
-    async def test_client_no_touch(self, r: valkey.Valkey):
+    async def test_client_no_touch(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.client_no_touch("ON") == b"OK"
         assert await r.client_no_touch("OFF") == b"OK"
         with pytest.raises(TypeError):
-            await r.client_no_touch()
+            await r.client_no_touch()  # type: ignore[call-arg]
 
-    async def test_config_get(self, r: valkey.Valkey):
+    async def test_config_get(self, r: valkey.asyncio.Valkey[str]):
         data = await r.config_get()
         assert "maxmemory" in data
         assert data["maxmemory"].isdigit()
 
     @pytest.mark.onlynoncluster
-    async def test_config_resetstat(self, r: valkey.Valkey):
+    async def test_config_resetstat(self, r: valkey.asyncio.Valkey[str]):
         await r.ping()
         prior_commands_processed = int((await r.info())["total_commands_processed"])
         assert prior_commands_processed >= 1
@@ -511,24 +513,24 @@ class TestValkeyCommands:
         reset_commands_processed = int((await r.info())["total_commands_processed"])
         assert reset_commands_processed < prior_commands_processed
 
-    async def test_config_set(self, r: valkey.Valkey):
+    async def test_config_set(self, r: valkey.asyncio.Valkey[str]):
         await r.config_set("timeout", 70)
         assert (await r.config_get())["timeout"] == "70"
         assert await r.config_set("timeout", 0)
         assert (await r.config_get())["timeout"] == "0"
 
     @pytest.mark.onlynoncluster
-    async def test_dbsize(self, r: valkey.Valkey):
+    async def test_dbsize(self, r: valkey.asyncio.Valkey[str]):
         await r.set("a", "foo")
         await r.set("b", "bar")
         assert await r.dbsize() == 2
 
     @pytest.mark.onlynoncluster
-    async def test_echo(self, r: valkey.Valkey):
+    async def test_echo(self, r: valkey.asyncio.Valkey[str]):
         assert await r.echo("foo bar") == b"foo bar"
 
     @pytest.mark.onlynoncluster
-    async def test_info(self, r: valkey.Valkey):
+    async def test_info(self, r: valkey.asyncio.Valkey[str]):
         await r.set("a", "foo")
         await r.set("b", "bar")
         info = await r.info()
@@ -537,21 +539,21 @@ class TestValkeyCommands:
         assert "valkey_version" in info.keys()
 
     @pytest.mark.onlynoncluster
-    async def test_lastsave(self, r: valkey.Valkey):
+    async def test_lastsave(self, r: valkey.asyncio.Valkey[str]):
         assert isinstance(await r.lastsave(), datetime.datetime)
 
-    async def test_object(self, r: valkey.Valkey):
+    async def test_object(self, r: valkey.asyncio.Valkey[str]):
         await r.set("a", "foo")
         assert isinstance(await r.object("refcount", "a"), int)
         assert isinstance(await r.object("idletime", "a"), int)
         assert await r.object("encoding", "a") in (b"raw", b"embstr")
         assert await r.object("idletime", "invalid-key") is None
 
-    async def test_ping(self, r: valkey.Valkey):
+    async def test_ping(self, r: valkey.asyncio.Valkey[str]):
         assert await r.ping()
 
     @pytest.mark.onlynoncluster
-    async def test_slowlog_get(self, r: valkey.Valkey, slowlog):
+    async def test_slowlog_get(self, r: valkey.asyncio.Valkey[str], slowlog):
         assert await r.slowlog_reset()
         unicode_string = chr(3456) + "abcd" + chr(3421)
         await r.get(unicode_string)
@@ -573,7 +575,7 @@ class TestValkeyCommands:
         assert isinstance(slowlog[0]["duration"], int)
 
     @pytest.mark.onlynoncluster
-    async def test_slowlog_get_limit(self, r: valkey.Valkey, slowlog):
+    async def test_slowlog_get_limit(self, r: valkey.asyncio.Valkey[str], slowlog):
         assert await r.slowlog_reset()
         await r.get("foo")
         slowlog = await r.slowlog_get(1)
@@ -582,36 +584,36 @@ class TestValkeyCommands:
         assert len(slowlog) == 1
 
     @pytest.mark.onlynoncluster
-    async def test_slowlog_length(self, r: valkey.Valkey, slowlog):
+    async def test_slowlog_length(self, r: valkey.asyncio.Valkey[str], slowlog):
         await r.get("foo")
         assert isinstance(await r.slowlog_len(), int)
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_time(self, r: valkey.Valkey):
+    async def test_time(self, r: valkey.asyncio.Valkey[str]):
         t = await r.time()
         assert len(t) == 2
         assert isinstance(t[0], int)
         assert isinstance(t[1], int)
 
-    async def test_never_decode_option(self, r: valkey.Valkey):
-        opts = {NEVER_DECODE: []}
+    async def test_never_decode_option(self, r: valkey.asyncio.Valkey[str]):
+        opts: dict[str, list[str]] = {NEVER_DECODE: []}
         await r.delete("a")
         assert await r.execute_command("EXISTS", "a", **opts) == 0
 
-    async def test_empty_response_option(self, r: valkey.Valkey):
-        opts = {EMPTY_RESPONSE: []}
+    async def test_empty_response_option(self, r: valkey.asyncio.Valkey[str]):
+        opts: dict[str, list[str]] = {EMPTY_RESPONSE: []}
         await r.delete("a")
         assert await r.execute_command("EXISTS", "a", **opts) == 0
 
     # BASIC KEY COMMANDS
-    async def test_append(self, r: valkey.Valkey):
+    async def test_append(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.append("a", "a1") == 2
         assert await r.get("a") == b"a1"
         assert await r.append("a", "a2") == 4
         assert await r.get("a") == b"a1a2"
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_bitcount(self, r: valkey.Valkey):
+    async def test_bitcount(self, r: valkey.asyncio.Valkey[str]):
         await r.setbit("a", 5, True)
         assert await r.bitcount("a") == 1
         await r.setbit("a", 6, True)
@@ -631,32 +633,32 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("2.6.0")
     @pytest.mark.onlynoncluster
-    async def test_bitop_not_empty_string(self, r: valkey.Valkey):
+    async def test_bitop_not_empty_string(self, r: valkey.asyncio.Valkey[str]):
         await r.set("a", "")
         await r.bitop("not", "r", "a")
         assert await r.get("r") is None
 
     @skip_if_server_version_lt("2.6.0")
     @pytest.mark.onlynoncluster
-    async def test_bitop_not(self, r: valkey.Valkey):
+    async def test_bitop_not(self, r: valkey.asyncio.Valkey[str]):
         test_str = b"\xAA\x00\xFF\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
         await r.set("a", test_str)
         await r.bitop("not", "r", "a")
-        assert int(binascii.hexlify(await r.get("r")), 16) == correct
+        assert int(binascii.hexlify(await r.get("r")), 16) == correct  # type: ignore[arg-type]
 
     @skip_if_server_version_lt("2.6.0")
     @pytest.mark.onlynoncluster
-    async def test_bitop_not_in_place(self, r: valkey.Valkey):
+    async def test_bitop_not_in_place(self, r: valkey.asyncio.Valkey[str]):
         test_str = b"\xAA\x00\xFF\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
         await r.set("a", test_str)
         await r.bitop("not", "a", "a")
-        assert int(binascii.hexlify(await r.get("a")), 16) == correct
+        assert int(binascii.hexlify(await r.get("a")), 16) == correct  # type: ignore[arg-type]
 
     @skip_if_server_version_lt("2.6.0")
     @pytest.mark.onlynoncluster
-    async def test_bitop_single_string(self, r: valkey.Valkey):
+    async def test_bitop_single_string(self, r: valkey.asyncio.Valkey[bytes]):
         test_str = b"\x01\x02\xFF"
         await r.set("a", test_str)
         await r.bitop("and", "res1", "a")
@@ -668,19 +670,19 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("2.6.0")
     @pytest.mark.onlynoncluster
-    async def test_bitop_string_operands(self, r: valkey.Valkey):
+    async def test_bitop_string_operands(self, r: valkey.asyncio.Valkey[str]):
         await r.set("a", b"\x01\x02\xFF\xFF")
         await r.set("b", b"\x01\x02\xFF")
         await r.bitop("and", "res1", "a", "b")
         await r.bitop("or", "res2", "a", "b")
         await r.bitop("xor", "res3", "a", "b")
-        assert int(binascii.hexlify(await r.get("res1")), 16) == 0x0102FF00
-        assert int(binascii.hexlify(await r.get("res2")), 16) == 0x0102FFFF
-        assert int(binascii.hexlify(await r.get("res3")), 16) == 0x000000FF
+        assert int(binascii.hexlify(await r.get("res1")), 16) == 0x0102FF00  # type: ignore[arg-type]
+        assert int(binascii.hexlify(await r.get("res2")), 16) == 0x0102FFFF  # type: ignore[arg-type]
+        assert int(binascii.hexlify(await r.get("res3")), 16) == 0x000000FF  # type: ignore[arg-type]
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.7")
-    async def test_bitpos(self, r: valkey.Valkey):
+    async def test_bitpos(self, r: valkey.asyncio.Valkey[str]):
         key = "key:bitpos"
         await r.set(key, b"\xff\xf0\x00")
         assert await r.bitpos(key, 0) == 12
@@ -693,7 +695,7 @@ class TestValkeyCommands:
         assert await r.bitpos(key, 1) == -1
 
     @skip_if_server_version_lt("2.8.7")
-    async def test_bitpos_wrong_arguments(self, r: valkey.Valkey):
+    async def test_bitpos_wrong_arguments(self, r: valkey.asyncio.Valkey[str]):
         key = "key:bitpos:wrong:args"
         await r.set(key, b"\xff\xf0\x00")
         with pytest.raises(exceptions.ValkeyError):
@@ -701,7 +703,7 @@ class TestValkeyCommands:
         with pytest.raises(exceptions.ValkeyError):
             await r.bitpos(key, 7) == 12
 
-    async def test_decr(self, r: valkey.Valkey):
+    async def test_decr(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.decr("a") == -1
         assert await r.get("a") == b"-1"
         assert await r.decr("a") == -2
@@ -709,37 +711,37 @@ class TestValkeyCommands:
         assert await r.decr("a", amount=5) == -7
         assert await r.get("a") == b"-7"
 
-    async def test_decrby(self, r: valkey.Valkey):
+    async def test_decrby(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.decrby("a", amount=2) == -2
         assert await r.decrby("a", amount=3) == -5
         assert await r.get("a") == b"-5"
 
-    async def test_delete(self, r: valkey.Valkey):
+    async def test_delete(self, r: valkey.asyncio.Valkey[str]):
         assert await r.delete("a") == 0
         await r.set("a", "foo")
         assert await r.delete("a") == 1
 
-    async def test_delete_with_multiple_keys(self, r: valkey.Valkey):
+    async def test_delete_with_multiple_keys(self, r: valkey.asyncio.Valkey[str]):
         await r.set("a", "foo")
         await r.set("b", "bar")
         assert await r.delete("a", "b") == 2
         assert await r.get("a") is None
         assert await r.get("b") is None
 
-    async def test_delitem(self, r: valkey.Valkey):
+    async def test_delitem(self, r: valkey.asyncio.Valkey[str]):
         await r.set("a", "foo")
         await r.delete("a")
         assert await r.get("a") is None
 
     @skip_if_server_version_lt("4.0.0")
-    async def test_unlink(self, r: valkey.Valkey):
+    async def test_unlink(self, r: valkey.asyncio.Valkey[str]):
         assert await r.unlink("a") == 0
         await r.set("a", "foo")
         assert await r.unlink("a") == 1
         assert await r.get("a") is None
 
     @skip_if_server_version_lt("4.0.0")
-    async def test_unlink_with_multiple_keys(self, r: valkey.Valkey):
+    async def test_unlink_with_multiple_keys(self, r: valkey.asyncio.Valkey[str]):
         await r.set("a", "foo")
         await r.set("b", "bar")
         assert await r.unlink("a", "b") == 2
@@ -747,7 +749,7 @@ class TestValkeyCommands:
         assert await r.get("b") is None
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_dump_and_restore(self, r: valkey.Valkey):
+    async def test_dump_and_restore(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("a", "foo")
         dumped = await r.dump("a")
         await r.delete("a")
@@ -755,7 +757,7 @@ class TestValkeyCommands:
         assert await r.get("a") == b"foo"
 
     @skip_if_server_version_lt("3.0.0")
-    async def test_dump_and_restore_and_replace(self, r: valkey.Valkey):
+    async def test_dump_and_restore_and_replace(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("a", "bar")
         dumped = await r.dump("a")
         with pytest.raises(valkey.ResponseError):
@@ -765,7 +767,7 @@ class TestValkeyCommands:
         assert await r.get("a") == b"bar"
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_dump_and_restore_absttl(self, r: valkey.Valkey):
+    async def test_dump_and_restore_absttl(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("a", "foo")
         dumped = await r.dump("a")
         await r.delete("a")
@@ -777,19 +779,19 @@ class TestValkeyCommands:
         assert await r.get("a") == b"foo"
         assert 0 < await r.ttl("a") <= 61
 
-    async def test_exists(self, r: valkey.Valkey):
+    async def test_exists(self, r: valkey.asyncio.Valkey[str]):
         assert await r.exists("a") == 0
         await r.set("a", "foo")
         await r.set("b", "bar")
         assert await r.exists("a") == 1
         assert await r.exists("a", "b") == 2
 
-    async def test_exists_contains(self, r: valkey.Valkey):
+    async def test_exists_contains(self, r: valkey.asyncio.Valkey[str]):
         assert not await r.exists("a")
         await r.set("a", "foo")
         assert await r.exists("a")
 
-    async def test_expire(self, r: valkey.Valkey):
+    async def test_expire(self, r: valkey.asyncio.Valkey[str]):
         assert not await r.expire("a", 10)
         await r.set("a", "foo")
         assert await r.expire("a", 10)
@@ -797,24 +799,24 @@ class TestValkeyCommands:
         assert await r.persist("a")
         assert await r.ttl("a") == -1
 
-    async def test_expireat_datetime(self, r: valkey.Valkey):
+    async def test_expireat_datetime(self, r: valkey.asyncio.Valkey[bytes]):
         expire_at = await valkey_server_time(r) + datetime.timedelta(minutes=1)
         await r.set("a", "foo")
         assert await r.expireat("a", expire_at)
         assert 0 < await r.ttl("a") <= 61
 
-    async def test_expireat_no_key(self, r: valkey.Valkey):
+    async def test_expireat_no_key(self, r: valkey.asyncio.Valkey[bytes]):
         expire_at = await valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert not await r.expireat("a", expire_at)
 
-    async def test_expireat_unixtime(self, r: valkey.Valkey):
+    async def test_expireat_unixtime(self, r: valkey.asyncio.Valkey[bytes]):
         expire_at = await valkey_server_time(r) + datetime.timedelta(minutes=1)
         await r.set("a", "foo")
         expire_at_seconds = int(expire_at.timestamp())
         assert await r.expireat("a", expire_at_seconds)
         assert 0 < await r.ttl("a") <= 61
 
-    async def test_get_and_set(self, r: valkey.Valkey):
+    async def test_get_and_set(self, r: valkey.asyncio.Valkey[bytes]):
         # get and set can't be tested independently of each other
         assert await r.get("a") is None
         byte_string = b"value"
@@ -825,9 +827,9 @@ class TestValkeyCommands:
         assert await r.set("unicode_string", unicode_string)
         assert await r.get("byte_string") == byte_string
         assert await r.get("integer") == str(integer).encode()
-        assert (await r.get("unicode_string")).decode("utf-8") == unicode_string
+        assert (await r.get("unicode_string")).decode("utf-8") == unicode_string  # type: ignore[union-attr]
 
-    async def test_get_set_bit(self, r: valkey.Valkey):
+    async def test_get_set_bit(self, r: valkey.asyncio.Valkey[str]):
         # no value
         assert not await r.getbit("a", 5)
         # set bit 5
@@ -843,18 +845,18 @@ class TestValkeyCommands:
         assert await r.setbit("a", 5, True)
         assert await r.getbit("a", 5)
 
-    async def test_getrange(self, r: valkey.Valkey):
+    async def test_getrange(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("a", "foo")
         assert await r.getrange("a", 0, 0) == b"f"
         assert await r.getrange("a", 0, 2) == b"foo"
         assert await r.getrange("a", 3, 4) == b""
 
-    async def test_getset(self, r: valkey.Valkey):
+    async def test_getset(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.getset("a", "foo") is None
         assert await r.getset("a", "bar") == b"foo"
         assert await r.get("a") == b"bar"
 
-    async def test_incr(self, r: valkey.Valkey):
+    async def test_incr(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.incr("a") == 1
         assert await r.get("a") == b"1"
         assert await r.incr("a") == 2
@@ -862,20 +864,20 @@ class TestValkeyCommands:
         assert await r.incr("a", amount=5) == 7
         assert await r.get("a") == b"7"
 
-    async def test_incrby(self, r: valkey.Valkey):
+    async def test_incrby(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.incrby("a") == 1
         assert await r.incrby("a", 4) == 5
         assert await r.get("a") == b"5"
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_incrbyfloat(self, r: valkey.Valkey):
+    async def test_incrbyfloat(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.incrbyfloat("a") == 1.0
         assert await r.get("a") == b"1"
         assert await r.incrbyfloat("a", 1.1) == 2.1
-        assert float(await r.get("a")) == float(2.1)
+        assert float(await r.get("a")) == float(2.1)  # type: ignore[arg-type]
 
     @pytest.mark.onlynoncluster
-    async def test_keys(self, r: valkey.Valkey):
+    async def test_keys(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.keys() == []
         keys_with_underscores = {b"test_a", b"test_b"}
         keys = keys_with_underscores.union({b"testc"})
@@ -885,7 +887,7 @@ class TestValkeyCommands:
         assert set(await r.keys(pattern="test*")) == keys
 
     @pytest.mark.onlynoncluster
-    async def test_mget(self, r: valkey.Valkey):
+    async def test_mget(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.mget([]) == []
         assert await r.mget(["a", "b"]) == [None, None]
         await r.set("a", "1")
@@ -894,24 +896,24 @@ class TestValkeyCommands:
         assert await r.mget("a", "other", "b", "c") == [b"1", None, b"2", b"3"]
 
     @pytest.mark.onlynoncluster
-    async def test_mset(self, r: valkey.Valkey):
+    async def test_mset(self, r: valkey.asyncio.Valkey[bytes]):
         d = {"a": b"1", "b": b"2", "c": b"3"}
-        assert await r.mset(d)
+        assert await r.mset(d)  # type: ignore[arg-type]
         for k, v in d.items():
             assert await r.get(k) == v
 
     @pytest.mark.onlynoncluster
-    async def test_msetnx(self, r: valkey.Valkey):
+    async def test_msetnx(self, r: valkey.asyncio.Valkey[bytes]):
         d = {"a": b"1", "b": b"2", "c": b"3"}
-        assert await r.msetnx(d)
+        assert await r.msetnx(d)  # type: ignore[arg-type]
         d2 = {"a": b"x", "d": b"4"}
-        assert not await r.msetnx(d2)
+        assert not await r.msetnx(d2)  # type: ignore[arg-type]
         for k, v in d.items():
             assert await r.get(k) == v
         assert await r.get("d") is None
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_pexpire(self, r: valkey.Valkey):
+    async def test_pexpire(self, r: valkey.asyncio.Valkey[str]):
         assert not await r.pexpire("a", 60000)
         await r.set("a", "foo")
         assert await r.pexpire("a", 60000)
@@ -920,19 +922,19 @@ class TestValkeyCommands:
         assert await r.pttl("a") == -1
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_pexpireat_datetime(self, r: valkey.Valkey):
+    async def test_pexpireat_datetime(self, r: valkey.asyncio.Valkey[bytes]):
         expire_at = await valkey_server_time(r) + datetime.timedelta(minutes=1)
         await r.set("a", "foo")
         assert await r.pexpireat("a", expire_at)
         assert 0 < await r.pttl("a") <= 61000
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_pexpireat_no_key(self, r: valkey.Valkey):
+    async def test_pexpireat_no_key(self, r: valkey.asyncio.Valkey[bytes]):
         expire_at = await valkey_server_time(r) + datetime.timedelta(minutes=1)
         assert not await r.pexpireat("a", expire_at)
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_pexpireat_unixtime(self, r: valkey.Valkey):
+    async def test_pexpireat_unixtime(self, r: valkey.asyncio.Valkey[bytes]):
         expire_at = await valkey_server_time(r) + datetime.timedelta(minutes=1)
         await r.set("a", "foo")
         expire_at_milliseconds = int(expire_at.timestamp() * 1000)
@@ -940,20 +942,20 @@ class TestValkeyCommands:
         assert 0 < await r.pttl("a") <= 61000
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_psetex(self, r: valkey.Valkey):
+    async def test_psetex(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.psetex("a", 1000, "value")
         assert await r.get("a") == b"value"
         assert 0 < await r.pttl("a") <= 1000
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_psetex_timedelta(self, r: valkey.Valkey):
+    async def test_psetex_timedelta(self, r: valkey.asyncio.Valkey[bytes]):
         expire_at = datetime.timedelta(milliseconds=1000)
         assert await r.psetex("a", expire_at, "value")
         assert await r.get("a") == b"value"
         assert 0 < await r.pttl("a") <= 1000
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_pttl(self, r: valkey.Valkey):
+    async def test_pttl(self, r: valkey.asyncio.Valkey[str]):
         assert not await r.pexpire("a", 10000)
         await r.set("a", "1")
         assert await r.pexpire("a", 10000)
@@ -962,7 +964,7 @@ class TestValkeyCommands:
         assert await r.pttl("a") == -1
 
     @skip_if_server_version_lt("2.8.0")
-    async def test_pttl_no_key(self, r: valkey.Valkey):
+    async def test_pttl_no_key(self, r: valkey.asyncio.Valkey[str]):
         """PTTL on servers 2.8 and after return -2 when the key doesn't exist"""
         assert await r.pttl("a") == -2
 
@@ -980,21 +982,21 @@ class TestValkeyCommands:
         assert len(await r.hrandfield("key", -10)) == 10
 
     @pytest.mark.onlynoncluster
-    async def test_randomkey(self, r: valkey.Valkey):
+    async def test_randomkey(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.randomkey() is None
         for key in ("a", "b", "c"):
             await r.set(key, 1)
         assert await r.randomkey() in (b"a", b"b", b"c")
 
     @pytest.mark.onlynoncluster
-    async def test_rename(self, r: valkey.Valkey):
+    async def test_rename(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("a", "1")
         assert await r.rename("a", "b")
         assert await r.get("a") is None
         assert await r.get("b") == b"1"
 
     @pytest.mark.onlynoncluster
-    async def test_renamenx(self, r: valkey.Valkey):
+    async def test_renamenx(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("a", "1")
         await r.set("b", "2")
         assert not await r.renamenx("a", "b")
@@ -1002,13 +1004,13 @@ class TestValkeyCommands:
         assert await r.get("b") == b"2"
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_set_nx(self, r: valkey.Valkey):
+    async def test_set_nx(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.set("a", "1", nx=True)
         assert not await r.set("a", "2", nx=True)
         assert await r.get("a") == b"1"
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_set_xx(self, r: valkey.Valkey):
+    async def test_set_xx(self, r: valkey.asyncio.Valkey[bytes]):
         assert not await r.set("a", "1", xx=True)
         assert await r.get("a") is None
         await r.set("a", "bar")
@@ -1016,38 +1018,38 @@ class TestValkeyCommands:
         assert await r.get("a") == b"2"
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_set_px(self, r: valkey.Valkey):
+    async def test_set_px(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.set("a", "1", px=10000)
         assert await r.get("a") == b"1"
         assert 0 < await r.pttl("a") <= 10000
         assert 0 < await r.ttl("a") <= 10
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_set_px_timedelta(self, r: valkey.Valkey):
+    async def test_set_px_timedelta(self, r: valkey.asyncio.Valkey[str]):
         expire_at = datetime.timedelta(milliseconds=1000)
         assert await r.set("a", "1", px=expire_at)
         assert 0 < await r.pttl("a") <= 1000
         assert 0 < await r.ttl("a") <= 1
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_set_ex(self, r: valkey.Valkey):
+    async def test_set_ex(self, r: valkey.asyncio.Valkey[str]):
         assert await r.set("a", "1", ex=10)
         assert 0 < await r.ttl("a") <= 10
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_set_ex_timedelta(self, r: valkey.Valkey):
+    async def test_set_ex_timedelta(self, r: valkey.asyncio.Valkey[str]):
         expire_at = datetime.timedelta(seconds=60)
         assert await r.set("a", "1", ex=expire_at)
         assert 0 < await r.ttl("a") <= 60
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_set_multipleoptions(self, r: valkey.Valkey):
+    async def test_set_multipleoptions(self, r: valkey.asyncio.Valkey[str]):
         await r.set("a", "val")
         assert await r.set("a", "1", xx=True, px=10000)
         assert 0 < await r.ttl("a") <= 10
 
     @skip_if_server_version_lt(VALKEY_6_VERSION)
-    async def test_set_keepttl(self, r: valkey.Valkey):
+    async def test_set_keepttl(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("a", "val")
         assert await r.set("a", "1", xx=True, px=10000)
         assert 0 < await r.ttl("a") <= 10
@@ -1055,36 +1057,36 @@ class TestValkeyCommands:
         assert await r.get("a") == b"2"
         assert 0 < await r.ttl("a") <= 10
 
-    async def test_setex(self, r: valkey.Valkey):
+    async def test_setex(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.setex("a", 60, "1")
         assert await r.get("a") == b"1"
         assert 0 < await r.ttl("a") <= 60
 
-    async def test_setnx(self, r: valkey.Valkey):
+    async def test_setnx(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.setnx("a", "1")
         assert await r.get("a") == b"1"
         assert not await r.setnx("a", "2")
         assert await r.get("a") == b"1"
 
-    async def test_setrange(self, r: valkey.Valkey):
+    async def test_setrange(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.setrange("a", 5, "foo") == 8
         assert await r.get("a") == b"\0\0\0\0\0foo"
         await r.set("a", "abcdefghijh")
         assert await r.setrange("a", 6, "12345") == 11
         assert await r.get("a") == b"abcdef12345"
 
-    async def test_strlen(self, r: valkey.Valkey):
+    async def test_strlen(self, r: valkey.asyncio.Valkey[str]):
         await r.set("a", "foo")
         assert await r.strlen("a") == 3
 
-    async def test_substr(self, r: valkey.Valkey):
+    async def test_substr(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("a", "0123456789")
         assert await r.substr("a", 0) == b"0123456789"
         assert await r.substr("a", 2) == b"23456789"
         assert await r.substr("a", 3, 5) == b"345"
         assert await r.substr("a", 3, -2) == b"345678"
 
-    async def test_ttl(self, r: valkey.Valkey):
+    async def test_ttl(self, r: valkey.asyncio.Valkey[str]):
         await r.set("a", "1")
         assert await r.expire("a", 10)
         assert 0 < await r.ttl("a") <= 10
@@ -1092,11 +1094,11 @@ class TestValkeyCommands:
         assert await r.ttl("a") == -1
 
     @skip_if_server_version_lt("2.8.0")
-    async def test_ttl_nokey(self, r: valkey.Valkey):
+    async def test_ttl_nokey(self, r: valkey.asyncio.Valkey[str]):
         """TTL on servers 2.8 and after return -2 when the key doesn't exist"""
         assert await r.ttl("a") == -2
 
-    async def test_type(self, r: valkey.Valkey):
+    async def test_type(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.type("a") == b"none"
         await r.set("a", "1")
         assert await r.type("a") == b"string"
@@ -1112,7 +1114,7 @@ class TestValkeyCommands:
 
     # LIST COMMANDS
     @pytest.mark.onlynoncluster
-    async def test_blpop(self, r: valkey.Valkey):
+    async def test_blpop(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "1", "2")
         await r.rpush("b", "3", "4")
         assert_resp_response(
@@ -1134,7 +1136,7 @@ class TestValkeyCommands:
         )
 
     @pytest.mark.onlynoncluster
-    async def test_brpop(self, r: valkey.Valkey):
+    async def test_brpop(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "1", "2")
         await r.rpush("b", "3", "4")
         assert_resp_response(
@@ -1156,7 +1158,7 @@ class TestValkeyCommands:
         )
 
     @pytest.mark.onlynoncluster
-    async def test_brpoplpush(self, r: valkey.Valkey):
+    async def test_brpoplpush(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "1", "2")
         await r.rpush("b", "3", "4")
         assert await r.brpoplpush("a", "b") == b"2"
@@ -1166,54 +1168,54 @@ class TestValkeyCommands:
         assert await r.lrange("b", 0, -1) == [b"1", b"2", b"3", b"4"]
 
     @pytest.mark.onlynoncluster
-    async def test_brpoplpush_empty_string(self, r: valkey.Valkey):
+    async def test_brpoplpush_empty_string(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "")
         assert await r.brpoplpush("a", "b") == b""
 
-    async def test_lindex(self, r: valkey.Valkey):
+    async def test_lindex(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "1", "2", "3")
         assert await r.lindex("a", "0") == b"1"
         assert await r.lindex("a", "1") == b"2"
         assert await r.lindex("a", "2") == b"3"
 
-    async def test_linsert(self, r: valkey.Valkey):
+    async def test_linsert(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "1", "2", "3")
         assert await r.linsert("a", "after", "2", "2.5") == 4
         assert await r.lrange("a", 0, -1) == [b"1", b"2", b"2.5", b"3"]
         assert await r.linsert("a", "before", "2", "1.5") == 5
         assert await r.lrange("a", 0, -1) == [b"1", b"1.5", b"2", b"2.5", b"3"]
 
-    async def test_llen(self, r: valkey.Valkey):
+    async def test_llen(self, r: valkey.asyncio.Valkey[str]):
         await r.rpush("a", "1", "2", "3")
         assert await r.llen("a") == 3
 
-    async def test_lpop(self, r: valkey.Valkey):
+    async def test_lpop(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "1", "2", "3")
         assert await r.lpop("a") == b"1"
         assert await r.lpop("a") == b"2"
         assert await r.lpop("a") == b"3"
         assert await r.lpop("a") is None
 
-    async def test_lpush(self, r: valkey.Valkey):
+    async def test_lpush(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.lpush("a", "1") == 1
         assert await r.lpush("a", "2") == 2
         assert await r.lpush("a", "3", "4") == 4
         assert await r.lrange("a", 0, -1) == [b"4", b"3", b"2", b"1"]
 
-    async def test_lpushx(self, r: valkey.Valkey):
+    async def test_lpushx(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.lpushx("a", "1") == 0
         assert await r.lrange("a", 0, -1) == []
         await r.rpush("a", "1", "2", "3")
         assert await r.lpushx("a", "4") == 4
         assert await r.lrange("a", 0, -1) == [b"4", b"1", b"2", b"3"]
 
-    async def test_lrange(self, r: valkey.Valkey):
+    async def test_lrange(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "1", "2", "3", "4", "5")
         assert await r.lrange("a", 0, 2) == [b"1", b"2", b"3"]
         assert await r.lrange("a", 2, 10) == [b"3", b"4", b"5"]
         assert await r.lrange("a", 0, -1) == [b"1", b"2", b"3", b"4", b"5"]
 
-    async def test_lrem(self, r: valkey.Valkey):
+    async def test_lrem(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "Z", "b", "Z", "Z", "c", "Z", "Z")
         # remove the first 'Z'  item
         assert await r.lrem("a", 1, "Z") == 1
@@ -1225,18 +1227,18 @@ class TestValkeyCommands:
         assert await r.lrem("a", 0, "Z") == 2
         assert await r.lrange("a", 0, -1) == [b"b", b"c"]
 
-    async def test_lset(self, r: valkey.Valkey):
+    async def test_lset(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "1", "2", "3")
         assert await r.lrange("a", 0, -1) == [b"1", b"2", b"3"]
         assert await r.lset("a", 1, "4")
         assert await r.lrange("a", 0, 2) == [b"1", b"4", b"3"]
 
-    async def test_ltrim(self, r: valkey.Valkey):
+    async def test_ltrim(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "1", "2", "3")
         assert await r.ltrim("a", 0, 1)
         assert await r.lrange("a", 0, -1) == [b"1", b"2"]
 
-    async def test_rpop(self, r: valkey.Valkey):
+    async def test_rpop(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "1", "2", "3")
         assert await r.rpop("a") == b"3"
         assert await r.rpop("a") == b"2"
@@ -1244,21 +1246,21 @@ class TestValkeyCommands:
         assert await r.rpop("a") is None
 
     @pytest.mark.onlynoncluster
-    async def test_rpoplpush(self, r: valkey.Valkey):
+    async def test_rpoplpush(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "a1", "a2", "a3")
         await r.rpush("b", "b1", "b2", "b3")
         assert await r.rpoplpush("a", "b") == b"a3"
         assert await r.lrange("a", 0, -1) == [b"a1", b"a2"]
         assert await r.lrange("b", 0, -1) == [b"a3", b"b1", b"b2", b"b3"]
 
-    async def test_rpush(self, r: valkey.Valkey):
+    async def test_rpush(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.rpush("a", "1") == 1
         assert await r.rpush("a", "2") == 2
         assert await r.rpush("a", "3", "4") == 4
         assert await r.lrange("a", 0, -1) == [b"1", b"2", b"3", b"4"]
 
     @skip_if_server_version_lt("6.0.6")
-    async def test_lpos(self, r: valkey.Valkey):
+    async def test_lpos(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.rpush("a", "a", "b", "c", "1", "2", "3", "c", "c") == 8
         assert await r.lpos("a", "a") == 0
         assert await r.lpos("a", "c") == 2
@@ -1289,7 +1291,7 @@ class TestValkeyCommands:
         assert await r.lpos("a", "c", count=0, maxlen=3, rank=-1) == [7, 6]
         assert await r.lpos("a", "c", count=0, maxlen=7, rank=2) == [6]
 
-    async def test_rpushx(self, r: valkey.Valkey):
+    async def test_rpushx(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.rpushx("a", "b") == 0
         assert await r.lrange("a", 0, -1) == []
         await r.rpush("a", "1", "2", "3")
@@ -1299,7 +1301,7 @@ class TestValkeyCommands:
     # SCAN COMMANDS
     @skip_if_server_version_lt("2.8.0")
     @pytest.mark.onlynoncluster
-    async def test_scan(self, r: valkey.Valkey):
+    async def test_scan(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("a", 1)
         await r.set("b", 2)
         await r.set("c", 3)
@@ -1311,7 +1313,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt(VALKEY_6_VERSION)
     @pytest.mark.onlynoncluster
-    async def test_scan_type(self, r: valkey.Valkey):
+    async def test_scan_type(self, r: valkey.asyncio.Valkey[bytes]):
         await r.sadd("a-set", 1)
         await r.hset("a-hash", "foo", 2)
         await r.lpush("a-list", "aux", 3)
@@ -1320,7 +1322,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("2.8.0")
     @pytest.mark.onlynoncluster
-    async def test_scan_iter(self, r: valkey.Valkey):
+    async def test_scan_iter(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("a", 1)
         await r.set("b", 2)
         await r.set("c", 3)
@@ -1330,7 +1332,7 @@ class TestValkeyCommands:
         assert set(keys) == {b"a"}
 
     @skip_if_server_version_lt("2.8.0")
-    async def test_sscan(self, r: valkey.Valkey):
+    async def test_sscan(self, r: valkey.asyncio.Valkey[bytes]):
         await r.sadd("a", 1, 2, 3)
         cursor, members = await r.sscan("a")
         assert cursor == 0
@@ -1339,7 +1341,7 @@ class TestValkeyCommands:
         assert set(members) == {b"1"}
 
     @skip_if_server_version_lt("2.8.0")
-    async def test_sscan_iter(self, r: valkey.Valkey):
+    async def test_sscan_iter(self, r: valkey.asyncio.Valkey[bytes]):
         await r.sadd("a", 1, 2, 3)
         members = [k async for k in r.sscan_iter("a")]
         assert set(members) == {b"1", b"2", b"3"}
@@ -1347,7 +1349,7 @@ class TestValkeyCommands:
         assert set(members) == {b"1"}
 
     @skip_if_server_version_lt("2.8.0")
-    async def test_hscan(self, r: valkey.Valkey):
+    async def test_hscan(self, r: valkey.asyncio.Valkey[bytes]):
         await r.hset("a", mapping={"a": 1, "b": 2, "c": 3})
         cursor, dic = await r.hscan("a")
         assert cursor == 0
@@ -1357,19 +1359,20 @@ class TestValkeyCommands:
         _, dic = await r.hscan("a_notset", match="a")
         assert dic == {}
 
+    # TODO: is that a bug?
     @skip_if_server_version_lt("7.3.240")
-    async def test_hscan_novalues(self, r: valkey.Valkey):
+    async def test_hscan_novalues(self, r: valkey.asyncio.Valkey[bytes]):
         await r.hset("a", mapping={"a": 1, "b": 2, "c": 3})
         cursor, keys = await r.hscan("a", no_values=True)
         assert cursor == 0
         assert sorted(keys) == [b"a", b"b", b"c"]
         _, keys = await r.hscan("a", match="a", no_values=True)
-        assert keys == [b"a"]
+        assert keys == [b"a"]  # type: ignore[comparison-overlap]
         _, keys = await r.hscan("a_notset", match="a", no_values=True)
-        assert keys == []
+        assert keys == []  # type: ignore[comparison-overlap]
 
     @skip_if_server_version_lt("2.8.0")
-    async def test_hscan_iter(self, r: valkey.Valkey):
+    async def test_hscan_iter(self, r: valkey.asyncio.Valkey[bytes]):
         await r.hset("a", mapping={"a": 1, "b": 2, "c": 3})
         dic = {k: v async for k, v in r.hscan_iter("a")}
         assert dic == {b"a": b"1", b"b": b"2", b"c": b"3"}
@@ -1378,20 +1381,21 @@ class TestValkeyCommands:
         dic = {k: v async for k, v in r.hscan_iter("a_notset", match="a")}
         assert dic == {}
 
+    # TODO: is that a bug?
     @skip_if_server_version_lt("7.3.240")
-    async def test_hscan_iter_novalues(self, r: valkey.Valkey):
+    async def test_hscan_iter_novalues(self, r: valkey.asyncio.Valkey[bytes]):
         await r.hset("a", mapping={"a": 1, "b": 2, "c": 3})
         keys = list([k async for k in r.hscan_iter("a", no_values=True)])
-        assert sorted(keys) == [b"a", b"b", b"c"]
+        assert sorted(keys) == [b"a", b"b", b"c"]  # type: ignore[comparison-overlap]
         keys = list([k async for k in r.hscan_iter("a", match="a", no_values=True)])
-        assert keys == [b"a"]
+        assert keys == [b"a"]  # type: ignore[comparison-overlap]
         keys = list(
             [k async for k in r.hscan_iter("a", match="a_notset", no_values=True)]
         )
         assert keys == []
 
     @skip_if_server_version_lt("2.8.0")
-    async def test_zscan(self, r: valkey.Valkey):
+    async def test_zscan(self, r: valkey.asyncio.Valkey[bytes]):
         await r.zadd("a", {"a": 1, "b": 2, "c": 3})
         cursor, pairs = await r.zscan("a")
         assert cursor == 0
@@ -1400,7 +1404,7 @@ class TestValkeyCommands:
         assert set(pairs) == {(b"a", 1)}
 
     @skip_if_server_version_lt("2.8.0")
-    async def test_zscan_iter(self, r: valkey.Valkey):
+    async def test_zscan_iter(self, r: valkey.asyncio.Valkey[bytes]):
         await r.zadd("a", {"a": 1, "b": 2, "c": 3})
         pairs = [k async for k in r.zscan_iter("a")]
         assert set(pairs) == {(b"a", 1), (b"b", 2), (b"c", 3)}
@@ -1408,78 +1412,78 @@ class TestValkeyCommands:
         assert set(pairs) == {(b"a", 1)}
 
     # SET COMMANDS
-    async def test_sadd(self, r: valkey.Valkey):
+    async def test_sadd(self, r: valkey.asyncio.Valkey[bytes]):
         members = {b"1", b"2", b"3"}
         await r.sadd("a", *members)
         assert set(await r.smembers("a")) == members
 
-    async def test_scard(self, r: valkey.Valkey):
+    async def test_scard(self, r: valkey.asyncio.Valkey[str]):
         await r.sadd("a", "1", "2", "3")
         assert await r.scard("a") == 3
 
     @pytest.mark.onlynoncluster
-    async def test_sdiff(self, r: valkey.Valkey):
+    async def test_sdiff(self, r: valkey.asyncio.Valkey[bytes]):
         await r.sadd("a", "1", "2", "3")
         assert set(await r.sdiff("a", "b")) == {b"1", b"2", b"3"}
         await r.sadd("b", "2", "3")
-        assert await r.sdiff("a", "b") == [b"1"]
+        assert await r.sdiff("a", "b") == {b"1", }
 
     @pytest.mark.onlynoncluster
-    async def test_sdiffstore(self, r: valkey.Valkey):
+    async def test_sdiffstore(self, r: valkey.asyncio.Valkey[bytes]):
         await r.sadd("a", "1", "2", "3")
         assert await r.sdiffstore("c", "a", "b") == 3
         assert set(await r.smembers("c")) == {b"1", b"2", b"3"}
         await r.sadd("b", "2", "3")
         assert await r.sdiffstore("c", "a", "b") == 1
-        assert await r.smembers("c") == [b"1"]
+        assert await r.smembers("c") == [b"1", ]
 
     @pytest.mark.onlynoncluster
-    async def test_sinter(self, r: valkey.Valkey):
+    async def test_sinter(self, r: valkey.asyncio.Valkey[bytes]):
         await r.sadd("a", "1", "2", "3")
-        assert await r.sinter("a", "b") == []
+        assert await r.sinter("a", "b") == set()
         await r.sadd("b", "2", "3")
         assert set(await r.sinter("a", "b")) == {b"2", b"3"}
 
     @pytest.mark.onlynoncluster
-    async def test_sinterstore(self, r: valkey.Valkey):
+    async def test_sinterstore(self, r: valkey.asyncio.Valkey[bytes]):
         await r.sadd("a", "1", "2", "3")
         assert await r.sinterstore("c", "a", "b") == 0
-        assert await r.smembers("c") == []
+        assert await r.smembers("c") == list()
         await r.sadd("b", "2", "3")
         assert await r.sinterstore("c", "a", "b") == 2
         assert set(await r.smembers("c")) == {b"2", b"3"}
 
-    async def test_sismember(self, r: valkey.Valkey):
+    async def test_sismember(self, r: valkey.asyncio.Valkey[str]):
         await r.sadd("a", "1", "2", "3")
         assert await r.sismember("a", "1")
         assert await r.sismember("a", "2")
         assert await r.sismember("a", "3")
         assert not await r.sismember("a", "4")
 
-    async def test_smembers(self, r: valkey.Valkey):
+    async def test_smembers(self, r: valkey.asyncio.Valkey[bytes]):
         await r.sadd("a", "1", "2", "3")
         assert set(await r.smembers("a")) == {b"1", b"2", b"3"}
 
     @pytest.mark.onlynoncluster
-    async def test_smove(self, r: valkey.Valkey):
+    async def test_smove(self, r: valkey.asyncio.Valkey[bytes]):
         await r.sadd("a", "a1", "a2")
         await r.sadd("b", "b1", "b2")
         assert await r.smove("a", "b", "a1")
-        assert await r.smembers("a") == [b"a2"]
+        assert await r.smembers("a") == [b"a2", ]
         assert set(await r.smembers("b")) == {b"b1", b"b2", b"a1"}
 
-    async def test_spop(self, r: valkey.Valkey):
+    async def test_spop(self, r: valkey.asyncio.Valkey[bytes]):
         s = [b"1", b"2", b"3"]
         await r.sadd("a", *s)
-        value = await r.spop("a")
+        value: bytes = await r.spop("a")  # type: ignore[assignment]
         assert value in s
-        assert set(await r.smembers("a")) == set(s) - {value}
+        assert set(await r.smembers("a")) == set(s) - {value, }
 
     @skip_if_server_version_lt("3.2.0")
-    async def test_spop_multi_value(self, r: valkey.Valkey):
+    async def test_spop_multi_value(self, r: valkey.asyncio.Valkey[bytes]):
         s = [b"1", b"2", b"3"]
         await r.sadd("a", *s)
-        values = await r.spop("a", 2)
+        values: list[bytes] = await r.spop("a", 2)  # type: ignore[assignment]
         assert len(values) == 2
 
         for value in values:
@@ -1488,42 +1492,42 @@ class TestValkeyCommands:
         response = await r.spop("a", 1)
         assert set(response) == set(s) - set(values)
 
-    async def test_srandmember(self, r: valkey.Valkey):
+    async def test_srandmember(self, r: valkey.asyncio.Valkey[str]):
         s = [b"1", b"2", b"3"]
         await r.sadd("a", *s)
         assert await r.srandmember("a") in s
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_srandmember_multi_value(self, r: valkey.Valkey):
+    async def test_srandmember_multi_value(self, r: valkey.asyncio.Valkey[str]):
         s = [b"1", b"2", b"3"]
         await r.sadd("a", *s)
         randoms = await r.srandmember("a", number=2)
         assert len(randoms) == 2
         assert set(randoms).intersection(s) == set(randoms)
 
-    async def test_srem(self, r: valkey.Valkey):
+    async def test_srem(self, r: valkey.asyncio.Valkey[bytes]):
         await r.sadd("a", "1", "2", "3", "4")
         assert await r.srem("a", "5") == 0
         assert await r.srem("a", "2", "4") == 2
         assert set(await r.smembers("a")) == {b"1", b"3"}
 
     @pytest.mark.onlynoncluster
-    async def test_sunion(self, r: valkey.Valkey):
+    async def test_sunion(self, r: valkey.asyncio.Valkey[bytes]):
         await r.sadd("a", "1", "2")
         await r.sadd("b", "2", "3")
         assert set(await r.sunion("a", "b")) == {b"1", b"2", b"3"}
 
     @pytest.mark.onlynoncluster
-    async def test_sunionstore(self, r: valkey.Valkey):
+    async def test_sunionstore(self, r: valkey.asyncio.Valkey[bytes]):
         await r.sadd("a", "1", "2")
         await r.sadd("b", "2", "3")
         assert await r.sunionstore("c", "a", "b") == 3
         assert set(await r.smembers("c")) == {b"1", b"2", b"3"}
 
     # SORTED SET COMMANDS
-    async def test_zadd(self, r: valkey.Valkey):
+    async def test_zadd(self, r: valkey.asyncio.Valkey[bytes]):
         mapping = {"a1": 1.0, "a2": 2.0, "a3": 3.0}
-        await r.zadd("a", mapping)
+        await r.zadd("a", mapping)  # type: ignore[arg-type]
         response = await r.zrange("a", 0, -1, withscores=True)
         assert_resp_response(
             r,
@@ -1538,13 +1542,13 @@ class TestValkeyCommands:
 
         # cannot use both nx and xx options
         with pytest.raises(exceptions.DataError):
-            await r.zadd("a", mapping, nx=True, xx=True)
+            await r.zadd("a", mapping, nx=True, xx=True)  # type: ignore[arg-type]
 
         # cannot use the incr options with more than one value
         with pytest.raises(exceptions.DataError):
-            await r.zadd("a", mapping, incr=True)
+            await r.zadd("a", mapping, incr=True)  # type: ignore[arg-type]
 
-    async def test_zadd_nx(self, r: valkey.Valkey):
+    async def test_zadd_nx(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.zadd("a", {"a1": 1}) == 1
         assert await r.zadd("a", {"a1": 99, "a2": 2}, nx=True) == 1
         response = await r.zrange("a", 0, -1, withscores=True)
@@ -1552,13 +1556,13 @@ class TestValkeyCommands:
             r, response, [(b"a1", 1.0), (b"a2", 2.0)], [[b"a1", 1.0], [b"a2", 2.0]]
         )
 
-    async def test_zadd_xx(self, r: valkey.Valkey):
+    async def test_zadd_xx(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.zadd("a", {"a1": 1}) == 1
         assert await r.zadd("a", {"a1": 99, "a2": 2}, xx=True) == 0
         response = await r.zrange("a", 0, -1, withscores=True)
         assert_resp_response(r, response, [(b"a1", 99.0)], [[b"a1", 99.0]])
 
-    async def test_zadd_ch(self, r: valkey.Valkey):
+    async def test_zadd_ch(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.zadd("a", {"a1": 1}) == 1
         assert await r.zadd("a", {"a1": 99, "a2": 2}, ch=True) == 2
         response = await r.zrange("a", 0, -1, withscores=True)
@@ -1566,21 +1570,21 @@ class TestValkeyCommands:
             r, response, [(b"a2", 2.0), (b"a1", 99.0)], [[b"a2", 2.0], [b"a1", 99.0]]
         )
 
-    async def test_zadd_incr(self, r: valkey.Valkey):
+    async def test_zadd_incr(self, r: valkey.asyncio.Valkey[str]):
         assert await r.zadd("a", {"a1": 1}) == 1
         assert await r.zadd("a", {"a1": 4.5}, incr=True) == 5.5
 
-    async def test_zadd_incr_with_xx(self, r: valkey.Valkey):
+    async def test_zadd_incr_with_xx(self, r: valkey.asyncio.Valkey[str]):
         # this asks zadd to incr 'a1' only if it exists, but it clearly
         # doesn't. Valkey returns a null value in this case and so should
         # valkey-py
         assert await r.zadd("a", {"a1": 1}, xx=True, incr=True) is None
 
-    async def test_zcard(self, r: valkey.Valkey):
+    async def test_zcard(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert await r.zcard("a") == 3
 
-    async def test_zcount(self, r: valkey.Valkey):
+    async def test_zcount(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert await r.zcount("a", "-inf", "+inf") == 3
         assert await r.zcount("a", 1, 2) == 2
@@ -1607,7 +1611,7 @@ class TestValkeyCommands:
         response = await r.zrange("out", 0, -1, withscores=True)
         assert_resp_response(r, response, [(b"a3", 3.0)], [[b"a3", 3.0]])
 
-    async def test_zincrby(self, r: valkey.Valkey):
+    async def test_zincrby(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert await r.zincrby("a", 1, "a2") == 3.0
         assert await r.zincrby("a", 5, "a3") == 8.0
@@ -1615,13 +1619,13 @@ class TestValkeyCommands:
         assert await r.zscore("a", "a3") == 8.0
 
     @skip_if_server_version_lt("2.8.9")
-    async def test_zlexcount(self, r: valkey.Valkey):
+    async def test_zlexcount(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a": 0, "b": 0, "c": 0, "d": 0, "e": 0, "f": 0, "g": 0})
         assert await r.zlexcount("a", "-", "+") == 7
         assert await r.zlexcount("a", "[b", "[f") == 5
 
     @pytest.mark.onlynoncluster
-    async def test_zinterstore_sum(self, r: valkey.Valkey):
+    async def test_zinterstore_sum(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 1, "a3": 1})
         await r.zadd("b", {"a1": 2, "a2": 2, "a3": 2})
         await r.zadd("c", {"a1": 6, "a3": 5, "a4": 4})
@@ -1632,7 +1636,7 @@ class TestValkeyCommands:
         )
 
     @pytest.mark.onlynoncluster
-    async def test_zinterstore_max(self, r: valkey.Valkey):
+    async def test_zinterstore_max(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 1, "a3": 1})
         await r.zadd("b", {"a1": 2, "a2": 2, "a3": 2})
         await r.zadd("c", {"a1": 6, "a3": 5, "a4": 4})
@@ -1643,7 +1647,7 @@ class TestValkeyCommands:
         )
 
     @pytest.mark.onlynoncluster
-    async def test_zinterstore_min(self, r: valkey.Valkey):
+    async def test_zinterstore_min(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         await r.zadd("b", {"a1": 2, "a2": 3, "a3": 5})
         await r.zadd("c", {"a1": 6, "a3": 5, "a4": 4})
@@ -1654,7 +1658,7 @@ class TestValkeyCommands:
         )
 
     @pytest.mark.onlynoncluster
-    async def test_zinterstore_with_weight(self, r: valkey.Valkey):
+    async def test_zinterstore_with_weight(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 1, "a3": 1})
         await r.zadd("b", {"a1": 2, "a2": 2, "a3": 2})
         await r.zadd("c", {"a1": 6, "a3": 5, "a4": 4})
@@ -1665,7 +1669,7 @@ class TestValkeyCommands:
         )
 
     @skip_if_server_version_lt("4.9.0")
-    async def test_zpopmax(self, r: valkey.Valkey):
+    async def test_zpopmax(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         response = await r.zpopmax("a")
         assert_resp_response(r, response, [(b"a3", 3)], [b"a3", 3.0])
@@ -1677,7 +1681,7 @@ class TestValkeyCommands:
         )
 
     @skip_if_server_version_lt("4.9.0")
-    async def test_zpopmin(self, r: valkey.Valkey):
+    async def test_zpopmin(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         response = await r.zpopmin("a")
         assert_resp_response(r, response, [(b"a1", 1)], [b"a1", 1.0])
@@ -1690,7 +1694,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("4.9.0")
     @pytest.mark.onlynoncluster
-    async def test_bzpopmax(self, r: valkey.Valkey):
+    async def test_bzpopmax(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 2})
         await r.zadd("b", {"b1": 10, "b2": 20})
         assert_resp_response(
@@ -1725,7 +1729,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("4.9.0")
     @pytest.mark.onlynoncluster
-    async def test_bzpopmin(self, r: valkey.Valkey):
+    async def test_bzpopmin(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 2})
         await r.zadd("b", {"b1": 10, "b2": 20})
         assert_resp_response(
@@ -1758,7 +1762,7 @@ class TestValkeyCommands:
             r, await r.bzpopmin("c", timeout=1), (b"c", b"c1", 100), [b"c", b"c1", 100]
         )
 
-    async def test_zrange(self, r: valkey.Valkey):
+    async def test_zrange(self, r: valkey.asyncio.Valkey[bytes]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert await r.zrange("a", 0, 1) == [b"a1", b"a2"]
         assert await r.zrange("a", 1, 2) == [b"a2", b"a3"]
@@ -1780,7 +1784,7 @@ class TestValkeyCommands:
         # ]
 
     @skip_if_server_version_lt("2.8.9")
-    async def test_zrangebylex(self, r: valkey.Valkey):
+    async def test_zrangebylex(self, r: valkey.asyncio.Valkey[bytes]):
         await r.zadd("a", {"a": 0, "b": 0, "c": 0, "d": 0, "e": 0, "f": 0, "g": 0})
         assert await r.zrangebylex("a", "-", "[c") == [b"a", b"b", b"c"]
         assert await r.zrangebylex("a", "-", "(c") == [b"a", b"b"]
@@ -1789,7 +1793,7 @@ class TestValkeyCommands:
         assert await r.zrangebylex("a", "-", "+", start=3, num=2) == [b"d", b"e"]
 
     @skip_if_server_version_lt("2.9.9")
-    async def test_zrevrangebylex(self, r: valkey.Valkey):
+    async def test_zrevrangebylex(self, r: valkey.asyncio.Valkey[bytes]):
         await r.zadd("a", {"a": 0, "b": 0, "c": 0, "d": 0, "e": 0, "f": 0, "g": 0})
         assert await r.zrevrangebylex("a", "[c", "-") == [b"c", b"b", b"a"]
         assert await r.zrevrangebylex("a", "(c", "-") == [b"b", b"a"]
@@ -1803,7 +1807,7 @@ class TestValkeyCommands:
         assert await r.zrevrangebylex("a", "+", "[f") == [b"g", b"f"]
         assert await r.zrevrangebylex("a", "+", "-", start=3, num=2) == [b"d", b"c"]
 
-    async def test_zrangebyscore(self, r: valkey.Valkey):
+    async def test_zrangebyscore(self, r: valkey.asyncio.Valkey[bytes]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
         assert await r.zrangebyscore("a", 2, 4) == [b"a2", b"a3", b"a4"]
 
@@ -1830,14 +1834,14 @@ class TestValkeyCommands:
             [[b"a2", 2], [b"a3", 3], [b"a4", 4]],
         )
 
-    async def test_zrank(self, r: valkey.Valkey):
+    async def test_zrank(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
         assert await r.zrank("a", "a1") == 0
         assert await r.zrank("a", "a2") == 1
         assert await r.zrank("a", "a6") is None
 
     @skip_if_server_version_lt("7.2.0")
-    async def test_zrank_withscore(self, r: valkey.Valkey):
+    async def test_zrank_withscore(self, r: valkey.asyncio.Valkey[bytes]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
         assert await r.zrank("a", "a1") == 0
         assert await r.zrank("a", "a2") == 1
@@ -1847,20 +1851,20 @@ class TestValkeyCommands:
         )
         assert await r.zrank("a", "a6", withscore=True) is None
 
-    async def test_zrem(self, r: valkey.Valkey):
+    async def test_zrem(self, r: valkey.asyncio.Valkey[bytes]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert await r.zrem("a", "a2") == 1
         assert await r.zrange("a", 0, -1) == [b"a1", b"a3"]
         assert await r.zrem("a", "b") == 0
         assert await r.zrange("a", 0, -1) == [b"a1", b"a3"]
 
-    async def test_zrem_multiple_keys(self, r: valkey.Valkey):
+    async def test_zrem_multiple_keys(self, r: valkey.asyncio.Valkey[bytes]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert await r.zrem("a", "a1", "a2") == 2
         assert await r.zrange("a", 0, 5) == [b"a3"]
 
     @skip_if_server_version_lt("2.8.9")
-    async def test_zremrangebylex(self, r: valkey.Valkey):
+    async def test_zremrangebylex(self, r: valkey.asyncio.Valkey[bytes]):
         await r.zadd("a", {"a": 0, "b": 0, "c": 0, "d": 0, "e": 0, "f": 0, "g": 0})
         assert await r.zremrangebylex("a", "-", "[c") == 3
         assert await r.zrange("a", 0, -1) == [b"d", b"e", b"f", b"g"]
@@ -1869,19 +1873,19 @@ class TestValkeyCommands:
         assert await r.zremrangebylex("a", "[h", "+") == 0
         assert await r.zrange("a", 0, -1) == [b"d", b"e"]
 
-    async def test_zremrangebyrank(self, r: valkey.Valkey):
+    async def test_zremrangebyrank(self, r: valkey.asyncio.Valkey[bytes]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
         assert await r.zremrangebyrank("a", 1, 3) == 3
         assert await r.zrange("a", 0, 5) == [b"a1", b"a5"]
 
-    async def test_zremrangebyscore(self, r: valkey.Valkey):
+    async def test_zremrangebyscore(self, r: valkey.asyncio.Valkey[bytes]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
         assert await r.zremrangebyscore("a", 2, 4) == 3
         assert await r.zrange("a", 0, -1) == [b"a1", b"a5"]
         assert await r.zremrangebyscore("a", 2, 4) == 0
         assert await r.zrange("a", 0, -1) == [b"a1", b"a5"]
 
-    async def test_zrevrange(self, r: valkey.Valkey):
+    async def test_zrevrange(self, r: valkey.asyncio.Valkey[bytes]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert await r.zrevrange("a", 0, 1) == [b"a3", b"a2"]
         assert await r.zrevrange("a", 1, 2) == [b"a2", b"a1"]
@@ -1902,7 +1906,7 @@ class TestValkeyCommands:
             r, response, [(b"a3", 3), (b"a2", 2)], [[b"a3", 3], [b"a2", 2]]
         )
 
-    async def test_zrevrangebyscore(self, r: valkey.Valkey):
+    async def test_zrevrangebyscore(self, r: valkey.asyncio.Valkey[bytes]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
         assert await r.zrevrangebyscore("a", 4, 2) == [b"a4", b"a3", b"a2"]
 
@@ -1929,14 +1933,14 @@ class TestValkeyCommands:
             [[b"a4", 4], [b"a3", 3], [b"a2", 2]],
         )
 
-    async def test_zrevrank(self, r: valkey.Valkey):
+    async def test_zrevrank(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
         assert await r.zrevrank("a", "a1") == 4
         assert await r.zrevrank("a", "a2") == 3
         assert await r.zrevrank("a", "a6") is None
 
     @skip_if_server_version_lt("7.2.0")
-    async def test_zrevrank_withscore(self, r: valkey.Valkey):
+    async def test_zrevrank_withscore(self, r: valkey.asyncio.Valkey[bytes]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
         assert await r.zrevrank("a", "a1") == 4
         assert await r.zrevrank("a", "a2") == 3
@@ -1946,14 +1950,14 @@ class TestValkeyCommands:
         )
         assert await r.zrevrank("a", "a6", withscore=True) is None
 
-    async def test_zscore(self, r: valkey.Valkey):
+    async def test_zscore(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert await r.zscore("a", "a1") == 1.0
         assert await r.zscore("a", "a2") == 2.0
         assert await r.zscore("a", "a4") is None
 
     @pytest.mark.onlynoncluster
-    async def test_zunionstore_sum(self, r: valkey.Valkey):
+    async def test_zunionstore_sum(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 1, "a3": 1})
         await r.zadd("b", {"a1": 2, "a2": 2, "a3": 2})
         await r.zadd("c", {"a1": 6, "a3": 5, "a4": 4})
@@ -1967,7 +1971,7 @@ class TestValkeyCommands:
         )
 
     @pytest.mark.onlynoncluster
-    async def test_zunionstore_max(self, r: valkey.Valkey):
+    async def test_zunionstore_max(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 1, "a3": 1})
         await r.zadd("b", {"a1": 2, "a2": 2, "a3": 2})
         await r.zadd("c", {"a1": 6, "a3": 5, "a4": 4})
@@ -1981,7 +1985,7 @@ class TestValkeyCommands:
         )
 
     @pytest.mark.onlynoncluster
-    async def test_zunionstore_min(self, r: valkey.Valkey):
+    async def test_zunionstore_min(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         await r.zadd("b", {"a1": 2, "a2": 2, "a3": 4})
         await r.zadd("c", {"a1": 6, "a3": 5, "a4": 4})
@@ -1995,7 +1999,7 @@ class TestValkeyCommands:
         )
 
     @pytest.mark.onlynoncluster
-    async def test_zunionstore_with_weight(self, r: valkey.Valkey):
+    async def test_zunionstore_with_weight(self, r: valkey.asyncio.Valkey[str]):
         await r.zadd("a", {"a1": 1, "a2": 1, "a3": 1})
         await r.zadd("b", {"a1": 2, "a2": 2, "a3": 2})
         await r.zadd("c", {"a1": 6, "a3": 5, "a4": 4})
@@ -2010,7 +2014,7 @@ class TestValkeyCommands:
 
     # HYPERLOGLOG TESTS
     @skip_if_server_version_lt("2.8.9")
-    async def test_pfadd(self, r: valkey.Valkey):
+    async def test_pfadd(self, r: valkey.asyncio.Valkey[str]):
         members = {b"1", b"2", b"3"}
         assert await r.pfadd("a", *members) == 1
         assert await r.pfadd("a", *members) == 0
@@ -2018,18 +2022,18 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("2.8.9")
     @pytest.mark.onlynoncluster
-    async def test_pfcount(self, r: valkey.Valkey):
+    async def test_pfcount(self, r: valkey.asyncio.Valkey[str]):
         members = {b"1", b"2", b"3"}
         await r.pfadd("a", *members)
         assert await r.pfcount("a") == len(members)
         members_b = {b"2", b"3", b"4"}
         await r.pfadd("b", *members_b)
         assert await r.pfcount("b") == len(members_b)
-        assert await r.pfcount("a", "b") == len(members_b.union(members))
+        assert await r.pfcount("a", "b") == len(members_b.union(members))  # type: ignore[call-arg]
 
     @skip_if_server_version_lt("2.8.9")
     @pytest.mark.onlynoncluster
-    async def test_pfmerge(self, r: valkey.Valkey):
+    async def test_pfmerge(self, r: valkey.asyncio.Valkey[str]):
         mema = {b"1", b"2", b"3"}
         memb = {b"2", b"3", b"4"}
         memc = {b"5", b"6", b"7"}
@@ -2042,7 +2046,7 @@ class TestValkeyCommands:
         assert await r.pfcount("d") == 7
 
     # HASH COMMANDS
-    async def test_hget_and_hset(self, r: valkey.Valkey):
+    async def test_hget_and_hset(self, r: valkey.asyncio.Valkey[bytes]):
         await r.hset("a", mapping={"1": 1, "2": 2, "3": 3})
         assert await r.hget("a", "1") == b"1"
         assert await r.hget("a", "2") == b"2"
@@ -2060,10 +2064,10 @@ class TestValkeyCommands:
         assert await r.hget("a", "b") is None
 
         # keys with bool(key) == False
-        assert await r.hset("a", 0, 10) == 1
+        assert await r.hset("a", 0, 10) == 1  # type: ignore[call-overload]
         assert await r.hset("a", "", 10) == 1
 
-    async def test_hset_with_multi_key_values(self, r: valkey.Valkey):
+    async def test_hset_with_multi_key_values(self, r: valkey.asyncio.Valkey[bytes]):
         await r.hset("a", mapping={"1": 1, "2": 2, "3": 3})
         assert await r.hget("a", "1") == b"1"
         assert await r.hget("a", "2") == b"2"
@@ -2074,94 +2078,94 @@ class TestValkeyCommands:
         assert await r.hget("b", "2") == b"2"
         assert await r.hget("b", "foo") == b"bar"
 
-    async def test_hset_without_data(self, r: valkey.Valkey):
+    async def test_hset_without_data(self, r: valkey.asyncio.Valkey[str]):
         with pytest.raises(exceptions.DataError):
-            await r.hset("x")
+            await r.hset("x")  # type: ignore[call-overload]
 
-    async def test_hdel(self, r: valkey.Valkey):
+    async def test_hdel(self, r: valkey.asyncio.Valkey[str]):
         await r.hset("a", mapping={"1": 1, "2": 2, "3": 3})
         assert await r.hdel("a", "2") == 1
         assert await r.hget("a", "2") is None
         assert await r.hdel("a", "1", "3") == 2
         assert await r.hlen("a") == 0
 
-    async def test_hexists(self, r: valkey.Valkey):
+    async def test_hexists(self, r: valkey.asyncio.Valkey[str]):
         await r.hset("a", mapping={"1": 1, "2": 2, "3": 3})
         assert await r.hexists("a", "1")
         assert not await r.hexists("a", "4")
 
-    async def test_hgetall(self, r: valkey.Valkey):
+    async def test_hgetall(self, r: valkey.asyncio.Valkey[bytes]):
         h = {b"a1": b"1", b"a2": b"2", b"a3": b"3"}
-        await r.hset("a", mapping=h)
+        await r.hset("a", mapping=h)  # type: ignore[arg-type]
         assert await r.hgetall("a") == h
 
-    async def test_hincrby(self, r: valkey.Valkey):
+    async def test_hincrby(self, r: valkey.asyncio.Valkey[str]):
         assert await r.hincrby("a", "1") == 1
         assert await r.hincrby("a", "1", amount=2) == 3
         assert await r.hincrby("a", "1", amount=-2) == 1
 
     @skip_if_server_version_lt("2.6.0")
-    async def test_hincrbyfloat(self, r: valkey.Valkey):
+    async def test_hincrbyfloat(self, r: valkey.asyncio.Valkey[str]):
         assert await r.hincrbyfloat("a", "1") == 1.0
         assert await r.hincrbyfloat("a", "1") == 2.0
         assert await r.hincrbyfloat("a", "1", 1.2) == 3.2
 
-    async def test_hkeys(self, r: valkey.Valkey):
+    async def test_hkeys(self, r: valkey.asyncio.Valkey[bytes]):
         h = {b"a1": b"1", b"a2": b"2", b"a3": b"3"}
-        await r.hset("a", mapping=h)
+        await r.hset("a", mapping=h)  # type: ignore[arg-type]
         local_keys = list(h.keys())
         remote_keys = await r.hkeys("a")
         assert sorted(local_keys) == sorted(remote_keys)
 
-    async def test_hlen(self, r: valkey.Valkey):
+    async def test_hlen(self, r: valkey.asyncio.Valkey[str]):
         await r.hset("a", mapping={"1": 1, "2": 2, "3": 3})
         assert await r.hlen("a") == 3
 
-    async def test_hmget(self, r: valkey.Valkey):
+    async def test_hmget(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.hset("a", mapping={"a": 1, "b": 2, "c": 3})
         assert await r.hmget("a", "a", "b", "c") == [b"1", b"2", b"3"]
 
-    async def test_hmset(self, r: valkey.Valkey):
+    async def test_hmset(self, r: valkey.asyncio.Valkey[bytes]):
         warning_message = (
             r"^Valkey(?:Cluster)*\.hmset\(\) is deprecated\. "
             r"Use Valkey(?:Cluster)*\.hset\(\) instead\.$"
         )
         h = {b"a": b"1", b"b": b"2", b"c": b"3"}
         with pytest.warns(DeprecationWarning, match=warning_message):
-            assert await r.hmset("a", h)
+            assert await r.hmset("a", h) # type: ignore[arg-type]
         assert await r.hgetall("a") == h
 
-    async def test_hsetnx(self, r: valkey.Valkey):
+    async def test_hsetnx(self, r: valkey.asyncio.Valkey[bytes]):
         # Initially set the hash field
         assert await r.hsetnx("a", "1", 1)
         assert await r.hget("a", "1") == b"1"
         assert not await r.hsetnx("a", "1", 2)
         assert await r.hget("a", "1") == b"1"
 
-    async def test_hvals(self, r: valkey.Valkey):
+    async def test_hvals(self, r: valkey.asyncio.Valkey[bytes]):
         h = {b"a1": b"1", b"a2": b"2", b"a3": b"3"}
-        await r.hset("a", mapping=h)
+        await r.hset("a", mapping=h)  # type: ignore[arg-type]
         local_vals = list(h.values())
         remote_vals = await r.hvals("a")
         assert sorted(local_vals) == sorted(remote_vals)
 
     @skip_if_server_version_lt("3.2.0")
-    async def test_hstrlen(self, r: valkey.Valkey):
+    async def test_hstrlen(self, r: valkey.asyncio.Valkey[str]):
         await r.hset("a", mapping={"1": "22", "2": "333"})
         assert await r.hstrlen("a", "1") == 2
         assert await r.hstrlen("a", "2") == 3
 
     # SORT
-    async def test_sort_basic(self, r: valkey.Valkey):
+    async def test_sort_basic(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "3", "2", "1", "4")
         assert await r.sort("a") == [b"1", b"2", b"3", b"4"]
 
-    async def test_sort_limited(self, r: valkey.Valkey):
+    async def test_sort_limited(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "3", "2", "1", "4")
         assert await r.sort("a", start=1, num=2) == [b"2", b"3"]
 
     @pytest.mark.onlynoncluster
-    async def test_sort_by(self, r: valkey.Valkey):
+    async def test_sort_by(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("score:1", 8)
         await r.set("score:2", 3)
         await r.set("score:3", 5)
@@ -2169,7 +2173,7 @@ class TestValkeyCommands:
         assert await r.sort("a", by="score:*") == [b"2", b"3", b"1"]
 
     @pytest.mark.onlynoncluster
-    async def test_sort_get(self, r: valkey.Valkey):
+    async def test_sort_get(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("user:1", "u1")
         await r.set("user:2", "u2")
         await r.set("user:3", "u3")
@@ -2177,7 +2181,7 @@ class TestValkeyCommands:
         assert await r.sort("a", get="user:*") == [b"u1", b"u2", b"u3"]
 
     @pytest.mark.onlynoncluster
-    async def test_sort_get_multi(self, r: valkey.Valkey):
+    async def test_sort_get_multi(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("user:1", "u1")
         await r.set("user:2", "u2")
         await r.set("user:3", "u3")
@@ -2192,19 +2196,19 @@ class TestValkeyCommands:
         ]
 
     @pytest.mark.onlynoncluster
-    async def test_sort_get_groups_two(self, r: valkey.Valkey):
+    async def test_sort_get_groups_two(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("user:1", "u1")
         await r.set("user:2", "u2")
         await r.set("user:3", "u3")
         await r.rpush("a", "2", "3", "1")
-        assert await r.sort("a", get=("user:*", "#"), groups=True) == [
+        assert await r.sort("a", get=("user:*", "#"), groups=True) == [  # type: ignore[comparison-overlap]
             (b"u1", b"1"),
             (b"u2", b"2"),
             (b"u3", b"3"),
         ]
 
     @pytest.mark.onlynoncluster
-    async def test_sort_groups_string_get(self, r: valkey.Valkey):
+    async def test_sort_groups_string_get(self, r: valkey.asyncio.Valkey[str]):
         await r.set("user:1", "u1")
         await r.set("user:2", "u2")
         await r.set("user:3", "u3")
@@ -2213,7 +2217,7 @@ class TestValkeyCommands:
             await r.sort("a", get="user:*", groups=True)
 
     @pytest.mark.onlynoncluster
-    async def test_sort_groups_just_one_get(self, r: valkey.Valkey):
+    async def test_sort_groups_just_one_get(self, r: valkey.asyncio.Valkey[str]):
         await r.set("user:1", "u1")
         await r.set("user:2", "u2")
         await r.set("user:3", "u3")
@@ -2221,7 +2225,7 @@ class TestValkeyCommands:
         with pytest.raises(exceptions.DataError):
             await r.sort("a", get=["user:*"], groups=True)
 
-    async def test_sort_groups_no_get(self, r: valkey.Valkey):
+    async def test_sort_groups_no_get(self, r: valkey.asyncio.Valkey[str]):
         await r.set("user:1", "u1")
         await r.set("user:2", "u2")
         await r.set("user:3", "u3")
@@ -2230,7 +2234,7 @@ class TestValkeyCommands:
             await r.sort("a", groups=True)
 
     @pytest.mark.onlynoncluster
-    async def test_sort_groups_three_gets(self, r: valkey.Valkey):
+    async def test_sort_groups_three_gets(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("user:1", "u1")
         await r.set("user:2", "u2")
         await r.set("user:3", "u3")
@@ -2238,28 +2242,28 @@ class TestValkeyCommands:
         await r.set("door:2", "d2")
         await r.set("door:3", "d3")
         await r.rpush("a", "2", "3", "1")
-        assert await r.sort("a", get=("user:*", "door:*", "#"), groups=True) == [
+        assert await r.sort("a", get=("user:*", "door:*", "#"), groups=True) == [  # type: ignore[comparison-overlap]
             (b"u1", b"d1", b"1"),
             (b"u2", b"d2", b"2"),
             (b"u3", b"d3", b"3"),
         ]
 
-    async def test_sort_desc(self, r: valkey.Valkey):
+    async def test_sort_desc(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "2", "3", "1")
         assert await r.sort("a", desc=True) == [b"3", b"2", b"1"]
 
-    async def test_sort_alpha(self, r: valkey.Valkey):
+    async def test_sort_alpha(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "e", "c", "b", "d", "a")
         assert await r.sort("a", alpha=True) == [b"a", b"b", b"c", b"d", b"e"]
 
     @pytest.mark.onlynoncluster
-    async def test_sort_store(self, r: valkey.Valkey):
+    async def test_sort_store(self, r: valkey.asyncio.Valkey[bytes]):
         await r.rpush("a", "2", "3", "1")
         assert await r.sort("a", store="sorted_values") == 3
         assert await r.lrange("sorted_values", 0, -1) == [b"1", b"2", b"3"]
 
     @pytest.mark.onlynoncluster
-    async def test_sort_all_options(self, r: valkey.Valkey):
+    async def test_sort_all_options(self, r: valkey.asyncio.Valkey[bytes]):
         await r.set("user:1:username", "zeus")
         await r.set("user:2:username", "titan")
         await r.set("user:3:username", "hermes")
@@ -2297,7 +2301,7 @@ class TestValkeyCommands:
             b"apple juice",
         ]
 
-    async def test_sort_issue_924(self, r: valkey.Valkey):
+    async def test_sort_issue_924(self, r: valkey.asyncio.Valkey[str]):
         # Tests for issue https://github.com/andymccurdy/redis-py/issues/924
         await r.execute_command("SADD", "issue#924", 1)
         await r.execute_command("SORT", "issue#924")
@@ -2374,12 +2378,12 @@ class TestValkeyCommands:
     @skip_if_server_version_lt("3.0.0")
     @skip_if_server_version_gte("7.0.0")
     @pytest.mark.onlynoncluster
-    async def test_readwrite(self, r: valkey.Valkey):
+    async def test_readwrite(self, r: valkey.asyncio.Valkey[str]):
         assert await r.readwrite()
 
     @skip_if_server_version_lt("3.0.0")
     @pytest.mark.onlynoncluster
-    async def test_readonly(self, r: valkey.Valkey, valkey_version: Version):
+    async def test_readonly(self, r: valkey.asyncio.Valkey[str], valkey_version: Version):
         # NOTE: Valkey 8.0.0 changes the behaviour of READONLY
         # See https://github.com/valkey-io/valkey/pull/325
         if valkey_version < Version("8.0.0"):
@@ -2395,7 +2399,7 @@ class TestValkeyCommands:
 
     # GEO COMMANDS
     @skip_if_server_version_lt("3.2.0")
-    async def test_geoadd(self, r: valkey.Valkey):
+    async def test_geoadd(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2406,12 +2410,12 @@ class TestValkeyCommands:
         assert await r.zcard("barcelona") == 2
 
     @skip_if_server_version_lt("3.2.0")
-    async def test_geoadd_invalid_params(self, r: valkey.Valkey):
+    async def test_geoadd_invalid_params(self, r: valkey.asyncio.Valkey[str]):
         with pytest.raises(exceptions.ValkeyError):
             await r.geoadd("barcelona", (1, 2))
 
     @skip_if_server_version_lt("3.2.0")
-    async def test_geodist(self, r: valkey.Valkey):
+    async def test_geodist(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2422,7 +2426,7 @@ class TestValkeyCommands:
         assert await r.geodist("barcelona", "place1", "place2") == 3067.4157
 
     @skip_if_server_version_lt("3.2.0")
-    async def test_geodist_units(self, r: valkey.Valkey):
+    async def test_geodist_units(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2433,18 +2437,18 @@ class TestValkeyCommands:
         assert await r.geodist("barcelona", "place1", "place2", "km") == 3.0674
 
     @skip_if_server_version_lt("3.2.0")
-    async def test_geodist_missing_one_member(self, r: valkey.Valkey):
+    async def test_geodist_missing_one_member(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1")
         await r.geoadd("barcelona", values)
         assert await r.geodist("barcelona", "place1", "missing_member", "km") is None
 
     @skip_if_server_version_lt("3.2.0")
-    async def test_geodist_invalid_units(self, r: valkey.Valkey):
+    async def test_geodist_invalid_units(self, r: valkey.asyncio.Valkey[str]):
         with pytest.raises(exceptions.ValkeyError):
             assert await r.geodist("x", "y", "z", "inches")
 
     @skip_if_server_version_lt("3.2.0")
-    async def test_geohash(self, r: valkey.Valkey):
+    async def test_geohash(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2460,7 +2464,7 @@ class TestValkeyCommands:
         )
 
     @skip_if_server_version_lt("3.2.0")
-    async def test_geopos(self, r: valkey.Valkey):
+    async def test_geopos(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2483,16 +2487,16 @@ class TestValkeyCommands:
         )
 
     @skip_if_server_version_lt("4.0.0")
-    async def test_geopos_no_value(self, r: valkey.Valkey):
+    async def test_geopos_no_value(self, r: valkey.asyncio.Valkey[str]):
         assert await r.geopos("barcelona", "place1", "place2") == [None, None]
 
     @skip_if_server_version_lt("3.2.0")
     @skip_if_server_version_gte("4.0.0")
-    async def test_old_geopos_no_value(self, r: valkey.Valkey):
+    async def test_old_geopos_no_value(self, r: valkey.asyncio.Valkey[str]):
         assert await r.geopos("barcelona", "place1", "place2") == []
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_geosearch(self, r: valkey.Valkey):
+    async def test_geosearch(self, r: valkey.asyncio.Valkey[str]):
         values = (
             (2.1909389952632, 41.433791470673, "place1")
             + (2.1873744593677, 41.406342043777, b"\x80place2")
@@ -2520,13 +2524,13 @@ class TestValkeyCommands:
             "barcelona", member="place3", radius=100, unit="km", count=2
         ) == [b"place3", b"\x80place2"]
         search_res = await r.geosearch(
-            "barcelona", member="place3", radius=100, unit="km", count=1, any=1
+            "barcelona", member="place3", radius=100, unit="km", count=1, any=True
         )
         assert search_res[0] in [b"place1", b"place3", b"\x80place2"]
 
     @skip_unless_arch_bits(64)
     @skip_if_server_version_lt("6.2.0")
-    async def test_geosearch_member(self, r: valkey.Valkey):
+    async def test_geosearch_member(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2564,7 +2568,7 @@ class TestValkeyCommands:
         )
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_geosearch_sort(self, r: valkey.Valkey):
+    async def test_geosearch_sort(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2603,9 +2607,9 @@ class TestValkeyCommands:
     )
     async def test_geosearch_with(
         self,
-        r: valkey.Valkey,
-        geosearch_kwargs: Dict[str, Any],
-        expected_geosearch_result: List[Any],
+        r: valkey.asyncio.Valkey[str],
+        geosearch_kwargs: dict[str, Any],
+        expected_geosearch_result: list[Any],
     ):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -2646,7 +2650,7 @@ class TestValkeyCommands:
         )
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_geosearch_negative(self, r: valkey.Valkey):
+    async def test_geosearch_negative(self, r: valkey.asyncio.Valkey[str]):
         # not specifying member nor longitude and latitude
         with pytest.raises(exceptions.DataError):
             assert await r.geosearch("barcelona")
@@ -2689,11 +2693,11 @@ class TestValkeyCommands:
 
         # use any without count
         with pytest.raises(exceptions.DataError):
-            assert await r.geosearch("barcelona", member="place3", radius=100, any=1)
+            assert await r.geosearch("barcelona", member="place3", radius=100, any=True)
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.2.0")
-    async def test_geosearchstore(self, r: valkey.Valkey):
+    async def test_geosearchstore(self, r: valkey.asyncio.Valkey[bytes]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2713,7 +2717,7 @@ class TestValkeyCommands:
     @pytest.mark.onlynoncluster
     @skip_unless_arch_bits(64)
     @skip_if_server_version_lt("6.2.0")
-    async def test_geosearchstore_dist(self, r: valkey.Valkey):
+    async def test_geosearchstore_dist(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2731,10 +2735,11 @@ class TestValkeyCommands:
         )
         # instead of save the geo score, the distance is saved.
         score = await r.zscore("places_barcelona", "place1")
+        assert score is not None
         assert math.isclose(score, 88.05060698409301)
 
     @skip_if_server_version_lt("3.2.0")
-    async def test_georadius(self, r: valkey.Valkey):
+    async def test_georadius(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2746,7 +2751,7 @@ class TestValkeyCommands:
         assert await r.georadius("barcelona", 2.187, 41.406, 1000) == [b"\x80place2"]
 
     @skip_if_server_version_lt("3.2.0")
-    async def test_georadius_no_values(self, r: valkey.Valkey):
+    async def test_georadius_no_values(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2757,7 +2762,7 @@ class TestValkeyCommands:
         assert await r.georadius("barcelona", 1, 2, 1000) == []
 
     @skip_if_server_version_lt("3.2.0")
-    async def test_georadius_units(self, r: valkey.Valkey):
+    async def test_georadius_units(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2793,7 +2798,7 @@ class TestValkeyCommands:
         ],
     )
     async def test_georadius_with(
-        self, r: valkey.Valkey, georadius_kwargs, expected_georadius_result
+        self, r: valkey.asyncio.Valkey[str], georadius_kwargs, expected_georadius_result
     ):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
@@ -2837,7 +2842,7 @@ class TestValkeyCommands:
         )
 
     @skip_if_server_version_lt("3.2.0")
-    async def test_georadius_count(self, r: valkey.Valkey):
+    async def test_georadius_count(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2850,7 +2855,7 @@ class TestValkeyCommands:
         ]
 
     @skip_if_server_version_lt("3.2.0")
-    async def test_georadius_sort(self, r: valkey.Valkey):
+    async def test_georadius_sort(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2869,7 +2874,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("3.2.0")
     @pytest.mark.onlynoncluster
-    async def test_georadius_store(self, r: valkey.Valkey):
+    async def test_georadius_store(self, r: valkey.asyncio.Valkey[bytes]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2883,7 +2888,7 @@ class TestValkeyCommands:
     @skip_unless_arch_bits(64)
     @skip_if_server_version_lt("3.2.0")
     @pytest.mark.onlynoncluster
-    async def test_georadius_store_dist(self, r: valkey.Valkey):
+    async def test_georadius_store_dist(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2896,11 +2901,11 @@ class TestValkeyCommands:
         )
         # instead of save the geo score, the distance is saved.
         z_score = await r.zscore("places_barcelona", "place1")
-        assert math.isclose(z_score, 88.05060698409301)
+        assert math.isclose(z_score, 88.05060698409301)  # type: ignore[arg-type]
 
     @skip_unless_arch_bits(64)
     @skip_if_server_version_lt("3.2.0")
-    async def test_georadiusmember(self, r: valkey.Valkey):
+    async def test_georadiusmember(self, r: valkey.asyncio.Valkey[str]):
         values = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
@@ -2933,7 +2938,7 @@ class TestValkeyCommands:
         ]
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_xack(self, r: valkey.Valkey):
+    async def test_xack(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         group = "group"
         consumer = "consumer"
@@ -2954,7 +2959,7 @@ class TestValkeyCommands:
         assert await r.xack(stream, group, m2, m3) == 2
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_xadd(self, r: valkey.Valkey):
+    async def test_xadd(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         message_id = await r.xadd(stream, {"foo": "bar"})
         assert re.match(rb"[0-9]+\-[0-9]+", message_id)
@@ -2968,7 +2973,7 @@ class TestValkeyCommands:
         assert await r.xlen(stream) == 2
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_xclaim(self, r: valkey.Valkey):
+    async def test_xclaim(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         group = "group"
         consumer1 = "consumer1"
@@ -3006,7 +3011,7 @@ class TestValkeyCommands:
         ) == [message_id]
 
     @skip_if_server_version_lt("7.0.0")
-    async def test_xclaim_trimmed(self, r: valkey.Valkey):
+    async def test_xclaim_trimmed(self, r: valkey.asyncio.Valkey[str]):
         # xclaim should not raise an exception if the item is not there
         stream = "stream"
         group = "group"
@@ -3030,7 +3035,7 @@ class TestValkeyCommands:
         assert item[0][0] == sid2
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_xdel(self, r: valkey.Valkey):
+    async def test_xdel(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
 
         # deleting from an empty stream doesn't do anything
@@ -3045,7 +3050,7 @@ class TestValkeyCommands:
         assert await r.xdel(stream, m2, m3) == 2
 
     @skip_if_server_version_lt("7.0.0")
-    async def test_xgroup_create(self, r: valkey.Valkey):
+    async def test_xgroup_create(self, r: valkey.asyncio.Valkey[str]):
         # tests xgroup_create and xinfo_groups
         stream = "stream"
         group = "group"
@@ -3068,7 +3073,7 @@ class TestValkeyCommands:
         assert await r.xinfo_groups(stream) == expected
 
     @skip_if_server_version_lt("7.0.0")
-    async def test_xgroup_create_mkstream(self, r: valkey.Valkey):
+    async def test_xgroup_create_mkstream(self, r: valkey.asyncio.Valkey[str]):
         # tests xgroup_create and xinfo_groups
         stream = "stream"
         group = "group"
@@ -3094,7 +3099,7 @@ class TestValkeyCommands:
         assert await r.xinfo_groups(stream) == expected
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_xgroup_delconsumer(self, r: valkey.Valkey):
+    async def test_xgroup_delconsumer(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         group = "group"
         consumer = "consumer"
@@ -3112,7 +3117,7 @@ class TestValkeyCommands:
         assert await r.xgroup_delconsumer(stream, group, consumer) == 2
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_xgroup_destroy(self, r: valkey.Valkey):
+    async def test_xgroup_destroy(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         group = "group"
         await r.xadd(stream, {"foo": "bar"})
@@ -3124,7 +3129,7 @@ class TestValkeyCommands:
         assert await r.xgroup_destroy(stream, group)
 
     @skip_if_server_version_lt("7.0.0")
-    async def test_xgroup_setid(self, r: valkey.Valkey):
+    async def test_xgroup_setid(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         group = "group"
         message_id = await r.xadd(stream, {"foo": "bar"})
@@ -3145,7 +3150,7 @@ class TestValkeyCommands:
         assert await r.xinfo_groups(stream) == expected
 
     @skip_if_server_version_lt("7.2.0")
-    async def test_xinfo_consumers(self, r: valkey.Valkey):
+    async def test_xinfo_consumers(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         group = "group"
         consumer1 = "consumer1"
@@ -3172,7 +3177,7 @@ class TestValkeyCommands:
         assert info == expected
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_xinfo_stream(self, r: valkey.Valkey):
+    async def test_xinfo_stream(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         m1 = await r.xadd(stream, {"foo": "bar"})
         m2 = await r.xadd(stream, {"foo": "bar"})
@@ -3189,7 +3194,7 @@ class TestValkeyCommands:
         assert info["last-entry"] is None
 
     @skip_if_server_version_lt("6.0.0")
-    async def test_xinfo_stream_full(self, r: valkey.Valkey):
+    async def test_xinfo_stream_full(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         group = "group"
 
@@ -3208,7 +3213,7 @@ class TestValkeyCommands:
         assert isinstance(consumer, dict)
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_xlen(self, r: valkey.Valkey):
+    async def test_xlen(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         assert await r.xlen(stream) == 0
         await r.xadd(stream, {"foo": "bar"})
@@ -3216,7 +3221,7 @@ class TestValkeyCommands:
         assert await r.xlen(stream) == 2
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_xpending(self, r: valkey.Valkey):
+    async def test_xpending(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         group = "group"
         consumer1 = "consumer1"
@@ -3226,7 +3231,7 @@ class TestValkeyCommands:
         await r.xgroup_create(stream, group, 0)
 
         # xpending on a group that has no consumers yet
-        expected = {"pending": 0, "min": None, "max": None, "consumers": []}
+        expected: dict[str, int | None | list[Any]] = {"pending": 0, "min": None, "max": None, "consumers": []}
         assert await r.xpending(stream, group) == expected
 
         # read 1 message from the group with each consumer
@@ -3245,7 +3250,7 @@ class TestValkeyCommands:
         assert await r.xpending(stream, group) == expected
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_xpending_range(self, r: valkey.Valkey):
+    async def test_xpending_range(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         group = "group"
         consumer1 = "consumer1"
@@ -3269,7 +3274,7 @@ class TestValkeyCommands:
         assert response[1]["consumer"] == consumer2.encode()
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_xrange(self, r: valkey.Valkey):
+    async def test_xrange(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         m1 = await r.xadd(stream, {"foo": "bar"})
         m2 = await r.xadd(stream, {"foo": "bar"})
@@ -3292,7 +3297,7 @@ class TestValkeyCommands:
         assert get_ids(results) == [m1]
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_xread(self, r: valkey.Valkey):
+    async def test_xread(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         m1 = await r.xadd(stream, {"foo": "bar"})
         m2 = await r.xadd(stream, {"bing": "baz"})
@@ -3323,7 +3328,7 @@ class TestValkeyCommands:
         )
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_xreadgroup(self, r: valkey.Valkey):
+    async def test_xreadgroup(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         group = "group"
         consumer = "consumer"
@@ -3390,7 +3395,7 @@ class TestValkeyCommands:
         )
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_xrevrange(self, r: valkey.Valkey):
+    async def test_xrevrange(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
         m1 = await r.xadd(stream, {"foo": "bar"})
         m2 = await r.xadd(stream, {"foo": "bar"})
@@ -3413,7 +3418,7 @@ class TestValkeyCommands:
         assert get_ids(results) == [m4]
 
     @skip_if_server_version_lt("5.0.0")
-    async def test_xtrim(self, r: valkey.Valkey):
+    async def test_xtrim(self, r: valkey.asyncio.Valkey[str]):
         stream = "stream"
 
         # trimming an empty key doesn't do anything
@@ -3432,7 +3437,7 @@ class TestValkeyCommands:
         assert await r.xtrim(stream, 3, approximate=False) == 1
 
     @pytest.mark.onlynoncluster
-    async def test_bitfield_operations(self, r: valkey.Valkey):
+    async def test_bitfield_operations(self, r: valkey.asyncio.Valkey[str]):
         # comments show affected bits
         await r.execute_command("SELECT", 10)
         bf = r.bitfield("a")
@@ -3502,7 +3507,7 @@ class TestValkeyCommands:
         assert resp == [0, None, 255]
 
     @skip_if_server_version_lt("6.0.0")
-    async def test_bitfield_ro(self, r: valkey.Valkey):
+    async def test_bitfield_ro(self, r: valkey.asyncio.Valkey[str]):
         bf = r.bitfield("a")
         resp = await bf.set("u8", 8, 255).execute()
         assert resp == [0]
@@ -3515,7 +3520,7 @@ class TestValkeyCommands:
         assert resp == [0, 15, 15, 14]
 
     @skip_if_server_version_lt("4.0.0")
-    async def test_memory_stats(self, r: valkey.Valkey):
+    async def test_memory_stats(self, r: valkey.asyncio.Valkey[str]):
         # put a key into the current db to make sure that "db.<current-db>"
         # has data
         await r.set("foo", "bar")
@@ -3526,18 +3531,18 @@ class TestValkeyCommands:
                 assert not isinstance(value, list)
 
     @skip_if_server_version_lt("4.0.0")
-    async def test_memory_usage(self, r: valkey.Valkey):
+    async def test_memory_usage(self, r: valkey.asyncio.Valkey[str]):
         await r.set("foo", "bar")
         assert isinstance(await r.memory_usage("foo"), int)
 
     @skip_if_server_version_lt("4.0.0")
-    async def test_module_list(self, r: valkey.Valkey):
+    async def test_module_list(self, r: valkey.asyncio.Valkey[str]):
         assert isinstance(await r.module_list(), list)
         for x in await r.module_list():
             assert isinstance(x, dict)
 
     @pytest.mark.onlynoncluster
-    async def test_interrupted_command(self, r: valkey.Valkey):
+    async def test_interrupted_command(self, r: valkey.asyncio.Valkey[str]):
         """
         Regression test for issue #1128:  An Un-handled BaseException
         will leave the socket with un-read response to a previous
@@ -3554,7 +3559,7 @@ class TestValkeyCommands:
             # because the timeout won't catch its Cancelled Error if the task
             # has a pending cancel.  Python documentation probably should reflect this.
             if sys.version_info >= (3, 11):
-                asyncio.current_task().uncancel()
+                asyncio.current_task().uncancel()  # type: ignore[union-attr]
             # if all is well, we can continue.  The following should not hang.
             await r.set("status", "down")
 
@@ -3570,7 +3575,7 @@ class TestValkeyCommands:
 
 @pytest.mark.onlynoncluster
 class TestBinarySave:
-    async def test_binary_get_set(self, r: valkey.Valkey):
+    async def test_binary_get_set(self, r: valkey.asyncio.Valkey[bytes]):
         assert await r.set(" foo bar ", "123")
         assert await r.get(" foo bar ") == b"123"
 
@@ -3590,7 +3595,7 @@ class TestBinarySave:
         assert await r.delete(" foo\r\nbar\r\n ")
         assert await r.delete(" \r\n\t\x07\x13 ")
 
-    async def test_binary_lists(self, r: valkey.Valkey):
+    async def test_binary_lists(self, r: valkey.asyncio.Valkey[bytes]):
         mapping = {
             b"foo bar": [b"1", b"2", b"3"],
             b"foo\r\nbar\r\n": [b"4", b"5", b"6"],
@@ -3607,7 +3612,7 @@ class TestBinarySave:
         for key, value in mapping.items():
             assert await r.lrange(key, 0, -1) == value
 
-    async def test_22_info(self, r: valkey.Valkey):
+    async def test_22_info(self, r: valkey.asyncio.Valkey[str]):
         info = (
             "allocation_stats:6=1,7=1,8=7141,9=180,10=92,11=116,12=5330,"
             "13=123,14=3091,15=11048,16=225842,17=1784,18=814,19=12020,"
@@ -3639,14 +3644,14 @@ class TestBinarySave:
         assert "6" in parsed["allocation_stats"]
         assert ">=256" in parsed["allocation_stats"]
 
-    async def test_large_responses(self, r: valkey.Valkey):
+    async def test_large_responses(self, r: valkey.asyncio.Valkey[bytes]):
         """The PythonParser has some special cases for return values > 1MB"""
         # load up 5MB of data into a key
         data = "".join([ascii_letters] * (5000000 // len(ascii_letters)))
         await r.set("a", data)
         assert await r.get("a") == data.encode()
 
-    async def test_floating_point_encoding(self, r: valkey.Valkey):
+    async def test_floating_point_encoding(self, r: valkey.asyncio.Valkey[str]):
         """
         High precision floating point values sent to the server should keep
         precision.

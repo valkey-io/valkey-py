@@ -182,7 +182,7 @@ class Node:
 
         self.params = []
 
-        kvparams = {}
+        kvparams = {}  # type: ignore[var-annotated]
         for k, v in kwparams.items():
             curvals = kvparams.setdefault(k, [])
             if isinstance(v, (str, int, float)):
