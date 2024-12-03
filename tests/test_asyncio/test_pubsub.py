@@ -8,9 +8,9 @@ from unittest.mock import patch
 # the functionality is available in 3.11.x but has a major issue before
 # 3.11.3. See https://github.com/redis/redis-py/issues/2633
 if sys.version_info >= (3, 11, 3):
-    from asyncio import timeout as async_timeout
+    from asyncio import timeout as async_timeout  # type: ignore[unused-ignore,assignment,no-redef,import-not-found,attr-defined]
 else:
-    from async_timeout import timeout as async_timeout
+    from async_timeout import timeout as async_timeout  # type: ignore[unused-ignore,assignment,no-redef,import-not-found]
 
 import pytest
 import pytest_asyncio
@@ -23,7 +23,7 @@ from valkey.utils import LIBVALKEY_AVAILABLE
 from .compat import aclosing, create_task, mock
 
 
-def with_timeout(t):
+def with_timeout(t: int):
     def wrapper(corofunc):
         @functools.wraps(corofunc)
         async def run(*args, **kwargs):
@@ -83,7 +83,7 @@ def make_subscribe_test_data(pubsub, type):
 
 
 @pytest_asyncio.fixture()
-async def pubsub(r: valkey.Valkey):
+async def pubsub(r: valkey.Valkey[bytes]):
     async with r.pubsub() as p:
         yield p
 
@@ -214,7 +214,7 @@ class TestPubSubSubscribeUnsubscribe:
         kwargs = make_subscribe_test_data(pubsub, "pattern")
         await self._test_subscribed_property(**kwargs)
 
-    async def test_aclosing(self, r: valkey.Valkey):
+    async def test_aclosing(self, r: valkey.Valkey[str]):
         p = r.pubsub()
         async with aclosing(p):
             assert p.subscribed is False
@@ -222,7 +222,7 @@ class TestPubSubSubscribeUnsubscribe:
             assert p.subscribed is True
         assert p.subscribed is False
 
-    async def test_context_manager(self, r: valkey.Valkey):
+    async def test_context_manager(self, r: valkey.Valkey[str]):
         p = r.pubsub()
         async with p:
             assert p.subscribed is False
@@ -230,7 +230,7 @@ class TestPubSubSubscribeUnsubscribe:
             assert p.subscribed is True
         assert p.subscribed is False
 
-    async def test_close_is_aclose(self, r: valkey.Valkey):
+    async def test_close_is_aclose(self, r: valkey.Valkey[str]):
         """
         Test backwards compatible close method
         """
@@ -242,7 +242,7 @@ class TestPubSubSubscribeUnsubscribe:
             await p.close()
         assert p.subscribed is False
 
-    async def test_reset_is_aclose(self, r: valkey.Valkey):
+    async def test_reset_is_aclose(self, r: valkey.Valkey[str]):
         """
         Test backwards compatible reset method
         """
@@ -254,7 +254,7 @@ class TestPubSubSubscribeUnsubscribe:
             await p.reset()
         assert p.subscribed is False
 
-    async def test_ignore_all_subscribe_messages(self, r: valkey.Valkey):
+    async def test_ignore_all_subscribe_messages(self, r: valkey.Valkey[str]):
         p = r.pubsub(ignore_subscribe_messages=True)
 
         checks = (
@@ -347,7 +347,7 @@ class TestPubSubMessages:
     async def async_message_handler(self, message):
         self.async_message = message
 
-    async def test_published_message_to_channel(self, r: valkey.Valkey, pubsub):
+    async def test_published_message_to_channel(self, r: valkey.Valkey[str], pubsub):
         p = pubsub
         await p.subscribe("foo")
         assert await wait_for_message(p) == make_message("subscribe", "foo", 1)
@@ -357,7 +357,7 @@ class TestPubSubMessages:
         assert isinstance(message, dict)
         assert message == make_message("message", "foo", "test message")
 
-    async def test_published_message_to_pattern(self, r: valkey.Valkey, pubsub):
+    async def test_published_message_to_pattern(self, r: valkey.Valkey[str], pubsub):
         p = pubsub
         await p.subscribe("foo")
         await p.psubscribe("f*")
@@ -380,7 +380,7 @@ class TestPubSubMessages:
         assert message2 in expected
         assert message1 != message2
 
-    async def test_channel_message_handler(self, r: valkey.Valkey):
+    async def test_channel_message_handler(self, r: valkey.Valkey[str]):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe(foo=self.message_handler)
         assert await wait_for_message(p) is None
@@ -411,7 +411,7 @@ class TestPubSubMessages:
         await p.aclose()
 
     @pytest.mark.onlynoncluster
-    async def test_pattern_message_handler(self, r: valkey.Valkey):
+    async def test_pattern_message_handler(self, r: valkey.Valkey[str]):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.psubscribe(**{"f*": self.message_handler})
         assert await wait_for_message(p) is None
@@ -422,7 +422,7 @@ class TestPubSubMessages:
         )
         await p.aclose()
 
-    async def test_unicode_channel_message_handler(self, r: valkey.Valkey):
+    async def test_unicode_channel_message_handler(self, r: valkey.Valkey[str]):
         p = r.pubsub(ignore_subscribe_messages=True)
         channel = "uni" + chr(4456) + "code"
         channels = {channel: self.message_handler}
@@ -436,7 +436,7 @@ class TestPubSubMessages:
     @pytest.mark.onlynoncluster
     # see: https://valkey-py-cluster.readthedocs.io/en/stable/pubsub.html
     # #known-limitations-with-pubsub
-    async def test_unicode_pattern_message_handler(self, r: valkey.Valkey):
+    async def test_unicode_pattern_message_handler(self, r: valkey.Valkey[str]):
         p = r.pubsub(ignore_subscribe_messages=True)
         pattern = "uni" + chr(4456) + "*"
         channel = "uni" + chr(4456) + "code"
@@ -449,7 +449,7 @@ class TestPubSubMessages:
         )
         await p.aclose()
 
-    async def test_get_message_without_subscribe(self, r: valkey.Valkey, pubsub):
+    async def test_get_message_without_subscribe(self, r: valkey.Valkey[str], pubsub):
         p = pubsub
         with pytest.raises(RuntimeError) as info:
             await p.get_message()
@@ -522,7 +522,7 @@ class TestPubSubAutoDecoding:
             "punsubscribe", self.pattern, 0
         )
 
-    async def test_channel_publish(self, r: valkey.Valkey, pubsub):
+    async def test_channel_publish(self, r: valkey.Valkey[str], pubsub):
         p = pubsub
         await p.subscribe(self.channel)
         assert await wait_for_message(p) == self.make_message(
@@ -534,7 +534,7 @@ class TestPubSubAutoDecoding:
         )
 
     @pytest.mark.onlynoncluster
-    async def test_pattern_publish(self, r: valkey.Valkey, pubsub):
+    async def test_pattern_publish(self, r: valkey.Valkey[str], pubsub):
         p = pubsub
         await p.psubscribe(self.pattern)
         assert await wait_for_message(p) == self.make_message(
@@ -545,7 +545,7 @@ class TestPubSubAutoDecoding:
             "pmessage", self.channel, self.data, pattern=self.pattern
         )
 
-    async def test_channel_message_handler(self, r: valkey.Valkey):
+    async def test_channel_message_handler(self, r: valkey.Valkey[str]):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe(**{self.channel: self.message_handler})
         assert await wait_for_message(p) is None
@@ -563,7 +563,7 @@ class TestPubSubAutoDecoding:
         assert self.message == self.make_message("message", self.channel, new_data)
         await p.aclose()
 
-    async def test_pattern_message_handler(self, r: valkey.Valkey):
+    async def test_pattern_message_handler(self, r: valkey.Valkey[str]):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.psubscribe(**{self.pattern: self.message_handler})
         assert await wait_for_message(p) is None
@@ -585,7 +585,7 @@ class TestPubSubAutoDecoding:
         )
         await p.aclose()
 
-    async def test_context_manager(self, r: valkey.Valkey):
+    async def test_context_manager(self, r: valkey.Valkey[str]):
         async with r.pubsub() as pubsub:
             await pubsub.subscribe("foo")
             assert pubsub.connection is not None
@@ -598,7 +598,7 @@ class TestPubSubAutoDecoding:
 
 @pytest.mark.onlynoncluster
 class TestPubSubValkeyDown:
-    async def test_channel_subscribe(self, r: valkey.Valkey):
+    async def test_channel_subscribe(self):
         r = valkey.Valkey(host="localhost", port=6390)
         p = r.pubsub()
         with pytest.raises(ConnectionError):
@@ -609,17 +609,17 @@ class TestPubSubValkeyDown:
 class TestPubSubSubcommands:
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.0")
-    async def test_pubsub_channels(self, r: valkey.Valkey, pubsub):
+    async def test_pubsub_channels(self, r: valkey.Valkey[bytes], pubsub):
         p = pubsub
         await p.subscribe("foo", "bar", "baz", "quux")
         for i in range(4):
             assert (await wait_for_message(p))["type"] == "subscribe"
         expected = [b"bar", b"baz", b"foo", b"quux"]
-        assert all([channel in await r.pubsub_channels() for channel in expected])
+        assert all([channel in await r.pubsub_channels() for channel in expected])  # type: ignore[comparison-overlap]
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.0")
-    async def test_pubsub_numsub(self, r: valkey.Valkey):
+    async def test_pubsub_numsub(self, r: valkey.Valkey[bytes]):
         p1 = r.pubsub()
         await p1.subscribe("foo", "bar", "baz")
         for i in range(3):
@@ -633,13 +633,13 @@ class TestPubSubSubcommands:
         assert (await wait_for_message(p3))["type"] == "subscribe"
 
         channels = [(b"foo", 1), (b"bar", 2), (b"baz", 3)]
-        assert await r.pubsub_numsub("foo", "bar", "baz") == channels
+        assert await r.pubsub_numsub("foo", "bar", "baz") == channels  # type: ignore[comparison-overlap]
         await p1.aclose()
         await p2.aclose()
         await p3.aclose()
 
     @skip_if_server_version_lt("2.8.0")
-    async def test_pubsub_numpat(self, r: valkey.Valkey):
+    async def test_pubsub_numpat(self, r: valkey.Valkey[str]):
         p = r.pubsub()
         await p.psubscribe("*oo", "*ar", "b*z")
         for i in range(3):
@@ -651,7 +651,7 @@ class TestPubSubSubcommands:
 @pytest.mark.onlynoncluster
 class TestPubSubPings:
     @skip_if_server_version_lt("3.0.0")
-    async def test_send_pubsub_ping(self, r: valkey.Valkey):
+    async def test_send_pubsub_ping(self, r: valkey.Valkey[str]):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe("foo")
         await p.ping()
@@ -661,7 +661,7 @@ class TestPubSubPings:
         await p.aclose()
 
     @skip_if_server_version_lt("3.0.0")
-    async def test_send_pubsub_ping_message(self, r: valkey.Valkey):
+    async def test_send_pubsub_ping_message(self, r: valkey.Valkey[str]):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe("foo")
         await p.ping(message="hello world")
@@ -675,7 +675,7 @@ class TestPubSubPings:
 class TestPubSubConnectionKilled:
     @skip_if_server_version_lt("3.0.0")
     async def test_connection_error_raised_when_connection_dies(
-        self, r: valkey.Valkey, pubsub
+        self, r: valkey.Valkey[str], pubsub
     ):
         p = pubsub
         await p.subscribe("foo")
@@ -698,13 +698,13 @@ class TestPubSubTimeouts:
 
 @pytest.mark.onlynoncluster
 class TestPubSubReconnect:
-    @with_timeout(2)
-    async def test_reconnect_listen(self, r: valkey.Valkey, pubsub):
+    @with_timeout(2)  # type: ignore[misc]
+    async def test_reconnect_listen(self, r: valkey.Valkey[str], pubsub):
         """
         Test that a loop processing PubSub messages can survive
         a disconnect, by issuing a connect() call.
         """
-        messages = asyncio.Queue()
+        messages = asyncio.Queue()  # type: ignore[var-annotated]
         interrupt = False
 
         async def loop():
@@ -775,11 +775,11 @@ class TestPubSubRun:
             ):
                 return
 
-    async def test_callbacks(self, r: valkey.Valkey, pubsub):
+    async def test_callbacks(self, r: valkey.Valkey[str], pubsub):
         def callback(message):
             messages.put_nowait(message)
 
-        messages = asyncio.Queue()
+        messages = asyncio.Queue()  # type: ignore[var-annotated]
         p = pubsub
         await self._subscribe(p, foo=callback)
         task = asyncio.get_running_loop().create_task(p.run())
@@ -797,12 +797,12 @@ class TestPubSubRun:
             "type": "message",
         }
 
-    async def test_exception_handler(self, r: valkey.Valkey, pubsub):
+    async def test_exception_handler(self, r: valkey.Valkey[str], pubsub):
         def exception_handler_callback(e, pubsub) -> None:
             assert pubsub == p
             exceptions.put_nowait(e)
 
-        exceptions = asyncio.Queue()
+        exceptions = asyncio.Queue()  # type: ignore[var-annotated]
         p = pubsub
         await self._subscribe(p, foo=lambda x: None)
         with mock.patch.object(p, "get_message", side_effect=Exception("error")):
@@ -817,11 +817,11 @@ class TestPubSubRun:
                 pass
         assert str(e) == "error"
 
-    async def test_late_subscribe(self, r: valkey.Valkey, pubsub):
+    async def test_late_subscribe(self, r: valkey.Valkey[str], pubsub):
         def callback(message):
             messages.put_nowait(message)
 
-        messages = asyncio.Queue()
+        messages = asyncio.Queue()  # type: ignore[var-annotated]
         p = pubsub
         task = asyncio.get_running_loop().create_task(p.run())
         # wait until loop gets settled.  Add a subscription
@@ -856,7 +856,7 @@ class TestPubSubAutoReconnect:
     timeout = 2
 
     async def mysetup(self, r, method):
-        self.messages = asyncio.Queue()
+        self.messages = asyncio.Queue()  # type: ignore[var-annotated]
         self.pubsub = r.pubsub()
         # State: 0 = initial state , 1 = after disconnect, 2 = ConnectionError is seen,
         # 3=successfully reconnected 4 = exit
@@ -892,7 +892,7 @@ class TestPubSubAutoReconnect:
             self.state = 4  # quit
         await self.task
 
-    async def test_reconnect_socket_error(self, r: valkey.Valkey, method):
+    async def test_reconnect_socket_error(self, r: valkey.Valkey[str], method):
         """
         Test that a socket error will cause reconnect
         """
@@ -921,7 +921,7 @@ class TestPubSubAutoReconnect:
         finally:
             await self.mykill()
 
-    async def test_reconnect_disconnect(self, r: valkey.Valkey, method):
+    async def test_reconnect_disconnect(self, r: valkey.Valkey[str], method):
         """
         Test that a manual disconnect() will cause reconnect
         """
@@ -992,7 +992,7 @@ class TestBaseException:
     @pytest.mark.skipif(
         sys.version_info < (3, 8), reason="requires python 3.8 or higher"
     )
-    async def test_outer_timeout(self, r: valkey.Valkey):
+    async def test_outer_timeout(self, r: valkey.Valkey[str]):
         """
         Using asyncio_timeout manually outside the inner method timeouts works.
         This works on Python versions 3.8 and greater, at which time asyncio.
@@ -1026,7 +1026,7 @@ class TestBaseException:
     @pytest.mark.skipif(
         sys.version_info < (3, 8), reason="requires python 3.8 or higher"
     )
-    async def test_base_exception(self, r: valkey.Valkey):
+    async def test_base_exception(self, r: valkey.Valkey[str]):
         """
         Manually trigger a BaseException inside the parser's .read_response method
         and verify that it isn't caught
