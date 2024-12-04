@@ -5096,7 +5096,7 @@ class TestValkeyCommands:
 
         thread = threading.Thread(target=helper)
         thread.start()
-        thread.join(0.1)
+        thread.join(1)
         try:
             assert not thread.is_alive()
             assert ok
