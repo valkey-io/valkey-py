@@ -2032,7 +2032,7 @@ class BasicKeyCommands(CommandsProtocol):
             items.extend(pair)
         return self.execute_command("MSETNX", *items)
 
-    def move(self, name: KeyT, db: int) -> ResponseT:
+    def move(self, name: KeyT, db: Union[str, int]) -> ResponseT:
         """
         Moves the key ``name`` to a different Valkey database ``db``
 
