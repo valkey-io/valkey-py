@@ -1662,7 +1662,7 @@ class BasicKeyCommands(CommandsProtocol):
         self,
         source: str,
         destination: str,
-        destination_db: Union[str, None] = None,
+        destination_db: Optional[Union[int, str]] = None,
         replace: bool = False,
     ) -> ResponseT:
         """
