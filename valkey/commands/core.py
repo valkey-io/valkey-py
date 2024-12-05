@@ -2987,7 +2987,7 @@ class ScanCommands(CommandsProtocol):
         count: Union[int, None] = None,
         _type: Union[str, None] = None,
         **kwargs,
-    ) -> ResponseT:
+    ) -> Tuple[int, List[bytes]]:
         """
         Incrementally return lists of key names. Also return a cursor
         indicating the scan position.
@@ -3047,7 +3047,7 @@ class ScanCommands(CommandsProtocol):
         cursor: int = 0,
         match: Union[PatternT, None] = None,
         count: Union[int, None] = None,
-    ) -> ResponseT:
+    ) -> Tuple[int, List[bytes]]:
         """
         Incrementally return lists of elements in a set. Also return a cursor
         indicating the scan position.
@@ -3091,7 +3091,7 @@ class ScanCommands(CommandsProtocol):
         match: Union[PatternT, None] = None,
         count: Union[int, None] = None,
         no_values: Union[bool, None] = None,
-    ) -> ResponseT:
+    ) -> Tuple[int, Dict[bytes, bytes]]:
         """
         Incrementally return key/value slices in a hash. Also return a cursor
         indicating the scan position.
@@ -3147,7 +3147,7 @@ class ScanCommands(CommandsProtocol):
         match: Union[PatternT, None] = None,
         count: Union[int, None] = None,
         score_cast_func: Union[type, Callable] = float,
-    ) -> ResponseT:
+    ) -> Tuple[int, List[Tuple[bytes, float]]]:
         """
         Incrementally return lists of elements in a sorted set. Also return a
         cursor indicating the scan position.
