@@ -1330,6 +1330,8 @@ class TestValkeyCommands:
     @skip_if_server_version_lt("6.2.0")
     def test_getex(self, r):
         r.set("a", 1)
+        with pytest.raises(valkey.DataError):
+            r.getex("a", ex=10, px=10)
         assert r.getex("a") == b"1"
         assert r.ttl("a") == -1
         assert r.getex("a", ex=60) == b"1"
