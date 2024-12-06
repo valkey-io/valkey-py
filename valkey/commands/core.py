@@ -1859,8 +1859,8 @@ class BasicKeyCommands(CommandsProtocol):
         For more information see https://valkey.io/commands/getex
         """
 
-        opset = {ex, px, exat, pxat}
-        if len(opset) > 2 or len(opset) > 1 and persist:
+        opvs = sum(op is not None for op in [ex, px, exat, pxat])
+        if opvs > 1 or (opvs and persist):
             raise DataError(
                 "``ex``, ``px``, ``exat``, ``pxat``, "
                 "and ``persist`` are mutually exclusive."
