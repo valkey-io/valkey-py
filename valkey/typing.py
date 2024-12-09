@@ -47,6 +47,8 @@ TimeoutSecT = Union[int, float, _StringLikeT]
 AnyKeyT = TypeVar("AnyKeyT", bytes, str, memoryview)
 AnyFieldT = TypeVar("AnyFieldT", bytes, str, memoryview)
 AnyChannelT = TypeVar("AnyChannelT", bytes, str, memoryview)
+AnyStreamIdT = TypeVar("AnyStreamIdT", int, bytes, str, memoryview)
+AnyEncodableT = TypeVar("AnyEncodableT", int, float, bytes, str, memoryview)
 
 ExceptionMappingT = Mapping[str, Union[Type[Exception], Mapping[str, Type[Exception]]]]
 
