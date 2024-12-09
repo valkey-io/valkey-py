@@ -1320,6 +1320,29 @@ class TestValkeyCommands:
         assert r.get("integer") == str(integer).encode()
         assert r.get("unicode_string").decode("utf-8") == unicode_string
 
+    def test_set_options_mutually_exclusive(self, r):
+        with pytest.raises(exceptions.DataError):
+            r.set("test", 1, ex=1, px=1)
+
+        with pytest.raises(exceptions.DataError):
+            r.set("test2", 2, exat=3, pxat=5)
+
+        with pytest.raises(exceptions.DataError):
+            r.set("test3", 3, ex=5, exat=1)
+
+    def test_set_options_type_check(self, r):
+        with pytest.raises(exceptions.DataError):
+            r.set("test", 1, ex="hi")
+
+        with pytest.raises(exceptions.DataError):
+            r.set("test1", 3, px=object())
+
+        with pytest.raises(exceptions.DataError):
+            r.set("test2", 2, exat=5.1)
+
+        with pytest.raises(exceptions.DataError):
+            r.set("test3", 1, pxat=3j)
+
     @skip_if_server_version_lt("6.2.0")
     def test_getdel(self, r):
         assert r.getdel("a") is None
