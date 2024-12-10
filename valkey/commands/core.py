@@ -2287,6 +2287,11 @@ class BasicKeyCommands(CommandsProtocol):
 
         For more information see https://valkey.io/commands/set
         """
+        params = sum(op is not None for op in [ex, px, exat, pxat])
+        if params > 1:
+            raise DataError(
+                "``ex``, ``px``, ``exat`` and ``pxat`` " "are mutually exclusive."
+            )
         pieces: list[EncodableT] = [name, value]
         options = {}
         if ex is not None:
@@ -2311,11 +2316,15 @@ class BasicKeyCommands(CommandsProtocol):
             pieces.append("EXAT")
             if isinstance(exat, datetime.datetime):
                 exat = int(exat.timestamp())
+            elif not isinstance(exat, int):
+                raise DataError("exat must be of type datetime.datetime or int")
             pieces.append(exat)
         if pxat is not None:
             pieces.append("PXAT")
             if isinstance(pxat, datetime.datetime):
                 pxat = int(pxat.timestamp() * 1000)
+            elif not isinstance(pxat, int):
+                raise DataError("pxat must be of type datetime.datetime or int")
             pieces.append(pxat)
         if keepttl:
             pieces.append("KEEPTTL")
