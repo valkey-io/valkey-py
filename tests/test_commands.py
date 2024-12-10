@@ -1332,6 +1332,14 @@ class TestValkeyCommands:
         r.set("a", 1)
         with pytest.raises(valkey.DataError):
             r.getex("a", ex=10, px=10)
+        with pytest.raises(valkey.DataError):
+            r.getex("a", ex=10, exat=10)
+        with pytest.raises(valkey.DataError):
+            r.getex("a", ex=10, pxat=10)
+        with pytest.raises(valkey.DataError):
+            r.getex("a", exat=10, pxat=10)
+        with pytest.raises(valkey.DataError):
+            r.getex("a", px=10, exat=10)
         assert r.getex("a") == b"1"
         assert r.ttl("a") == -1
         assert r.getex("a", ex=60) == b"1"
