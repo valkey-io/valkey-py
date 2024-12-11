@@ -32,6 +32,11 @@ from valkey.exceptions import (
     WatchError,
 )
 
+Redis = Valkey
+StrictRedis = StrictValkey
+RedisCluster = ValkeyCluster
+RedisError = ValkeyError
+
 __all__ = [
     "AuthenticationError",
     "AuthenticationWrongNumberOfArgsError",
@@ -51,12 +56,16 @@ __all__ = [
     "Valkey",
     "ValkeyCluster",
     "ValkeyError",
+    "Redis",
+    "RedisCluster",
+    "RedisError",
     "ResponseError",
     "Sentinel",
     "SentinelConnectionPool",
     "SentinelManagedConnection",
     "SentinelManagedSSLConnection",
     "SSLConnection",
+    "StrictRedis",
     "StrictValkey",
     "TimeoutError",
     "UnixDomainSocketConnection",
