@@ -1,6 +1,6 @@
 import datetime
 
-from valkey.utils import str_if_bytes
+from valkey.utils import str_if_bytes, safe_str
 
 
 def timestamp_to_datetime(response):
@@ -684,6 +684,12 @@ def parse_set_result(response, **options):
     return response and str_if_bytes(response) == "OK"
 
 
+def parse_ping(response, **options):
+    response = str_if_bytes(response)
+    message = "PONG" if options.get("message") is None else options.get("message")
+    return response == safe_str(message)
+
+
 def string_keys_to_dict(key_string, callback):
     return dict.fromkeys(key_string.split(), callback)
 
@@ -747,7 +753,7 @@ _ValkeyCallbacks = {
     "MEMORY PURGE": bool_ok,
     "MODULE LOAD": bool,
     "MODULE UNLOAD": bool,
-    "PING": lambda r: str_if_bytes(r) == "PONG",
+    "PING": parse_ping,
     "PUBSUB NUMSUB": parse_pubsub_numsub,
     "PUBSUB SHARDNUMSUB": parse_pubsub_numsub,
     "QUIT": bool_ok,

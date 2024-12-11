@@ -1203,13 +1203,14 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("LATENCY RESET", *events)
 
-    def ping(self, **kwargs) -> ResponseT:
+    def ping(self, message=None, **kwargs) -> ResponseT:
         """
         Ping the Valkey server
 
         For more information see https://valkey.io/commands/ping
         """
-        return self.execute_command("PING", **kwargs)
+        args = ["PING", message] if message is not None else ["PING"]
+        return self.execute_command(*args, message=message, **kwargs)
 
     def quit(self, **kwargs) -> ResponseT:
         """
