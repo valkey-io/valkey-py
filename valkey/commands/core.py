@@ -1210,7 +1210,9 @@ class ManagementCommands(CommandsProtocol):
         For more information see https://valkey.io/commands/ping
         """
         args = ["PING", message] if message is not None else ["PING"]
-        return self.execute_command(*args, message=message, **kwargs)
+        if message is not None:
+            kwargs["message"] = message
+        return self.execute_command(*args, **kwargs)
 
     def quit(self, **kwargs) -> ResponseT:
         """

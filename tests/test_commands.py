@@ -865,9 +865,9 @@ class TestValkeyCommands:
     def test_ping(self, r):
         assert r.ping()
         assert r.ping(0)
-        assert r.ping("Valkey")
-        assert r.ping("  Valkey ")
-        assert r.ping("Valkey", test="a")
+        assert r.ping("valkey")
+        assert r.ping("  hello ")
+        assert r.ping("abc", test="a")
 
     @pytest.mark.onlynoncluster
     def test_quit(self, r):

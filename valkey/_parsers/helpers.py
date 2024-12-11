@@ -1,6 +1,9 @@
 import datetime
 
-from valkey.utils import str_if_bytes, safe_str
+from valkey.utils import (
+    safe_str,
+    str_if_bytes,
+)
 
 
 def timestamp_to_datetime(response):
@@ -686,7 +689,7 @@ def parse_set_result(response, **options):
 
 def parse_ping(response, **options):
     response = str_if_bytes(response)
-    message = "PONG" if options.get("message") is None else options.get("message")
+    message = options.get("message", "PONG")
     return response == safe_str(message)
 
 
