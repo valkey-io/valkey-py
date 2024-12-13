@@ -2287,6 +2287,11 @@ class BasicKeyCommands(CommandsProtocol):
 
         For more information see https://valkey.io/commands/set
         """
+        params = sum(op is not None for op in [ex, px, exat, pxat])
+        if params > 1:
+            raise DataError(
+                "``ex``, ``px``, ``exat`` and ``pxat`` " "are mutually exclusive."
+            )
         pieces: list[EncodableT] = [name, value]
         options = {}
         if ex is not None:
