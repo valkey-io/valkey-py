@@ -4944,7 +4944,7 @@ class HashCommands(CommandsProtocol):
     see: https://valkey.io/topics/data-types-intro#valkey-hashes
     """
 
-    def hdel(self, name: str, *keys: str) -> Union[Awaitable[int], int]:
+    def hdel(self, name: str, *keys: str) -> int:
         """
         Delete ``keys`` from hash ``name``
 
@@ -4952,7 +4952,7 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HDEL", name, *keys)
 
-    def hexists(self, name: str, key: str) -> Union[Awaitable[bool], bool]:
+    def hexists(self, name: str, key: str) -> bool:
         """
         Returns a boolean indicating if ``key`` exists within hash ``name``
 
@@ -4960,9 +4960,7 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HEXISTS", name, key, keys=[name])
 
-    def hget(
-        self, name: str, key: str
-    ) -> Union[Awaitable[Optional[str]], Optional[str]]:
+    def hget(self, name: str, key: str) -> Optional[bytes]:
         """
         Return the value of ``key`` within the hash ``name``
 
@@ -4970,7 +4968,7 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HGET", name, key, keys=[name])
 
-    def hgetall(self, name: str) -> Union[Awaitable[dict], dict]:
+    def hgetall(self, name: str) -> dict:
         """
         Return a Python dict of the hash's name/value pairs
 
@@ -4978,9 +4976,7 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HGETALL", name, keys=[name])
 
-    def hincrby(
-        self, name: str, key: str, amount: int = 1
-    ) -> Union[Awaitable[int], int]:
+    def hincrby(self, name: str, key: str, amount: int = 1) -> int:
         """
         Increment the value of ``key`` in hash ``name`` by ``amount``
 
@@ -4988,9 +4984,7 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HINCRBY", name, key, amount)
 
-    def hincrbyfloat(
-        self, name: str, key: str, amount: float = 1.0
-    ) -> Union[Awaitable[float], float]:
+    def hincrbyfloat(self, name: str, key: str, amount: float = 1.0) -> float:
         """
         Increment the value of ``key`` in hash ``name`` by floating ``amount``
 
@@ -4998,7 +4992,7 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HINCRBYFLOAT", name, key, amount)
 
-    def hkeys(self, name: str) -> Union[Awaitable[List], List]:
+    def hkeys(self, name: str) -> List[bytes]:
         """
         Return the list of keys within hash ``name``
 
@@ -5006,7 +5000,7 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HKEYS", name, keys=[name])
 
-    def hlen(self, name: str) -> Union[Awaitable[int], int]:
+    def hlen(self, name: str) -> int:
         """
         Return the number of elements in hash ``name``
 
@@ -5021,7 +5015,7 @@ class HashCommands(CommandsProtocol):
         value: Optional[str] = None,
         mapping: Optional[dict] = None,
         items: Optional[list] = None,
-    ) -> Union[Awaitable[int], int]:
+    ) -> int:
         """
         Set ``key`` to ``value`` within hash ``name``,
         ``mapping`` accepts a dict of key/value pairs that will be
@@ -5045,7 +5039,7 @@ class HashCommands(CommandsProtocol):
 
         return self.execute_command("HSET", name, *pieces)
 
-    def hsetnx(self, name: str, key: str, value: str) -> Union[Awaitable[bool], bool]:
+    def hsetnx(self, name: str, key: str, value: str) -> int:
         """
         Set ``key`` to ``value`` within hash ``name`` if ``key`` does not
         exist.  Returns 1 if HSETNX created a field, otherwise 0.
@@ -5054,7 +5048,7 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HSETNX", name, key, value)
 
-    def hmset(self, name: str, mapping: dict) -> Union[Awaitable[str], str]:
+    def hmset(self, name: str, mapping: dict) -> bool:
         """
         Set key to value within hash ``name`` for each corresponding
         key and value from the ``mapping`` dict.
@@ -5074,7 +5068,7 @@ class HashCommands(CommandsProtocol):
             items.extend(pair)
         return self.execute_command("HMSET", name, *items)
 
-    def hmget(self, name: str, keys: List, *args: List) -> Union[Awaitable[List], List]:
+    def hmget(self, name: str, keys: List, *args: List) -> List[bytes]:
         """
         Returns a list of values ordered identically to ``keys``
 
@@ -5083,7 +5077,7 @@ class HashCommands(CommandsProtocol):
         args = list_or_args(keys, args)
         return self.execute_command("HMGET", name, *args, keys=[name])
 
-    def hvals(self, name: str) -> Union[Awaitable[List], List]:
+    def hvals(self, name: str) -> List[bytes]:
         """
         Return the list of values within hash ``name``
 
@@ -5091,7 +5085,7 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HVALS", name, keys=[name])
 
-    def hstrlen(self, name: str, key: str) -> Union[Awaitable[int], int]:
+    def hstrlen(self, name: str, key: str) -> int:
         """
         Return the number of bytes stored in the value of ``key``
         within hash ``name``
