@@ -2153,7 +2153,7 @@ class BasicKeyCommands(CommandsProtocol):
 
     def hrandfield(
         self, key: str, count: int = None, withvalues: bool = False
-    ) -> ResponseT:
+    ) -> Union[bytes, List[bytes], None]:
         """
         Return a random field from the hash value stored at key.
 
