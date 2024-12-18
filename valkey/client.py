@@ -518,7 +518,15 @@ class Valkey(ValkeyModuleCommands, CoreCommands, SentinelCommands):
         self.close()
 
     def __del__(self):
-        self.close()
+        try:
+            self.close()
+        except AttributeError as exc:
+            if exc.name in ("getpid", "Lock"):
+                # Fixes AttributeError: 
+                # 'NoneType' object has no attribute 'getpid'
+                pass
+            else:
+                raise
 
     def close(self):
         # In case a connection property does not yet exist
