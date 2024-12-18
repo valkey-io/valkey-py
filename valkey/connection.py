@@ -1011,6 +1011,20 @@ class ConnectionPool:
         self.connection_kwargs = connection_kwargs
         self.max_connections = max_connections
 
+        # We need to preserve the pointer to os.getpid because Valkey class
+        # contains a __del__ method that causes the call chain:
+        #   1. Valkey.close()
+        #   2. ConnectionPool.disconnect()
+        #   3. ConnectionPool._checkpid()
+        #   4. os.getpid()
+        #
+        # If os.getpid is garbage collected before Valkey, then the __del__
+        # method will raise an AttributeError when trying to call os.getpid.
+        # It wasn't an issue in practice until Python REPL was reworked in 3.13
+        # to collect all globals at the end of the session, which caused
+        # os.getpid to be garbage collected before Valkey.
+        self._getpid = os.getpid
+
         # a lock to protect the critical section in _checkpid().
         # this lock is acquired when the process id changes, such as
         # after a fork. during this time, multiple threads in the child
@@ -1080,14 +1094,14 @@ class ConnectionPool:
         # seconds to acquire _fork_lock. if _fork_lock cannot be acquired in
         # that time it is assumed that the child is deadlocked and a
         # valkey.ChildDeadlockedError error is raised.
-        if self.pid != os.getpid():
+        if self.pid != self._getpid():
             acquired = self._fork_lock.acquire(timeout=5)
             if not acquired:
                 raise ChildDeadlockedError
             # reset() the instance for the new process if another thread
             # hasn't already done so
             try:
-                if self.pid != os.getpid():
+                if self.pid != self._getpid():
                     self.reset()
             finally:
                 self._fork_lock.release()
