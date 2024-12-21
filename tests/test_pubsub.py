@@ -115,7 +115,7 @@ class TestPubSubSubscribeUnsubscribe:
     @pytest.mark.onlycluster
     @skip_if_server_version_lt("7.0.0")
     def test_shard_channel_subscribe_unsubscribe_cluster(self, r):
-        node_channels = defaultdict(int)
+        node_channels = defaultdict(int)  # type: ignore[var-annotated]
         p = r.pubsub()
         keys = {
             "foo": r.get_node_from_key("foo"),
@@ -632,7 +632,7 @@ class TestPubSubAutoDecoding:
 
     @pytest.fixture()
     def r(self, request):
-        return _get_client(valkey.Valkey, request=request, decode_responses=True)
+        return _get_client(valkey.Valkey[str], request=request, decode_responses=True)
 
     def test_channel_subscribe_unsubscribe(self, r):
         p = r.pubsub()
@@ -768,7 +768,7 @@ class TestPubSubAutoDecoding:
 
 class TestPubSubValkeyDown:
     def test_channel_subscribe(self, r):
-        r = valkey.Valkey(host="localhost", port=6390)
+        r = valkey.Valkey[str](host="localhost", port=6390)
         p = r.pubsub()
         with pytest.raises(ConnectionError):
             p.subscribe("foo")
@@ -845,7 +845,7 @@ class TestPubSubSubcommands:
 
     @pytest.mark.onlycluster
     @skip_if_server_version_lt("7.0.0")
-    def test_pubsub_shardnumsub(self, r):
+    def test_pubsub_shardnumsub(self, r: valkey.ValkeyCluster[bytes]):
         channels = {
             b"foo": r.get_node_from_key("foo"),
             b"bar": r.get_node_from_key("bar"),
@@ -866,8 +866,8 @@ class TestPubSubSubcommands:
         p3.ssubscribe("baz")
         assert wait_for_message(p3, node=channels[b"baz"])["type"] == "ssubscribe"
 
-        channels = [(b"foo", 1), (b"bar", 2), (b"baz", 3)]
-        assert r.pubsub_shardnumsub("foo", "bar", "baz", target_nodes="all") == channels
+        channels_names = [(b"foo", 1), (b"bar", 2), (b"baz", 3)]
+        assert r.pubsub_shardnumsub("foo", "bar", "baz", target_nodes="all") == channels_names  # type: ignore[attr-defined]
 
 
 class TestPubSubPings:
@@ -972,7 +972,7 @@ class TestPubSubDeadlock:
     @pytest.mark.timeout(30, method="thread")
     def test_pubsub_deadlock(self, master_host):
         pool = valkey.ConnectionPool(host=master_host[0], port=master_host[1])
-        r = valkey.Valkey(connection_pool=pool)
+        r = valkey.Valkey[str](connection_pool=pool)
 
         for i in range(60):
             p = r.pubsub()
@@ -985,7 +985,7 @@ class TestPubSubDeadlock:
 @pytest.mark.onlynoncluster
 class TestPubSubAutoReconnect:
     def mysetup(self, r, method):
-        self.messages = queue.Queue()
+        self.messages = queue.Queue()  # type: ignore[var-annotated]
         self.pubsub = r.pubsub()
         self.state = 0
         self.cond = threading.Condition()
@@ -1026,7 +1026,7 @@ class TestPubSubAutoReconnect:
             self.cond.notify()
         self.thread.join()
 
-    def test_reconnect_socket_error(self, r: valkey.Valkey, method):
+    def test_reconnect_socket_error(self, r: valkey.Valkey[str], method):
         """
         Test that a socket error will cause reconnect
         """
@@ -1048,7 +1048,7 @@ class TestPubSubAutoReconnect:
         finally:
             self.mycleanup()
 
-    def test_reconnect_disconnect(self, r: valkey.Valkey, method):
+    def test_reconnect_disconnect(self, r: valkey.Valkey[str], method):
         """
         Test that a manual disconnect() will cause reconnect
         """
@@ -1107,7 +1107,7 @@ class TestPubSubAutoReconnect:
 
 @pytest.mark.onlynoncluster
 class TestBaseException:
-    def test_base_exception(self, r: valkey.Valkey):
+    def test_base_exception(self, r: valkey.Valkey[str]):
         """
         Manually trigger a BaseException inside the parser's .read_response method
         and verify that it isn't caught
