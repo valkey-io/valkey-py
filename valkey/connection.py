@@ -1,5 +1,4 @@
 import copy
-import os
 import socket
 import ssl
 import sys
@@ -7,6 +6,21 @@ import threading
 import weakref
 from abc import abstractmethod
 from itertools import chain
+
+# We need to explicitly import `getpid` from `os` instead of importing `os`. The
+# reason for that is that Valkey class contains a __del__ method that causes the
+# call chain:
+#   1. Valkey.close()
+#   2. ConnectionPool.disconnect()
+#   3. ConnectionPool._checkpid()
+#   4. os.getpid()
+#
+# If os.getpid is garbage collected before Valkey, then the __del__
+# method will raise an AttributeError when trying to call os.getpid.
+# It wasn't an issue in practice until Python REPL was reworked in 3.13
+# to collect all globals at the end of the session, which caused
+# os.getpid to be garbage collected before Valkey.
+from os import getpid
 from queue import Empty, Full, LifoQueue
 from time import time
 from typing import Any, Callable, List, Optional, Sequence, Type, Union
@@ -178,7 +192,7 @@ class AbstractConnection:
                 "1. 'password' and (optional) 'username'\n"
                 "2. 'credential_provider'"
             )
-        self.pid = os.getpid()
+        self.pid = getpid()
         self.db = db
         self.client_name = client_name
         self.lib_name = lib_name
@@ -445,7 +459,7 @@ class AbstractConnection:
         if conn_sock is None:
             return
 
-        if os.getpid() == self.pid:
+        if getpid() == self.pid:
             try:
                 conn_sock.shutdown(socket.SHUT_RDWR)
             except (OSError, TypeError):
@@ -1011,20 +1025,6 @@ class ConnectionPool:
         self.connection_kwargs = connection_kwargs
         self.max_connections = max_connections
 
-        # We need to preserve the pointer to os.getpid because Valkey class
-        # contains a __del__ method that causes the call chain:
-        #   1. Valkey.close()
-        #   2. ConnectionPool.disconnect()
-        #   3. ConnectionPool._checkpid()
-        #   4. os.getpid()
-        #
-        # If os.getpid is garbage collected before Valkey, then the __del__
-        # method will raise an AttributeError when trying to call os.getpid.
-        # It wasn't an issue in practice until Python REPL was reworked in 3.13
-        # to collect all globals at the end of the session, which caused
-        # os.getpid to be garbage collected before Valkey.
-        self._getpid = os.getpid
-
         # a lock to protect the critical section in _checkpid().
         # this lock is acquired when the process id changes, such as
         # after a fork. during this time, multiple threads in the child
@@ -1057,7 +1057,7 @@ class ConnectionPool:
         # release _fork_lock. when each of these threads eventually acquire
         # _fork_lock, they will notice that another thread already called
         # reset() and they will immediately release _fork_lock and continue on.
-        self.pid = os.getpid()
+        self.pid = getpid()
 
     def _checkpid(self) -> None:
         # _checkpid() attempts to keep ConnectionPool fork-safe on modern
@@ -1094,14 +1094,14 @@ class ConnectionPool:
         # seconds to acquire _fork_lock. if _fork_lock cannot be acquired in
         # that time it is assumed that the child is deadlocked and a
         # valkey.ChildDeadlockedError error is raised.
-        if self.pid != self._getpid():
+        if self.pid != getpid():
             acquired = self._fork_lock.acquire(timeout=5)
             if not acquired:
                 raise ChildDeadlockedError
             # reset() the instance for the new process if another thread
             # hasn't already done so
             try:
-                if self.pid != self._getpid():
+                if self.pid != getpid():
                     self.reset()
             finally:
                 self._fork_lock.release()
@@ -1307,7 +1307,7 @@ class BlockingConnectionPool(ConnectionPool):
         # release _fork_lock. when each of these threads eventually acquire
         # _fork_lock, they will notice that another thread already called
         # reset() and they will immediately release _fork_lock and continue on.
-        self.pid = os.getpid()
+        self.pid = getpid()
 
     def make_connection(self):
         "Make a fresh connection."
