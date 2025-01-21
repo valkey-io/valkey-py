@@ -7,7 +7,7 @@ from valkey.exceptions import ConnectionError, TimeoutError
 T = TypeVar("T")
 
 if TYPE_CHECKING:
-    from redis.backoff import AbstractBackoff
+    from valkey.backoff import AbstractBackoff
 
 
 class Retry:
