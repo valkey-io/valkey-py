@@ -234,7 +234,7 @@ def skip_ifmodversion_lt(min_version: str, module_name: str):
         if module_name == j.get("name"):
             version = j.get("ver")
             mv = int(
-                "".join(["%02d" % int(segment) for segment in min_version.split(".")])
+                "".join([f"{int(segment):02}" for segment in min_version.split(".")])
             )
             check = version < mv
             return pytest.mark.skipif(check, reason="Valkey module version")
