@@ -3,7 +3,9 @@ from types import MappingProxyType
 from typing import Callable, Mapping, Optional
 from urllib.parse import ParseResult, parse_qs, unquote, urlparse
 
-from valkey.asyncio.connection import ConnectKwargs
+from valkey.asyncio.connection import (
+    ConnectKwargs,
+)
 from valkey.asyncio.connection import SSLConnection as SSLConnectionAsync
 from valkey.asyncio.connection import (
     UnixDomainSocketConnection as UnixDomainSocketConnectionAsync,
