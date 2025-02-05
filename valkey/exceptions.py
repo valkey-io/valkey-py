@@ -79,6 +79,7 @@ class ModuleError(ResponseError):
 
 class LockError(ValkeyError, ValueError):
     "Errors acquiring or releasing a lock"
+
     # NOTE: For backwards compatibility, this class derives from ValueError.
     # This was originally chosen to behave like threading.Lock.
 
@@ -89,11 +90,13 @@ class LockError(ValkeyError, ValueError):
 
 class LockNotOwnedError(LockError):
     "Error trying to extend or release a lock that is (no longer) owned"
+
     pass
 
 
 class ChildDeadlockedError(Exception):
     "Error indicating that a child process is deadlocked after a fork()"
+
     pass
 
 
