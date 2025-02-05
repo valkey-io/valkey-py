@@ -1,6 +1,7 @@
 import asyncio
 import binascii
 import datetime
+import math
 import ssl
 import warnings
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Type, Union
@@ -2158,7 +2159,9 @@ class TestClusterValkeyCommands:
             storedist=True,
         )
         # instead of save the geo score, the distance is saved.
-        assert await r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
+        E = 1e-9
+        res = await r.zscore("{foo}places_barcelona", "place1")
+        assert math.fabs(res - 88.05060698409301) < E
 
     @skip_if_server_version_lt("3.2.0")
     async def test_cluster_georadius_store(self, r: ValkeyCluster) -> None:
@@ -2188,7 +2191,9 @@ class TestClusterValkeyCommands:
             "{foo}barcelona", 2.191, 41.433, 1000, store_dist="{foo}places_barcelona"
         )
         # instead of save the geo score, the distance is saved.
-        assert await r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
+        E = 1e-9
+        res = await r.zscore("{foo}places_barcelona", "place1")
+        assert math.fabs(res - 88.05060698409301) < E
 
     async def test_cluster_dbsize(self, r: ValkeyCluster) -> None:
         d = {"a": b"1", "b": b"2", "c": b"3", "d": b"4"}

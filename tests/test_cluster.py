@@ -1,5 +1,6 @@
 import binascii
 import datetime
+import math
 import select
 import socket
 import socketserver
@@ -2247,7 +2248,11 @@ class TestClusterValkeyCommands:
             storedist=True,
         )
         # instead of save the geo score, the distance is saved.
-        assert r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
+        E = 1e-9
+        assert (
+            math.fabs(r.zscore("{foo}places_barcelona", "place1") - 88.05060698409301)
+            < E
+        )
 
     @skip_if_server_version_lt("3.2.0")
     def test_cluster_georadius_store(self, r):
@@ -2277,7 +2282,11 @@ class TestClusterValkeyCommands:
             "{foo}barcelona", 2.191, 41.433, 1000, store_dist="{foo}places_barcelona"
         )
         # instead of save the geo score, the distance is saved.
-        assert r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
+        E = 1e-9
+        assert (
+            math.fabs(r.zscore("{foo}places_barcelona", "place1") - 88.05060698409301)
+            < E
+        )
 
     def test_cluster_dbsize(self, r):
         d = {"a": b"1", "b": b"2", "c": b"3", "d": b"4"}
