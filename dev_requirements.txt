@@ -4,7 +4,6 @@ click
 flake8-isort
 flake8
 flynt
-invoke
 mock
 packaging>=20.4
 pytest
