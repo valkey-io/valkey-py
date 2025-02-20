@@ -36,8 +36,8 @@ jobs:
            sudo apt-get install -yqq pandoc make
        - name: run code linters
          run: |
-           pip install -r requirements.txt -r dev_requirements.txt -r docs/requirements.txt
-           invoke build-docs
+           pip install tox
+           tox -e doc
 
        - name: upload docs
          uses: actions/upload-artifact@v4
