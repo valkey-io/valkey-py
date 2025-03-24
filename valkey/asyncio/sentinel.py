@@ -1,7 +1,9 @@
-import asyncio
 import random
 import weakref
 from typing import AsyncIterator, Iterable, Mapping, Optional, Sequence, Tuple, Type
+
+import anyio
+import anyio.lowlevel
 
 from valkey.asyncio.client import Valkey
 from valkey.asyncio.connection import (
@@ -10,6 +12,7 @@ from valkey.asyncio.connection import (
     EncodableT,
     SSLConnection,
 )
+from valkey.asyncio.utils import anyio_gather
 from valkey.commands import AsyncSentinelCommands
 from valkey.exceptions import (
     ConnectionError,
@@ -67,8 +70,7 @@ class SentinelManagedConnection(Connection):
 
     async def connect(self):
         return await self.retry.call_with_retry(
-            self._connect_retry,
-            lambda error: asyncio.sleep(0),
+            self._connect_retry, lambda error: anyio.lowlevel.checkpoint()
         )
 
     async def read_response(
@@ -239,10 +241,9 @@ class Sentinel(AsyncSentinelCommands):
             await random.choice(self.sentinels).execute_command(*args, **kwargs)
         else:
             tasks = [
-                asyncio.Task(sentinel.execute_command(*args, **kwargs))
-                for sentinel in self.sentinels
+                sentinel.execute_command(*args, **kwargs) for sentinel in self.sentinels
             ]
-            await asyncio.gather(*tasks)
+            await anyio_gather(*tasks)
         return True
 
     def __repr__(self):

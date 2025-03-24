@@ -3,6 +3,7 @@ import binascii
 import datetime
 import math
 import ssl
+import sys
 import warnings
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Type, Union
 from urllib.parse import urlparse
@@ -10,6 +11,7 @@ from urllib.parse import urlparse
 import pytest
 import pytest_asyncio
 from _pytest.fixtures import FixtureRequest
+
 from tests.conftest import (
     assert_resp_response,
     is_resp2_connection,
@@ -19,7 +21,7 @@ from tests.conftest import (
 )
 from valkey._parsers import AsyncCommandsParser
 from valkey.asyncio.cluster import ClusterNode, NodesManager, ValkeyCluster
-from valkey.asyncio.connection import Connection, SSLConnection, async_timeout
+from valkey.asyncio.connection import Connection, SSLConnection
 from valkey.asyncio.retry import Retry
 from valkey.backoff import ExponentialBackoff, NoBackoff, default_backoff
 from valkey.cluster import PIPELINE_BLOCKED_COMMANDS, PRIMARY, REPLICA, get_node_name
@@ -40,6 +42,14 @@ from valkey.utils import str_if_bytes
 
 from ..ssl_utils import get_ssl_filename
 from .compat import aclosing, mock
+
+# the functionality is available in 3.11.x but has a major issue before
+# 3.11.3. See https://github.com/redis/redis-py/issues/2633
+if sys.version_info >= (3, 11, 3):
+    from asyncio import timeout as async_timeout
+else:
+    from async_timeout import timeout as async_timeout
+
 
 pytestmark = pytest.mark.onlycluster
 
@@ -149,7 +159,6 @@ async def get_mocked_valkey_client(
     with mock.patch.object(ClusterNode, "execute_command") as execute_command_mock:
 
         async def execute_command(*_args, **_kwargs):
-
             if _args[0] == "CLUSTER SLOTS":
                 if cluster_slots_raise_error:
                     raise ResponseError()

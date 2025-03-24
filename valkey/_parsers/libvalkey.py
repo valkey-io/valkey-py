@@ -1,12 +1,7 @@
-import asyncio
 import socket
-import sys
 from typing import Callable, List, Optional, TypedDict, Union
 
-if sys.version_info >= (3, 11, 3):
-    from asyncio import timeout as async_timeout
-else:
-    from async_timeout import timeout as async_timeout
+import anyio
 
 from ..exceptions import ConnectionError, InvalidResponse, ValkeyError
 from ..typing import EncodableT
@@ -182,9 +177,9 @@ class _AsyncLibvalkeyParser(AsyncBaseParser):
         if self._reader.gets() is not NOT_ENOUGH_DATA:
             return True
         try:
-            async with async_timeout(0):
+            with anyio.fail_after(0):
                 return await self.read_from_socket()
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return False
 
     async def read_from_socket(self):

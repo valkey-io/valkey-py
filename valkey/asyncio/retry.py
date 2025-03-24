@@ -1,5 +1,6 @@
-from asyncio import sleep
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Tuple, Type, TypeVar
+
+from anyio import sleep
 
 from valkey.exceptions import ConnectionError, TimeoutError, ValkeyError
 

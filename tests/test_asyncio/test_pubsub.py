@@ -12,8 +12,10 @@ if sys.version_info >= (3, 11, 3):
 else:
     from async_timeout import timeout as async_timeout
 
+import anyio
 import pytest
 import pytest_asyncio
+
 import valkey.asyncio as valkey
 from tests.conftest import get_protocol_version, skip_if_server_version_lt
 from valkey.exceptions import ConnectionError
@@ -36,16 +38,13 @@ def with_timeout(t):
 
 
 async def wait_for_message(pubsub, timeout=0.2, ignore_subscribe_messages=False):
-    now = asyncio.get_running_loop().time()
-    timeout = now + timeout
-    while now < timeout:
-        message = await pubsub.get_message(
-            ignore_subscribe_messages=ignore_subscribe_messages
-        )
-        if message is not None:
-            return message
-        await asyncio.sleep(0.01)
-        now = asyncio.get_running_loop().time()
+    with anyio.move_on_after(timeout):
+        while True:
+            message = await pubsub.get_message(
+                ignore_subscribe_messages=ignore_subscribe_messages, timeout=None
+            )
+            if message is not None:
+                return message
     return None
 
 
@@ -1050,9 +1049,11 @@ class TestBaseException:
         assert msg is not None
         # timeout waiting for another message which never arrives
         assert pubsub.connection.is_connected
-        with patch("valkey._parsers._AsyncRESP2Parser.read_response") as mock1, patch(
-            "valkey._parsers._AsyncLibvalkeyParser.read_response"
-        ) as mock2, patch("valkey._parsers._AsyncRESP3Parser.read_response") as mock3:
+        with (
+            patch("valkey._parsers._AsyncRESP2Parser.read_response") as mock1,
+            patch("valkey._parsers._AsyncLibvalkeyParser.read_response") as mock2,
+            patch("valkey._parsers._AsyncRESP3Parser.read_response") as mock3,
+        ):
             mock1.side_effect = BaseException("boom")
             mock2.side_effect = BaseException("boom")
             mock3.side_effect = BaseException("boom")

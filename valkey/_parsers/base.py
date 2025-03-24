@@ -1,12 +1,9 @@
-import sys
 from abc import ABC
-from asyncio import IncompleteReadError, StreamReader, TimeoutError
 from typing import List, Optional, Union
 
-if sys.version_info >= (3, 11, 3):
-    from asyncio import timeout as async_timeout
-else:
-    from async_timeout import timeout as async_timeout
+import anyio
+from anyio import DelimiterNotFound, EndOfStream, IncompleteRead
+from anyio.streams.buffered import BufferedByteReceiveStream
 
 from ..exceptions import (
     AuthenticationError,
@@ -26,9 +23,9 @@ from ..typing import EncodableT
 from .encoders import Encoder
 from .socket import SERVER_CLOSED_CONNECTION_ERROR, SocketBuffer
 
-MODULE_LOAD_ERROR = "Error loading the extension. " "Please check the server logs."
+MODULE_LOAD_ERROR = "Error loading the extension. Please check the server logs."
 NO_SUCH_MODULE_ERROR = "Error unloading module: no such module with that name"
-MODULE_UNLOAD_NOT_POSSIBLE_ERROR = "Error unloading module: operation not " "possible."
+MODULE_UNLOAD_NOT_POSSIBLE_ERROR = "Error unloading module: operation not possible."
 MODULE_EXPORTS_DATA_TYPES_ERROR = (
     "Error unloading module: the module "
     "exports one or more module-side data "
@@ -134,7 +131,7 @@ class AsyncBaseParser(BaseParser):
     __slots__ = "_stream", "_read_size"
 
     def __init__(self, socket_read_size: int):
-        self._stream: Optional[StreamReader] = None
+        self._stream: Optional[BufferedByteReceiveStream] = None
         self._read_size = socket_read_size
 
     async def can_read_destructive(self) -> bool:
@@ -181,9 +178,10 @@ class _AsyncRESPBase(AsyncBaseParser):
         if self._buffer:
             return True
         try:
-            async with async_timeout(0):
-                return self._stream.at_eof()
-        except TimeoutError:
+            with anyio.fail_after(0):
+                self._buffer += await self._stream.receive(1)
+            return True
+        except (EndOfStream, TimeoutError):
             return False
 
     async def _read(self, length: int) -> bytes:
@@ -198,8 +196,8 @@ class _AsyncRESPBase(AsyncBaseParser):
         else:
             tail = self._buffer[self._pos :]
             try:
-                data = await self._stream.readexactly(want - len(tail))
-            except IncompleteReadError as error:
+                data = await self._stream.receive_exactly(want - len(tail))
+            except IncompleteRead as error:
                 raise ConnectionError(SERVER_CLOSED_CONNECTION_ERROR) from error
             result = (tail + data)[:-2]
             self._chunks.append(data)
@@ -216,10 +214,11 @@ class _AsyncRESPBase(AsyncBaseParser):
             result = self._buffer[self._pos : found]
         else:
             tail = self._buffer[self._pos :]
-            data = await self._stream.readline()
-            if not data.endswith(b"\r\n"):
-                raise ConnectionError(SERVER_CLOSED_CONNECTION_ERROR)
-            result = (tail + data)[:-2]
-            self._chunks.append(data)
+            try:
+                data = await self._stream.receive_until(b"\r\n", 2**16)
+            except (DelimiterNotFound, IncompleteRead) as error:
+                raise ConnectionError(SERVER_CLOSED_CONNECTION_ERROR) from error
+            result = tail + data
+            self._chunks.append(data + b"\r\n")
         self._pos += len(result) + 2
         return result

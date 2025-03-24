@@ -1,11 +1,11 @@
-import asyncio
+import anyio
 
 # Helper Mocking classes for the tests.
 
 
 class MockStream:
     """
-    A class simulating an asyncio input buffer, optionally raising a
+    A class simulating an anyio input buffer, optionally raising a
     special exception every other read.
     """
 
@@ -25,27 +25,45 @@ class MockStream:
         if (self.counter % self.interrupt_every) == 0:
             raise self.TestError()
 
-    async def read(self, want):
+    async def receive(self, want):
         self.tick()
         want = 5
         result = self.data[self.pos : self.pos + want]
+        if not result:
+            raise anyio.EndOfStream()
         self.pos += len(result)
         return result
 
-    async def readline(self):
+    async def receive_until(self, delimiter, maxsize):
         self.tick()
-        find = self.data.find(b"\n", self.pos)
-        if find >= 0:
-            result = self.data[self.pos : find + 1]
-        else:
+        find = self.data.find(delimiter, self.pos)
+        if find < 0:
+            # If we can't find delimiter, check if we have enough data to return
+            available = len(self.data) - self.pos
+            if available == 0:
+                raise anyio.IncompleteRead()
+            if available > maxsize:
+                raise anyio.DelimiterNotFound()
+            # Return all available data if we can't find delimiter
             result = self.data[self.pos :]
-        self.pos += len(result)
+            self.pos = len(self.data)
+            return result
+
+        chunk_size = find - self.pos
+        if chunk_size > maxsize:
+            raise anyio.DelimiterNotFound()
+
+        # Found delimiter within maxsize, return up to delimiter
+        result = self.data[self.pos : find]
+        self.pos = find + len(delimiter)
         return result
 
-    async def readexactly(self, length):
+    async def receive_exactly(self, length):
         self.tick()
         result = self.data[self.pos : self.pos + length]
         if len(result) < length:
-            raise asyncio.IncompleteReadError(result, None)
+            raise anyio.IncompleteRead()
+        elif not result:
+            raise anyio.EndOfStream()
         self.pos += len(result)
         return result

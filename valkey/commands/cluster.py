@@ -1,4 +1,3 @@
-import asyncio
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -14,6 +13,7 @@ from typing import (
     Union,
 )
 
+from valkey.asyncio.utils import anyio_gather
 from valkey.crc import key_slot
 from valkey.exceptions import ValkeyClusterException, ValkeyError
 from valkey.typing import (
@@ -596,7 +596,7 @@ class ClusterManagementCommands(ManagementCommands):
                 "CLUSTER SETSLOT", slot_id, state, node_id, target_nodes=target_node
             )
         elif state.upper() == "STABLE":
-            raise ValkeyError('For "stable" state please use ' "cluster_setslot_stable")
+            raise ValkeyError('For "stable" state please use cluster_setslot_stable')
         else:
             raise ValkeyError(f"Invalid slot state: {state}")
 
@@ -720,11 +720,8 @@ class AsyncClusterManagementCommands(
 
         For more information see https://valkey.io/commands/cluster-delslots
         """
-        return await asyncio.gather(
-            *(
-                asyncio.create_task(self.execute_command("CLUSTER DELSLOTS", slot))
-                for slot in slots
-            )
+        return await anyio_gather(
+            *(self.execute_command("CLUSTER DELSLOTS", slot) for slot in slots)
         )
 
 

@@ -19,6 +19,9 @@ from typing import (
     Union,
 )
 
+import anyio
+import sniffio
+
 from valkey._cache import (
     DEFAULT_ALLOW_LIST,
     DEFAULT_DENY_LIST,
@@ -35,6 +38,7 @@ from valkey.asyncio.client import ResponseCallbackT
 from valkey.asyncio.connection import Connection, DefaultParser, SSLConnection
 from valkey.asyncio.lock import Lock
 from valkey.asyncio.retry import Retry
+from valkey.asyncio.utils import anyio_gather
 from valkey.backoff import default_backoff
 from valkey.client import EMPTY_RESPONSE, NEVER_DECODE, AbstractValkey
 from valkey.cluster import (
@@ -419,13 +423,13 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
         )
 
         self._initialize = True
-        self._lock: Optional[asyncio.Lock] = None
+        self._lock: Optional[anyio.Lock] = None
 
     async def initialize(self) -> "ValkeyCluster":
         """Get all nodes from startup nodes & creates connections if not initialized."""
         if self._initialize:
             if not self._lock:
-                self._lock = asyncio.Lock()
+                self._lock = anyio.Lock()
             async with self._lock:
                 if self._initialize:
                     try:
@@ -444,7 +448,7 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
         """Close all connections & client if initialized."""
         if not self._initialize:
             if not self._lock:
-                self._lock = asyncio.Lock()
+                self._lock = anyio.Lock()
             async with self._lock:
                 if not self._initialize:
                     self._initialize = True
@@ -471,12 +475,14 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
         self,
         _warn: Any = warnings.warn,
         _grl: Any = asyncio.get_running_loop,
+        _sniff: Any = sniffio.current_async_library,
     ) -> None:
         if hasattr(self, "_initialize") and not self._initialize:
             _warn(f"{self._DEL_MESSAGE} {self!r}", ResourceWarning, source=self)
             try:
-                context = {"client": self, "message": self._DEL_MESSAGE}
-                _grl().call_exception_handler(context)
+                if _sniff() == "asyncio":
+                    context = {"client": self, "message": self._DEL_MESSAGE}
+                    _grl().call_exception_handler(context)
             except RuntimeError:
                 pass
 
@@ -759,11 +765,9 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
                     return ret
                 else:
                     keys = [node.name for node in target_nodes]
-                    values = await asyncio.gather(
+                    values = await anyio_gather(
                         *(
-                            asyncio.create_task(
-                                self._execute_command(node, *args, **kwargs)
-                            )
+                            self._execute_command(node, *args, **kwargs)
                             for node in target_nodes
                         )
                     )
@@ -823,7 +827,7 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
                 # self-healed, we will try to reinitialize the cluster layout
                 # and retry executing the command
                 await self.aclose()
-                await asyncio.sleep(0.25)
+                await anyio.sleep(0.25)
                 raise
             except MovedError as e:
                 # First, we will try to patch the slots/nodes cache with the
@@ -850,7 +854,7 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
                 asking = True
             except TryAgainError:
                 if ttl < self.ValkeyClusterRequestTTL / 2:
-                    await asyncio.sleep(0.05)
+                    await anyio.sleep(0.05)
 
         raise ClusterError("TTL exhausted.")
 
@@ -1023,24 +1027,22 @@ class ClusterNode:
         self,
         _warn: Any = warnings.warn,
         _grl: Any = asyncio.get_running_loop,
+        _sniff: Any = sniffio.current_async_library,
     ) -> None:
         for connection in self._connections:
             if connection.is_connected:
                 _warn(f"{self._DEL_MESSAGE} {self!r}", ResourceWarning, source=self)
-
                 try:
-                    context = {"client": self, "message": self._DEL_MESSAGE}
-                    _grl().call_exception_handler(context)
+                    if _sniff() == "asyncio":
+                        context = {"client": self, "message": self._DEL_MESSAGE}
+                        _grl().call_exception_handler(context)
                 except RuntimeError:
                     pass
                 break
 
     async def disconnect(self) -> None:
-        ret = await asyncio.gather(
-            *(
-                asyncio.create_task(connection.disconnect())
-                for connection in self._connections
-            ),
+        ret = await anyio_gather(
+            *(connection.disconnect() for connection in self._connections),
             return_exceptions=True,
         )
         exc = next((res for res in ret if isinstance(res, Exception)), None)
@@ -1191,9 +1193,7 @@ class NodesManager:
             return self.nodes_cache.get(node_name)
         else:
             raise DataError(
-                "get_node requires one of the following: "
-                "1. node name "
-                "2. host and port"
+                "get_node requires one of the following: 1. node name 2. host and port"
             )
 
     def set_nodes(
@@ -1369,7 +1369,7 @@ class NodesManager:
                             if len(disagreements) > 5:
                                 raise ValkeyClusterException(
                                     f"startup_nodes could not agree on a valid "
-                                    f'slots cache: {", ".join(disagreements)}'
+                                    f"slots cache: {', '.join(disagreements)}"
                                 )
 
             # Validate if all slots are covered or if we should try next startup node
@@ -1412,11 +1412,8 @@ class NodesManager:
 
     async def aclose(self, attr: str = "nodes_cache") -> None:
         self.default_node = None
-        await asyncio.gather(
-            *(
-                asyncio.create_task(node.disconnect())
-                for node in getattr(self, attr).values()
-            )
+        await anyio_gather(
+            *(node.disconnect() for node in getattr(self, attr).values())
         )
 
     def remap_host_port(self, host: str, port: int) -> Tuple[str, int]:
@@ -1575,7 +1572,7 @@ class ClusterPipeline(
                         # Try again with the new cluster setup.
                         exception = e
                         await self._client.aclose()
-                        await asyncio.sleep(0.25)
+                        await anyio.sleep(0.25)
                     else:
                         # All other errors should be raised.
                         raise
@@ -1616,11 +1613,8 @@ class ClusterPipeline(
                 nodes[node.name] = (node, [])
             nodes[node.name][1].append(cmd)
 
-        errors = await asyncio.gather(
-            *(
-                asyncio.create_task(node[0].execute_pipeline(node[1]))
-                for node in nodes.values()
-            )
+        errors = await anyio_gather(
+            *(node[0].execute_pipeline(node[1]) for node in nodes.values())
         )
 
         if any(errors):

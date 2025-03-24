@@ -1,4 +1,3 @@
-import asyncio
 import copy
 import inspect
 import re
@@ -25,6 +24,9 @@ from typing import (
     Union,
     cast,
 )
+
+import anyio
+import anyio.lowlevel
 
 from valkey._cache import (
     DEFAULT_ALLOW_LIST,
@@ -356,7 +358,7 @@ class Valkey(
         # If using a single connection client, we need to lock creation-of and use-of
         # the client in order to avoid race conditions such as using asyncio.gather
         # on a set of valkey commands
-        self._single_conn_lock = asyncio.Lock()
+        self._single_conn_lock = anyio.Lock()
 
     def __repr__(self):
         return (
@@ -456,7 +458,7 @@ class Valkey(
                     return func_value if value_from_callable else exec_value
                 except WatchError:
                     if watch_delay is not None and watch_delay > 0:
-                        await asyncio.sleep(watch_delay)
+                        await anyio.sleep(watch_delay)
                     continue
 
     def lock(
@@ -562,16 +564,20 @@ class Valkey(
     def __del__(
         self,
         _warn: Any = warnings.warn,
-        _grl: Any = asyncio.get_running_loop,
+        # _grl: Any = asyncio.get_running_loop,
+        # _sniff: Any = sniffio.current_async_library,
     ) -> None:
         if hasattr(self, "connection") and (self.connection is not None):
             _warn(f"Unclosed client session {self!r}", ResourceWarning, source=self)
-            try:
-                context = {"client": self, "message": self._DEL_MESSAGE}
-                _grl().call_exception_handler(context)
-            except RuntimeError:
-                pass
-            self.connection._close()
+            # try:
+            #     if _sniff() == "asyncio":
+            #         # trio trades global exception handling for local task groups
+            #         context = {"client": self, "message": self._DEL_MESSAGE}
+            #         _grl().call_exception_handler(context)
+            # except RuntimeError:
+            #     pass
+
+            # self.connection._close()
 
     async def aclose(self, close_connection_pool: Optional[bool] = None) -> None:
         """
@@ -826,7 +832,7 @@ class PubSub:
         self.pending_unsubscribe_channels = set()
         self.patterns = {}
         self.pending_unsubscribe_patterns = set()
-        self._lock = asyncio.Lock()
+        self._lock = anyio.Lock()
 
     async def __aenter__(self):
         return self
@@ -980,10 +986,7 @@ class PubSub:
                 "did you forget to call subscribe() or psubscribe()?"
             )
 
-        if (
-            conn.health_check_interval
-            and asyncio.get_running_loop().time() > conn.next_health_check
-        ):
+        if conn.health_check_interval and anyio.current_time() > conn.next_health_check:
             await conn.send_command(
                 "PING", self.HEALTH_CHECK_MESSAGE, check_health=False
             )
@@ -1196,7 +1199,7 @@ class PubSub:
                 await self.get_message(
                     ignore_subscribe_messages=True, timeout=poll_timeout
                 )
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 raise
             except BaseException as e:
                 if exception_handler is None:
@@ -1206,7 +1209,7 @@ class PubSub:
                     await res
             # Ensure that other tasks on the event loop get a chance to run
             # if we didn't have to block for I/O anywhere.
-            await asyncio.sleep(0)
+            await anyio.lowlevel.checkpoint()
 
 
 class PubsubWorkerExceptionHandler(Protocol):
