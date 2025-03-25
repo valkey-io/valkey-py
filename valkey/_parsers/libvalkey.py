@@ -183,9 +183,10 @@ class _AsyncLibvalkeyParser(AsyncBaseParser):
             return False
 
     async def read_from_socket(self):
-        buffer = await self._stream.read(self._read_size)
-        if not buffer or not isinstance(buffer, bytes):
-            raise ConnectionError(SERVER_CLOSED_CONNECTION_ERROR) from None
+        try:
+            buffer = await self._stream.receive(self._read_size)
+        except anyio.EndOfStream as e:
+            raise ConnectionError(SERVER_CLOSED_CONNECTION_ERROR) from e
         self._reader.feed(buffer)
         # data was read from the socket and added to the buffer.
         # return True to indicate that data was read.
