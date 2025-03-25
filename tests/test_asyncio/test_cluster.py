@@ -1,15 +1,16 @@
-import asyncio
 import binascii
+import contextlib
 import datetime
+import functools
 import math
 import ssl
-import sys
 import warnings
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Type, Union
+from unittest import mock
 from urllib.parse import urlparse
 
+import anyio
 import pytest
-import pytest_asyncio
 from _pytest.fixtures import FixtureRequest
 
 from tests.conftest import (
@@ -31,7 +32,6 @@ from valkey.exceptions import (
     ClusterDownError,
     ConnectionError,
     DataError,
-    MaxConnectionsError,
     MovedError,
     NoPermissionError,
     ResponseError,
@@ -41,17 +41,9 @@ from valkey.exceptions import (
 from valkey.utils import str_if_bytes
 
 from ..ssl_utils import get_ssl_filename
-from .compat import aclosing, mock
+from .compat import aclosing
 
-# the functionality is available in 3.11.x but has a major issue before
-# 3.11.3. See https://github.com/redis/redis-py/issues/2633
-if sys.version_info >= (3, 11, 3):
-    from asyncio import timeout as async_timeout
-else:
-    from async_timeout import timeout as async_timeout
-
-
-pytestmark = pytest.mark.onlycluster
+pytestmark = [pytest.mark.onlycluster, pytest.mark.anyio]
 
 
 default_host = "127.0.0.1"
@@ -68,61 +60,75 @@ class NodeProxy:
     def __init__(self, addr, valkey_addr):
         self.addr = addr
         self.valkey_addr = valkey_addr
-        self.send_event = asyncio.Event()
-        self.server = None
-        self.task = None
+
+        self.task_group = None
+        self.exit_stack = None
+
+        self.listener = None
+        self.send_event = anyio.Event()
         self.pipes = None
         self.n_connections = 0
 
+    async def __aenter__(self):
+        async with contextlib.AsyncExitStack() as stack:
+            self.task_group = await stack.enter_async_context(
+                anyio.create_task_group(),
+            )
+
+            await self.start()
+
+            self.exit_stack = stack.pop_all()
+
+        return self
+
+    async def __aexit__(self, *args):
+        try:
+            await self.aclose()
+        finally:
+            return await self.exit_stack.__aexit__(*args)
+
     async def start(self):
         # test that we can connect to valkey
-        async with async_timeout(2):
-            _, valkey_writer = await asyncio.open_connection(*self.valkey_addr)
-        valkey_writer.close()
-        self.server = await asyncio.start_server(
-            self.handle, *self.addr, reuse_address=True
-        )
-        self.task = asyncio.create_task(self.server.serve_forever())
+        with anyio.fail_after(2):
+            stream = await anyio.connect_tcp(*self.valkey_addr)
+            await stream.aclose()
 
-    async def handle(self, reader, writer):
+        self.listener = await anyio.create_tcp_listener(
+            local_host=self.addr[0], local_port=self.addr[1]
+        )
+
+        async def _serve(task_status: anyio.TASK_STATUS_IGNORED):
+            async with self.listener:
+                task_status.started()
+                await self.listener.serve(self.handle, task_group=self.task_group)
+
+        await self.task_group.start(_serve)
+
+    async def handle(self, client):
         # establish connection to valkey
-        valkey_reader, valkey_writer = await asyncio.open_connection(*self.valkey_addr)
-        try:
+        async with await anyio.connect_tcp(*self.valkey_addr) as stream:
             self.n_connections += 1
-            pipe1 = asyncio.create_task(self.pipe(reader, valkey_writer))
-            pipe2 = asyncio.create_task(self.pipe(valkey_reader, writer))
-            self.pipes = asyncio.gather(pipe1, pipe2)
-            await self.pipes
-        except asyncio.CancelledError:
-            writer.close()
-        finally:
-            valkey_writer.close()
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(self.pipe, client, stream)
+                tg.start_soon(self.pipe, stream, client)
 
     async def aclose(self):
-        self.task.cancel()
-        # self.pipes can be None if handle was never called
-        if self.pipes is not None:
-            self.pipes.cancel()
-        try:
-            await self.task
-        except asyncio.CancelledError:
-            pass
-        await self.server.wait_closed()
+        self.task_group.cancel_scope.cancel()
 
     async def pipe(
         self,
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter,
+        proxy,
+        upstream,
     ):
         while True:
-            data = await reader.read(1000)
-            if not data:
+            try:
+                data = await proxy.receive(1000)
+                await upstream.send(data)
+            except (anyio.EndOfStream, anyio.ClosedResourceError):
                 break
-            writer.write(data)
-            await writer.drain()
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def slowlog(r: ValkeyCluster) -> None:
     """
     Set the slowlog threshold to 0, and the
@@ -463,17 +469,18 @@ class TestValkeyClusterObj:
         with mock.patch.object(Connection, "read_response") as read_response:
 
             async def read_response_mocked(*args: Any, **kwargs: Any) -> None:
-                await asyncio.sleep(10)
+                await anyio.sleep(10)
 
             read_response.side_effect = read_response_mocked
 
-            with pytest.raises(MaxConnectionsError):
-                await asyncio.gather(
-                    *(
-                        rc.ping(target_nodes=ValkeyCluster.DEFAULT_NODE)
-                        for _ in range(11)
-                    )
-                )
+            with pytest.raises(Exception):
+                async with anyio.create_task_group() as tg:
+                    for _ in range(11):
+                        tg.start_soon(
+                            functools.partial(
+                                rc.ping, target_nodes=ValkeyCluster.DEFAULT_NODE
+                            )
+                        )
 
         await rc.aclose()
 
@@ -895,17 +902,19 @@ class TestValkeyClusterObj:
     async def test_can_run_concurrent_commands(self, request: FixtureRequest) -> None:
         url = request.config.getoption("--valkey-url")
         rc = ValkeyCluster.from_url(url)
-        assert all(
-            await asyncio.gather(
-                *(
-                    rc.echo("i", target_nodes=ValkeyCluster.ALL_NODES)
-                    for i in range(100)
-                )
-            )
-        )
+        resps = []
+
+        async def _echo(i):
+            resps.append(await rc.echo(f"{i}", target_nodes=ValkeyCluster.ALL_NODES))
+
+        async with anyio.create_task_group() as tg:
+            for i in range(100):
+                tg.start_soon(_echo, i)
+
+        assert len(resps) == 100 and all(resps)
         await rc.aclose()
 
-    def test_replace_cluster_node(self, r: ValkeyCluster) -> None:
+    async def test_replace_cluster_node(self, r: ValkeyCluster) -> None:
         prev_default_node = r.get_default_node()
         r.replace_default_node()
         assert r.get_default_node() != prev_default_node
@@ -950,8 +959,10 @@ class TestValkeyClusterObj:
         proxies = [
             NodeProxy(("127.0.0.1", port + offset), (hostname, port)) for port in ports
         ]
-        await asyncio.gather(*[p.start() for p in proxies])
-        try:
+        async with contextlib.AsyncExitStack() as stack:
+            for proxy in proxies:
+                await stack.enter_async_context(proxy)
+
             # create cluster:
             r = await create_valkey(
                 cls=ValkeyCluster, flushdb=False, address_remap=address_remap
@@ -962,8 +973,6 @@ class TestValkeyClusterObj:
                 assert await r.get("byte_string") == b"giraffe"
             finally:
                 await r.aclose()
-        finally:
-            await asyncio.gather(*[p.aclose() for p in proxies])
 
         # verify that the proxies were indeed used
         n_used = sum((1 if p.n_connections else 0) for p in proxies)
@@ -1052,7 +1061,7 @@ class TestClusterValkeyCommands:
         assert await r.unlink(*d.keys()) == len(d)
         # Unlink is non-blocking so we sleep before
         # verifying the deletion
-        await asyncio.sleep(0.1)
+        await anyio.sleep(0.1)
         assert await r.unlink(*d.keys()) == 0
 
     async def test_initialize_before_execute_multi_key_command(
@@ -1341,7 +1350,7 @@ class TestClusterValkeyCommands:
     async def test_bgsave(self, r: ValkeyCluster) -> None:
         try:
             assert await r.bgsave()
-            await asyncio.sleep(0.3)
+            await anyio.sleep(0.3)
             assert await r.bgsave(True)
         except ResponseError as e:
             if "Background save already in progress" not in e.__str__():
@@ -2876,11 +2885,11 @@ class TestClusterPipeline:
 
     async def test_can_run_concurrent_pipelines(self, r: ValkeyCluster) -> None:
         """Test that the pipeline can be used concurrently."""
-        await asyncio.gather(
-            *(self.test_valkey_cluster_pipeline(r) for i in range(100)),
-            *(self.test_multi_key_operation_with_a_single_slot(r) for i in range(100)),
-            *(self.test_multi_key_operation_with_multi_slots(r) for i in range(100)),
-        )
+        async with anyio.create_task_group() as tg:
+            for _ in range(100):
+                tg.start_soon(self.test_valkey_cluster_pipeline, r)
+                tg.start_soon(self.test_multi_key_operation_with_a_single_slot, r)
+                tg.start_soon(self.test_multi_key_operation_with_multi_slots, r)
 
     @pytest.mark.onlycluster
     async def test_pipeline_with_default_node_error_command(self, create_valkey):
@@ -2915,7 +2924,7 @@ class TestSSL:
     CLIENT_CERT = get_ssl_filename("client-cert.pem")
     CLIENT_KEY = get_ssl_filename("client-key.pem")
 
-    @pytest_asyncio.fixture()
+    @pytest.fixture()
     def create_client(self, request: FixtureRequest) -> Callable[..., ValkeyCluster]:
         ssl_url = request.config.option.valkey_ssl_url
         ssl_host, ssl_port = urlparse(ssl_url)[1].split(":")

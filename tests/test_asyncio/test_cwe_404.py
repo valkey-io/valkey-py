@@ -20,6 +20,7 @@ class DelayProxy:
         self.task_group = None
         self.exit_stack = None
 
+        self.listener = None
         self.send_event = anyio.Event()
         self.cond = anyio.Condition()
         self.running = 0
