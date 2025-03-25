@@ -1,47 +1,63 @@
-import asyncio
 import contextlib
-import sys
 
+import anyio
 import pytest
 
 from valkey.asyncio import Valkey
 from valkey.asyncio.cluster import ValkeyCluster
+from valkey.asyncio.utils import anyio_condition_wait_for
 
-# the functionality is available in 3.11.x but has a major issue before
-# 3.11.3. See https://github.com/redis/redis-py/issues/2633
-if sys.version_info >= (3, 11, 3):
-    from asyncio import timeout as async_timeout
-else:
-    from async_timeout import timeout as async_timeout
+pytestmark = pytest.mark.anyio
 
 
 class DelayProxy:
     def __init__(self, addr, valkey_addr, delay: float = 0.0):
         self.addr = addr
         self.valkey_addr = valkey_addr
+
         self.delay = delay
-        self.send_event = asyncio.Event()
-        self.server = None
-        self.task = None
-        self.cond = asyncio.Condition()
+
+        self.task_group = None
+        self.exit_stack = None
+
+        self.send_event = anyio.Event()
+        self.cond = anyio.Condition()
         self.running = 0
 
     async def __aenter__(self):
-        await self.start()
+        async with contextlib.AsyncExitStack() as stack:
+            self.task_group = await stack.enter_async_context(
+                anyio.create_task_group(),
+            )
+
+            await self.start()
+
+            self.exit_stack = stack.pop_all()
+
         return self
 
     async def __aexit__(self, *args):
-        await self.stop()
+        try:
+            await self.stop()
+        finally:
+            return await self.exit_stack.__aexit__(*args)
 
     async def start(self):
         # test that we can connect to valkey
-        async with async_timeout(2):
-            _, valkey_writer = await asyncio.open_connection(*self.valkey_addr)
-        valkey_writer.close()
-        self.server = await asyncio.start_server(
-            self.handle, *self.addr, reuse_address=True
+        with anyio.fail_after(2):
+            stream = await anyio.connect_tcp(*self.valkey_addr)
+            await stream.aclose()
+
+        self.listener = await anyio.create_tcp_listener(
+            local_host=self.addr[0], local_port=self.addr[1]
         )
-        self.task = asyncio.create_task(self.server.serve_forever())
+
+        async def _serve(task_status: anyio.TASK_STATUS_IGNORED):
+            async with self.listener:
+                task_status.started()
+                await self.listener.serve(self.handle, task_group=self.task_group)
+
+        await self.task_group.start(_serve)
 
     @contextlib.contextmanager
     def set_delay(self, delay: float = 0.0):
@@ -56,51 +72,43 @@ class DelayProxy:
         finally:
             self.delay = old_delay
 
-    async def handle(self, reader, writer):
+    async def handle(self, client):
         # establish connection to valkey
-        valkey_reader, valkey_writer = await asyncio.open_connection(*self.valkey_addr)
-        pipe1 = asyncio.create_task(
-            self.pipe(reader, valkey_writer, "to valkey:", self.send_event)
-        )
-        pipe2 = asyncio.create_task(self.pipe(valkey_reader, writer, "from valkey:"))
-        await asyncio.gather(pipe1, pipe2)
+        async with await anyio.connect_tcp(*self.valkey_addr) as stream:
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(self.pipe, client, stream, "to valkey:", True)
+                tg.start_soon(self.pipe, stream, client, "from valkey:")
 
     async def stop(self):
-        # shutdown the server
-        self.task.cancel()
-        try:
-            await self.task
-        except asyncio.CancelledError:
-            pass
-        await self.server.wait_closed()
+        self.task_group.cancel_scope.cancel()
+
         # Server does not wait for all spawned tasks.  We must do that also to ensure
         # that all sockets are closed.
         async with self.cond:
-            await self.cond.wait_for(lambda: self.running == 0)
+            await anyio_condition_wait_for(self.cond, lambda: self.running == 0)
 
     async def pipe(
         self,
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter,
+        proxy,
+        upstream,
         name="",
-        event: asyncio.Event = None,
+        set_event: bool = False,
     ):
         self.running += 1
         try:
             while True:
-                data = await reader.read(1000)
-                if not data:
+                try:
+                    data = await proxy.receive(1000)
+                except (anyio.EndOfStream, anyio.ClosedResourceError):
                     break
                 # print(f"{name} read {len(data)} delay {self.delay}")
-                if event:
-                    event.set()
-                await asyncio.sleep(self.delay)
-                writer.write(data)
-                await writer.drain()
+                if set_event:
+                    self.send_event.set()
+                await anyio.sleep(self.delay)
+                await upstream.send(data)
         finally:
             try:
-                writer.close()
-                await writer.wait_closed()
+                await upstream.aclose()
             except RuntimeError:
                 # ignore errors on close pertaining to no event loop. Don't want
                 # to clutter the test output with errors if being garbage collected
@@ -131,18 +139,18 @@ async def test_standalone(delay, master_host):
                             "foo"
                         )  # <-- this is the operation we want to cancel
 
-                dp.send_event.clear()
-                t = asyncio.create_task(op(r))
-                # Wait until the task has sent, and then some, to make sure it has
-                # settled on the read.
-                await dp.send_event.wait()
-                await asyncio.sleep(0.01)  # a little extra time for prudence
-                t.cancel()
-                with pytest.raises(asyncio.CancelledError):
-                    await t
+                dp.send_event = anyio.Event()
+
+                async with anyio.create_task_group() as tg:
+                    tg.start_soon(op, r)
+                    # Wait until the task has sent, and then some, to make sure it has
+                    # settled on the read.
+                    await dp.send_event.wait()
+                    await anyio.sleep(0.01)  # a little extra time for prudence
+                    tg.cancel_scope.cancel()
 
                 # make sure that our previous request, cancelled while waiting for
-                # a repsponse, didn't leave the connection open andin a bad state
+                # a response, didn't leave the connection open and in a bad state
                 assert await r.get("bar") == b"bar"
                 assert await r.ping()
                 assert await r.get("foo") == b"foo"
@@ -172,14 +180,13 @@ async def test_standalone_pipeline(delay, master_host):
                             "foo"
                         ).execute()  # <-- this is the operation we want to cancel
 
-                dp.send_event.clear()
-                t = asyncio.create_task(op(pipe))
-                # wait until task has settled on the read
-                await dp.send_event.wait()
-                await asyncio.sleep(0.01)
-                t.cancel()
-                with pytest.raises(asyncio.CancelledError):
-                    await t
+                dp.send_event = anyio.Event()
+                async with anyio.create_task_group() as tg:
+                    tg.start_soon(op, pipe)
+                    # wait until task has settled on the read
+                    await dp.send_event.wait()
+                    await anyio.sleep(0.01)
+                    tg.cancel_scope.cancel()
 
                 # we have now cancelled the pieline in the middle of a request,
                 # make sure that the connection is still usable
@@ -219,15 +226,23 @@ async def test_cluster(master_host):
         proxy = DelayProxy(addr=("127.0.0.1", remapped), valkey_addr=forward_addr)
         proxies.append(proxy)
 
-    def all_clear():
+    def all_reset():
         for p in proxies:
-            p.send_event.clear()
+            p.send_event = anyio.Event()
 
     async def wait_for_send():
-        await asyncio.wait(
-            [asyncio.Task(p.send_event.wait()) for p in proxies],
-            return_when=asyncio.FIRST_COMPLETED,
-        )
+        first_done = anyio.Event()
+
+        async def _waiter(event):
+            await event.wait()
+            first_done.set()
+            await anyio.lowlevel.checkpoint()
+
+        async with anyio.create_task_group() as tg:
+            for p in proxies:
+                tg.start_soon(_waiter, p.send_event)
+            await first_done.wait()
+            tg.cancel_scope.cancel()
 
     @contextlib.contextmanager
     def set_delay(delay: float):
@@ -252,14 +267,14 @@ async def test_cluster(master_host):
                 with set_delay(delay):
                     return await r.get("foo")
 
-            all_clear()
-            t = asyncio.create_task(op(r))
-            # Wait for whichever DelayProxy gets the request first
-            await wait_for_send()
-            await asyncio.sleep(0.01)
-            t.cancel()
-            with pytest.raises(asyncio.CancelledError):
-                await t
+            all_reset()
+
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(op, r)
+                # Wait for whichever DelayProxy gets the request first
+                await wait_for_send()
+                await anyio.sleep(0.01)
+                tg.cancel_scope.cancel()
 
             # try a number of requests to exercise all the connections
             async def doit():
@@ -267,6 +282,8 @@ async def test_cluster(master_host):
                 assert await r.ping()
                 assert await r.get("foo") == b"foo"
 
-            await asyncio.gather(*[doit() for _ in range(10)])
+            async with anyio.create_task_group() as tg:
+                for _ in range(10):
+                    tg.start_soon(doit)
         finally:
-            await r.close()
+            await r.aclose()

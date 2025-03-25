@@ -658,7 +658,7 @@ class TestConnection:
         connection = valkey.Valkey.from_url("valkey://localhost")
         pool = connection.connection_pool
 
-        print(repr(pool))
+        # print(repr(pool))
         assert re.match(
             r"< .*?([^\.]+) \( < .*?([^\.]+) \( (.+) \) > \) >", repr(pool), re.VERBOSE
         ).groups() == (
