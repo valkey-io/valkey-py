@@ -1,7 +1,6 @@
-import time
-from time import sleep
-
+import anyio
 import pytest
+
 import valkey.asyncio as valkey
 from tests.conftest import (
     assert_resp_response,
@@ -9,7 +8,7 @@ from tests.conftest import (
     skip_ifmodversion_lt,
 )
 
-pytestmark = pytest.mark.skip
+pytestmark = [pytest.mark.skip, pytest.mark.anyio]
 
 
 async def test_create(decoded_r: valkey.Valkey):
@@ -88,7 +87,7 @@ async def test_add(decoded_r: valkey.Valkey):
         4, 4, 2, retention_msecs=10, labels={"Valkey": "Labs", "Time": "Series"}
     )
     res = await decoded_r.ts().add(5, "*", 1)
-    assert abs(time.time() - round(float(res) / 1000)) < 1.0
+    assert abs(await anyio.current_time() - round(float(res) / 1000)) < 1.0
 
     info = await decoded_r.ts().info(4)
     assert_resp_response(
@@ -152,11 +151,11 @@ async def test_madd(decoded_r: valkey.Valkey):
 async def test_incrby_decrby(decoded_r: valkey.Valkey):
     for _ in range(100):
         assert await decoded_r.ts().incrby(1, 1)
-        sleep(0.001)
+        await anyio.sleep(0.001)
     assert 100 == (await decoded_r.ts().get(1))[1]
     for _ in range(100):
         assert await decoded_r.ts().decrby(1, 1)
-        sleep(0.001)
+        await anyio.sleep(0.001)
     assert 0 == (await decoded_r.ts().get(1))[1]
 
     assert await decoded_r.ts().incrby(2, 1.5, timestamp=5)

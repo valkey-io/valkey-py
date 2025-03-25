@@ -1,10 +1,11 @@
 import pytest
+
 import valkey.asyncio as valkey
 from tests.conftest import assert_resp_response, skip_ifmodversion_lt
 from valkey import exceptions
 from valkey.commands.json.path import Path
 
-pytestmark = pytest.mark.skip
+pytestmark = [pytest.mark.skip, pytest.mark.anyio]
 
 
 async def test_json_setbinarykey(decoded_r: valkey.Valkey):

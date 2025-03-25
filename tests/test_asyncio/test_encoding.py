@@ -1,18 +1,20 @@
 import pytest
-import pytest_asyncio
+
 import valkey.asyncio as valkey
 from valkey.exceptions import DataError
+
+pytestmark = pytest.mark.anyio
 
 
 @pytest.mark.onlynoncluster
 class TestEncoding:
-    @pytest_asyncio.fixture()
+    @pytest.fixture()
     async def r(self, create_valkey):
         valkey = await create_valkey(decode_responses=True)
         yield valkey
         await valkey.flushall()
 
-    @pytest_asyncio.fixture()
+    @pytest.fixture()
     async def r_no_decode(self, create_valkey):
         valkey = await create_valkey(decode_responses=False)
         yield valkey
@@ -83,7 +85,7 @@ class TestMemoryviewsAreNotPacked:
 
 
 class TestCommandsAreNotEncoded:
-    @pytest_asyncio.fixture()
+    @pytest.fixture()
     async def r(self, create_valkey):
         valkey = await create_valkey(encoding="utf-16")
         yield valkey

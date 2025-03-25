@@ -1,13 +1,13 @@
 import socket
+from unittest import mock
 
 import pytest
+
 from valkey.asyncio.retry import Retry
 from valkey.asyncio.sentinel import SentinelManagedConnection
 from valkey.backoff import NoBackoff
 
-from .compat import mock
-
-pytestmark = pytest.mark.asyncio
+pytestmark = pytest.mark.anyio
 
 
 async def test_connect_retry_on_timeout_error(connect_args):

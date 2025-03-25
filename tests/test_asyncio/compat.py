@@ -1,10 +1,9 @@
-import asyncio
-from unittest import mock
+# from unittest import mock
 
-try:
-    mock.AsyncMock
-except AttributeError:
-    from unittest import mock
+# try:
+#     mock.AsyncMock
+# except AttributeError:
+#     from unittest import mock
 
 try:
     from contextlib import aclosing
@@ -17,7 +16,3 @@ except ImportError:
             yield thing
         finally:
             await thing.aclose()
-
-
-def create_task(coroutine):
-    return asyncio.create_task(coroutine)

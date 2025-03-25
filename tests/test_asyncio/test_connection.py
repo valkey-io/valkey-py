@@ -1,6 +1,7 @@
-import asyncio
+# import asyncio
 import socket
 import types
+from unittest import mock
 from unittest.mock import patch
 
 import anyio
@@ -23,12 +24,14 @@ from valkey.asyncio.connection import (
     UnixDomainSocketConnection,
 )
 from valkey.asyncio.retry import Retry
+from valkey.asyncio.utils import anyio_condition_wait_for, anyio_gather
 from valkey.backoff import NoBackoff
 from valkey.exceptions import ConnectionError, InvalidResponse, TimeoutError
 from valkey.utils import LIBVALKEY_AVAILABLE
 
-from .compat import mock
 from .mocks import MockStream
+
+pytestmark = pytest.mark.anyio
 
 
 @pytest.mark.onlynoncluster
@@ -70,9 +73,9 @@ async def test_single_connection():
             if in_use is True:
                 raise ValueError("Commands should be executed one at a time.")
             in_use = True
-            await asyncio.sleep(0.01)
+            await anyio.sleep(0.01)
             command_call_count += 1
-            await asyncio.sleep(0.03)
+            await anyio.sleep(0.03)
             in_use = False
             return "foo"
 
@@ -84,13 +87,15 @@ async def test_single_connection():
         # Validate only one client is created in single-client mode when
         # concurrent requests are made
         nonlocal init_call_count
-        await asyncio.sleep(0.01)
+        await anyio.sleep(0.01)
         init_call_count += 1
         return mock_conn
 
     with mock.patch.object(r.connection_pool, "get_connection", get_conn):
         with mock.patch.object(r.connection_pool, "release"):
-            await asyncio.gather(r.set("a", "b"), r.set("c", "d"))
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(r.set, "a", "b")
+                tg.start_soon(r.set, "c", "d")
 
     assert init_call_count == 1
     assert command_call_count == 2
@@ -133,7 +138,13 @@ async def test_can_run_concurrent_commands(r):
         # since there is no synchronization on a single connection.
         pytest.skip("pool only")
     assert await r.ping() is True
-    assert all(await asyncio.gather(*(r.ping() for _ in range(10))))
+
+    async def _assert_ping():
+        assert await r.ping() is True
+
+    async with anyio.create_task_group() as tg:
+        for _ in range(10):
+            tg.start_soon(_assert_ping)
 
 
 async def test_connect_retry_on_timeout_error(connect_args):
@@ -234,7 +245,7 @@ async def test_connection_disconect_race(parser_class, connect_args):
 
     conn = Connection(**connect_args)
 
-    cond = asyncio.Condition()
+    cond = anyio.Condition()
     # 0 == initial
     # 1 == reader is reading
     # 2 == closer has closed and is waiting for close to finish
@@ -252,14 +263,14 @@ async def test_connection_disconect_race(parser_class, connect_args):
                 state = 1  # we are reading
                 cond.notify()
                 # wait until the closing task has done
-                await cond.wait_for(lambda: state == 2)
+                await anyio_condition_wait_for(cond, lambda: state == 2)
         return chunks.pop(0)
 
     # function closes the connection while reader is still blocked reading
     async def do_close():
         nonlocal state
         async with cond:
-            await cond.wait_for(lambda: state == 1)
+            await anyio_condition_wait_for(cond, lambda: state == 1)
             state = 2
             cond.notify()
         await conn.disconnect()
@@ -290,7 +301,7 @@ async def test_connection_disconect_race(parser_class, connect_args):
         ):
             await conn.connect()
 
-    vals = await asyncio.gather(do_read(), do_close())
+    vals = await anyio_gather(do_read(), do_close())
     assert vals == [b"Hello, World!", None]
 
 

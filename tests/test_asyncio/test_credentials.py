@@ -4,14 +4,16 @@ import string
 from typing import Optional, Tuple, Union
 
 import pytest
-import pytest_asyncio
+
 import valkey
 from valkey import AuthenticationError, DataError, ResponseError
 from valkey.credentials import CredentialProvider, UsernamePasswordCredentialProvider
 from valkey.utils import str_if_bytes
 
+pytestmark = pytest.mark.anyio
 
-@pytest_asyncio.fixture()
+
+@pytest.fixture()
 async def r_acl_teardown(r: valkey.Valkey):
     """
     A special fixture which removes the provided names from the database after use
@@ -27,7 +29,7 @@ async def r_acl_teardown(r: valkey.Valkey):
         await r.acl_deluser(username)
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def r_required_pass_teardown(r: valkey.Valkey):
     """
     A special fixture which removes the provided password from the database after use
@@ -117,7 +119,6 @@ async def init_required_pass(r, password):
     await r.config_set("requirepass", password)
 
 
-@pytest.mark.asyncio
 class TestCredentialsProvider:
     async def test_only_pass_without_creds_provider(
         self, r_required_pass_teardown, create_valkey
@@ -246,7 +247,6 @@ class TestCredentialsProvider:
         assert str_if_bytes(await conn.read_response()) == "PONG"
 
 
-@pytest.mark.asyncio
 class TestUsernamePasswordCredentialProvider:
     async def test_user_pass_credential_provider_acl_user_and_pass(
         self, r_acl_teardown, create_valkey

@@ -1,8 +1,8 @@
-from contextlib import asynccontextmanager as _asynccontextmanager
 from typing import Union
+from unittest import mock
 
 import pytest
-import pytest_asyncio
+
 import valkey.asyncio as valkey
 from tests.conftest import VALKEY_INFO
 from valkey._parsers import parse_url
@@ -12,8 +12,6 @@ from valkey.asyncio.connection import Connection
 from valkey.asyncio.retry import Retry
 from valkey.backoff import NoBackoff
 
-from .compat import mock
-
 
 async def _get_info(valkey_url):
     client = valkey.Valkey.from_url(valkey_url)
@@ -22,7 +20,12 @@ async def _get_info(valkey_url):
     return info
 
 
-@pytest_asyncio.fixture(
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
+@pytest.fixture(
     params=[
         pytest.param(
             (True,),
@@ -97,23 +100,23 @@ async def create_valkey(request):
         await teardown()
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def r(create_valkey):
     return await create_valkey()
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def r2(create_valkey):
     """A second client for tests that need multiple"""
     return await create_valkey()
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def decoded_r(create_valkey):
     return await create_valkey(decode_responses=True)
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def sentinel_setup(local_cache, request):
     sentinel_ips = request.config.getoption("--sentinels")
     sentinel_endpoints = [
@@ -133,7 +136,7 @@ async def sentinel_setup(local_cache, request):
         await s.aclose()
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def master(request, sentinel_setup):
     master_service = request.config.getoption("--master-service")
     master = sentinel_setup.master_for(master_service)
@@ -150,21 +153,21 @@ def _gen_cluster_mock_resp(r, response):
         yield r
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def mock_cluster_resp_ok(create_valkey, **kwargs):
     r = await create_valkey(**kwargs)
     for mocked in _gen_cluster_mock_resp(r, "OK"):
         yield mocked
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def mock_cluster_resp_int(create_valkey, **kwargs):
     r = await create_valkey(**kwargs)
     for mocked in _gen_cluster_mock_resp(r, 2):
         yield mocked
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def mock_cluster_resp_info(create_valkey, **kwargs):
     r = await create_valkey(**kwargs)
     response = (
@@ -179,7 +182,7 @@ async def mock_cluster_resp_info(create_valkey, **kwargs):
         yield mocked
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def mock_cluster_resp_nodes(create_valkey, **kwargs):
     r = await create_valkey(**kwargs)
     response = (
@@ -204,7 +207,7 @@ async def mock_cluster_resp_nodes(create_valkey, **kwargs):
         yield mocked
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def mock_cluster_resp_slaves(create_valkey, **kwargs):
     r = await create_valkey(**kwargs)
     response = (
@@ -235,30 +238,30 @@ async def wait_for_command(
             return None
 
 
-# python 3.6 doesn't have the asynccontextmanager decorator.  Provide it here.
-class AsyncContextManager:
-    def __init__(self, async_generator):
-        self.gen = async_generator
+# # python 3.6 doesn't have the asynccontextmanager decorator.  Provide it here.
+# class AsyncContextManager:
+#     def __init__(self, async_generator):
+#         self.gen = async_generator
 
-    async def __aenter__(self):
-        try:
-            return await self.gen.__anext__()
-        except StopAsyncIteration as err:
-            raise RuntimeError("Pickles") from err
+#     async def __aenter__(self):
+#         try:
+#             return await self.gen.__anext__()
+#         except StopAsyncIteration as err:
+#             raise RuntimeError("Pickles") from err
 
-    async def __aexit__(self, exc_type, exc_inst, tb):
-        if exc_type:
-            await self.gen.athrow(exc_type, exc_inst, tb)
-            return True
-        try:
-            await self.gen.__anext__()
-        except StopAsyncIteration:
-            return
-        raise RuntimeError("More pickles")
+#     async def __aexit__(self, exc_type, exc_inst, tb):
+#         if exc_type:
+#             await self.gen.athrow(exc_type, exc_inst, tb)
+#             return True
+#         try:
+#             await self.gen.__anext__()
+#         except StopAsyncIteration:
+#             return
+#         raise RuntimeError("More pickles")
 
 
-def asynccontextmanager(func):
-    return _asynccontextmanager(func)
+# def asynccontextmanager(func):
+#     return _asynccontextmanager(func)
 
 
 # helpers to get the connection arguments for this run

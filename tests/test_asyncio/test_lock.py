@@ -1,13 +1,14 @@
-import asyncio
-
+import anyio
 import pytest
-import pytest_asyncio
+
 from valkey.asyncio.lock import Lock
 from valkey.exceptions import LockError, LockNotOwnedError
 
+pytestmark = pytest.mark.anyio
+
 
 class TestLock:
-    @pytest_asyncio.fixture()
+    @pytest.fixture()
     async def r_decoded(self, create_valkey):
         valkey = await create_valkey(decode_responses=True)
         yield valkey
@@ -110,9 +111,9 @@ class TestLock:
         bt = 0.2
         sleep = 0.05
         lock2 = self.get_lock(r, "foo", sleep=sleep, blocking_timeout=bt)
-        start = asyncio.get_running_loop().time()
+        start = anyio.current_time()
         assert not await lock2.acquire()
-        assert (asyncio.get_running_loop().time() - start) > (bt - sleep)
+        assert (anyio.current_time() - start) > (bt - sleep)
         await lock1.release()
 
     async def test_context_manager(self, r):
@@ -134,11 +135,11 @@ class TestLock:
         sleep = 60
         bt = 1
         lock2 = self.get_lock(r, "foo", sleep=sleep, blocking_timeout=bt)
-        start = asyncio.get_running_loop().time()
+        start = anyio.current_time()
         assert not await lock2.acquire()
         # the elapsed timed is less than the blocking_timeout as the lock is
         # unattainable given the sleep/blocking_timeout configuration
-        assert bt > (asyncio.get_running_loop().time() - start)
+        assert bt > (anyio.current_time() - start)
         await lock1.release()
 
     async def test_releasing_unlocked_lock_raises_error(self, r):
@@ -230,7 +231,7 @@ class TestLock:
 
 @pytest.mark.onlynoncluster
 class TestLockClassSelection:
-    def test_lock_class_argument(self, r):
+    async def test_lock_class_argument(self, r):
         class MyLock:
             def __init__(self, *args, **kwargs):
                 pass

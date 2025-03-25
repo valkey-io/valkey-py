@@ -2,7 +2,7 @@ import socket
 from unittest import mock
 
 import pytest
-import pytest_asyncio
+
 import valkey.asyncio.sentinel
 from valkey import exceptions
 from valkey.asyncio.sentinel import (
@@ -12,8 +12,10 @@ from valkey.asyncio.sentinel import (
     SlaveNotFoundError,
 )
 
+pytestmark = pytest.mark.anyio
 
-@pytest_asyncio.fixture(scope="module")
+
+@pytest.fixture(scope="module")
 def master_ip(master_host):
     yield socket.gethostbyname(master_host[0])
 
@@ -70,7 +72,7 @@ class SentinelTestCluster:
         return SentinelTestClient(self, (host, port))
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def cluster(master_ip):
     cluster = SentinelTestCluster(ip=master_ip)
     saved_Valkey = valkey.asyncio.sentinel.Valkey
@@ -79,7 +81,7 @@ async def cluster(master_ip):
     valkey.asyncio.sentinel.Valkey = saved_Valkey
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 def sentinel(request, cluster):
     return Sentinel([("foo", 26379), ("bar", 26379)])
 

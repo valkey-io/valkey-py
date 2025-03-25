@@ -1,22 +1,25 @@
-import asyncio
 import re
+from contextlib import asynccontextmanager
+from unittest import mock
 
+import anyio
 import pytest
-import pytest_asyncio
+
 import valkey.asyncio as valkey
 from tests.conftest import skip_if_server_version_lt
 from valkey._parsers.url_parser import to_bool
 from valkey.asyncio.connection import Connection
 from valkey.utils import SSL_AVAILABLE
 
-from .compat import aclosing, mock
-from .conftest import asynccontextmanager
+from .compat import aclosing
 from .test_pubsub import wait_for_message
+
+pytestmark = pytest.mark.anyio
 
 
 @pytest.mark.onlynoncluster
 class TestValkeyAutoReleaseConnectionPool:
-    @pytest_asyncio.fixture
+    @pytest.fixture
     async def r(self, create_valkey) -> valkey.Valkey:
         """This is necessary since r and r2 create ConnectionPools behind the scenes"""
         r = await create_valkey()
@@ -251,12 +254,12 @@ class TestBlockingConnectionPool:
         ) as pool:
             c1 = await pool.get_connection("_")
 
-            start = asyncio.get_running_loop().time()
+            start = anyio.current_time()
             with pytest.raises(valkey.ConnectionError):
                 await pool.get_connection("_")
 
             # we should have waited at least some period of time
-            assert asyncio.get_running_loop().time() - start >= 0.05
+            assert anyio.current_time() - start >= 0.05
             await c1.disconnect()
 
     async def test_connection_pool_blocks_until_conn_available(self, master_host):
@@ -271,12 +274,16 @@ class TestBlockingConnectionPool:
             c1 = await pool.get_connection("_")
 
             async def target():
-                await asyncio.sleep(0.1)
+                await anyio.sleep(0.1)
                 await pool.release(c1)
 
-            start = asyncio.get_running_loop().time()
-            await asyncio.gather(target(), pool.get_connection("_"))
-            stop = asyncio.get_running_loop().time()
+            start = anyio.current_time()
+
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(target)
+                tg.start_soon(pool.get_connection, "_")
+
+            stop = anyio.current_time()
             assert (stop - start) <= 0.2
 
     async def test_reuse_previously_released_connection(self, master_host):
@@ -690,7 +697,7 @@ class TestConnection:
 
 @pytest.mark.onlynoncluster
 class TestMultiConnectionClient:
-    @pytest_asyncio.fixture()
+    @pytest.fixture()
     async def r(self, create_valkey, server):
         valkey = await create_valkey(single_connection_client=False)
         yield valkey
@@ -702,19 +709,19 @@ class TestMultiConnectionClient:
 class TestHealthCheck:
     interval = 60
 
-    @pytest_asyncio.fixture()
+    @pytest.fixture()
     async def r(self, create_valkey):
         valkey = await create_valkey(health_check_interval=self.interval)
         yield valkey
         await valkey.flushall()
 
     def assert_interval_advanced(self, connection):
-        diff = connection.next_health_check - asyncio.get_running_loop().time()
+        diff = connection.next_health_check - anyio.current_time()
         assert self.interval >= diff > (self.interval - 1)
 
     async def test_health_check_runs(self, r):
         if r.connection:
-            r.connection.next_health_check = asyncio.get_running_loop().time() - 1
+            r.connection.next_health_check = anyio.current_time() - 1
             await r.connection.check_health()
             self.assert_interval_advanced(r.connection)
 
@@ -722,7 +729,7 @@ class TestHealthCheck:
         # invoke a command to make sure the connection is entirely setup
         if r.connection:
             await r.get("foo")
-            r.connection.next_health_check = asyncio.get_running_loop().time()
+            r.connection.next_health_check = anyio.current_time()
             with mock.patch.object(
                 r.connection, "send_command", wraps=r.connection.send_command
             ) as m:
@@ -736,7 +743,7 @@ class TestHealthCheck:
             await r.get("foo")
             next_health_check = r.connection.next_health_check
             # ensure that the event loop's `time()` advances a bit
-            await asyncio.sleep(0.001)
+            await anyio.sleep(0.001)
             await r.get("foo")
             assert next_health_check < r.connection.next_health_check
 

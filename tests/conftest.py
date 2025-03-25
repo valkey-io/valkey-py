@@ -7,8 +7,9 @@ from unittest.mock import Mock
 from urllib.parse import urlparse
 
 import pytest
-import valkey
 from packaging.version import Version
+
+import valkey
 from valkey import Sentinel
 from valkey._parsers import parse_url
 from valkey.backoff import NoBackoff

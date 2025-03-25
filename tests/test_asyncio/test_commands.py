@@ -2,19 +2,18 @@
 Tests async overrides of commands from their mixins
 """
 
-import asyncio
 import binascii
 import datetime
 import math
 import re
-import sys
 from string import ascii_letters
 from typing import Any, Dict, List
 
+import anyio
 import pytest
-import pytest_asyncio
-import valkey
 from packaging.version import Version
+
+import valkey
 from tests.conftest import (
     assert_geo_is_close,
     assert_resp_response,
@@ -34,15 +33,13 @@ from valkey._parsers.helpers import (
 )
 from valkey.client import EMPTY_RESPONSE, NEVER_DECODE
 
-if sys.version_info >= (3, 11, 3):
-    from asyncio import timeout as async_timeout
-else:
-    from async_timeout import timeout as async_timeout
+pytestmark = pytest.mark.anyio
+
 
 VALKEY_6_VERSION = "5.9.0"
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def r_teardown(r: valkey.Valkey):
     """
     A special fixture which removes the provided names from the database after use
@@ -58,7 +55,7 @@ async def r_teardown(r: valkey.Valkey):
         await r.acl_deluser(username)
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def slowlog(r: valkey.Valkey):
     current_config = await r.config_get()
     old_slower_than_value = current_config["slowlog-log-slower-than"]
@@ -3543,29 +3540,29 @@ class TestValkeyCommands:
         will leave the socket with un-read response to a previous
         command.
         """
-        ready = asyncio.Event()
+        ready = anyio.Event()
 
         async def helper():
-            with pytest.raises(asyncio.CancelledError):
+            with pytest.raises(anyio.get_cancelled_exc_class()):
                 # blocking pop
                 ready.set()
                 await r.brpop(["nonexist"])
-            # If the following is not done, further Timout operations will fail,
-            # because the timeout won't catch its Cancelled Error if the task
-            # has a pending cancel.  Python documentation probably should reflect this.
-            if sys.version_info >= (3, 11):
-                asyncio.current_task().uncancel()
+            # # If the following is not done, further Timout operations will fail,
+            # # because the timeout won't catch its Cancelled Error if the task
+            # # has a pending cancel.  Python documentation probably should reflect this.
+            # if sys.version_info >= (3, 11):
+            #     asyncio.current_task().uncancel()
             # if all is well, we can continue.  The following should not hang.
             await r.set("status", "down")
 
-        task = asyncio.create_task(helper())
-        await ready.wait()
-        await asyncio.sleep(0.01)
-        # the task is now sleeping, lets send it an exception
-        task.cancel()
-        # If all is well, the task should finish right away, otherwise fail with Timeout
-        async with async_timeout(1.0):
-            await task
+        async with anyio.create_task_group() as tg:
+            # If all is well, the task should finish right away, otherwise fail with Timeout
+            with anyio.fail_after(1.0):
+                tg.start_soon(helper)
+                await ready.wait()
+                await anyio.sleep(0.01)
+                # the task is now sleeping, lets send it an exception
+                tg.cancel_scope.cancel()
 
 
 @pytest.mark.onlynoncluster

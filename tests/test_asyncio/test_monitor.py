@@ -2,6 +2,8 @@ import pytest
 
 from .conftest import wait_for_command
 
+pytestmark = pytest.mark.anyio
+
 
 @pytest.mark.onlynoncluster
 class TestMonitor:

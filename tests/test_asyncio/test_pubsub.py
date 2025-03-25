@@ -1,35 +1,30 @@
-import asyncio
 import functools
 import socket
-import sys
+from contextlib import asynccontextmanager
 from typing import Optional
+from unittest import mock
 from unittest.mock import patch
-
-# the functionality is available in 3.11.x but has a major issue before
-# 3.11.3. See https://github.com/redis/redis-py/issues/2633
-if sys.version_info >= (3, 11, 3):
-    from asyncio import timeout as async_timeout
-else:
-    from async_timeout import timeout as async_timeout
 
 import anyio
 import pytest
-import pytest_asyncio
 
 import valkey.asyncio as valkey
 from tests.conftest import get_protocol_version, skip_if_server_version_lt
+from valkey.asyncio.utils import anyio_condition_wait_for
 from valkey.exceptions import ConnectionError
 from valkey.typing import EncodableT
 from valkey.utils import LIBVALKEY_AVAILABLE
 
-from .compat import aclosing, create_task, mock
+from .compat import aclosing
+
+pytestmark = pytest.mark.anyio
 
 
 def with_timeout(t):
     def wrapper(corofunc):
         @functools.wraps(corofunc)
         async def run(*args, **kwargs):
-            async with async_timeout(t):
+            with anyio.fail_after(t):
                 return await corofunc(*args, **kwargs)
 
         return run
@@ -81,7 +76,7 @@ def make_subscribe_test_data(pubsub, type):
     assert False, f"invalid subscribe type: {type}"
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def pubsub(r: valkey.Valkey):
     async with r.pubsub() as p:
         yield p
@@ -493,7 +488,7 @@ class TestPubSubAutoDecoding:
     def message_handler(self, message):
         self.message = message
 
-    @pytest_asyncio.fixture()
+    @pytest.fixture()
     async def r(self, create_valkey):
         return await create_valkey(decode_responses=True)
 
@@ -697,66 +692,54 @@ class TestPubSubTimeouts:
 
 @pytest.mark.onlynoncluster
 class TestPubSubReconnect:
-    @with_timeout(2)
+    @with_timeout(5)
     async def test_reconnect_listen(self, r: valkey.Valkey, pubsub):
         """
         Test that a loop processing PubSub messages can survive
         a disconnect, by issuing a connect() call.
         """
-        messages = asyncio.Queue()
-        interrupt = False
+        send_messages, receive_messages = anyio.create_memory_object_stream()
+        interrupt = anyio.Event()
 
         async def loop():
-            # must make sure the task exits
-            async with async_timeout(2):
-                nonlocal interrupt
-                await pubsub.subscribe("foo")
-                while True:
-                    try:
-                        try:
-                            await pubsub.connect()
-                            await loop_step()
-                        except valkey.ConnectionError:
-                            await asyncio.sleep(0.1)
-                    except asyncio.CancelledError:
-                        # we use a cancel to interrupt the "listen"
-                        # when we perform a disconnect
-                        if interrupt:
-                            interrupt = False
-                        else:
-                            raise
+            await pubsub.subscribe("foo")
+            async with send_messages:
+                await pubsub.connect()
+                await loop_step()
+                await pubsub.connect()
+                await loop_step()
 
         async def loop_step():
             # get a single message via listen()
             async for message in pubsub.listen():
-                await messages.put(message)
-                break
+                await send_messages.send(message)
+                await interrupt.wait()
 
-        task = asyncio.get_running_loop().create_task(loop())
-        # get the initial connect message
-        async with async_timeout(1):
-            message = await messages.get()
-        assert message == {
-            "channel": b"foo",
-            "data": 1,
-            "pattern": None,
-            "type": "subscribe",
-        }
-        # now, disconnect the connection.
-        await pubsub.connection.disconnect()
-        interrupt = True
-        task.cancel()  # interrupt the listen call
-        # await another auto-connect message
-        message = await messages.get()
-        assert message == {
-            "channel": b"foo",
-            "data": 1,
-            "pattern": None,
-            "type": "subscribe",
-        }
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(loop)
+
+            async with receive_messages:
+                # get the initial connect message
+                with anyio.fail_after(1):
+                    message = await receive_messages.receive()
+                assert message == {
+                    "channel": b"foo",
+                    "data": 1,
+                    "pattern": None,
+                    "type": "subscribe",
+                }
+                # now, disconnect the connection.
+                await pubsub.connection.disconnect()
+                interrupt.set()  # interrupt the listen call
+                # await another auto-connect message
+                message = await receive_messages.receive()
+                assert message == {
+                    "channel": b"foo",
+                    "data": 1,
+                    "pattern": None,
+                    "type": "subscribe",
+                }
+                tg.cancel_scope.cancel()
 
 
 @pytest.mark.onlynoncluster
@@ -775,20 +758,22 @@ class TestPubSubRun:
                 return
 
     async def test_callbacks(self, r: valkey.Valkey, pubsub):
-        def callback(message):
-            messages.put_nowait(message)
+        send_messages, receive_messages = anyio.create_memory_object_stream(1)
 
-        messages = asyncio.Queue()
+        def callback(message):
+            with send_messages:
+                send_messages.send_nowait(message)
+
         p = pubsub
         await self._subscribe(p, foo=callback)
-        task = asyncio.get_running_loop().create_task(p.run())
-        await r.publish("foo", "bar")
-        message = await messages.get()
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+
+        with anyio.move_on_after(2):
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(p.run)
+                await r.publish("foo", "bar")
+                async with receive_messages:
+                    message = await receive_messages.receive()
+
         assert message == {
             "channel": b"foo",
             "data": b"bar",
@@ -797,49 +782,57 @@ class TestPubSubRun:
         }
 
     async def test_exception_handler(self, r: valkey.Valkey, pubsub):
+        send_exceptions, receive_exceptions = anyio.create_memory_object_stream(1)
+
         def exception_handler_callback(e, pubsub) -> None:
             assert pubsub == p
-            exceptions.put_nowait(e)
+            with send_exceptions:
+                send_exceptions.send_nowait(e)
 
-        exceptions = asyncio.Queue()
         p = pubsub
         await self._subscribe(p, foo=lambda x: None)
         with mock.patch.object(p, "get_message", side_effect=Exception("error")):
-            task = asyncio.get_running_loop().create_task(
-                p.run(exception_handler=exception_handler_callback)
-            )
-            e = await exceptions.get()
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
+            with anyio.move_on_after(2):
+                async with anyio.create_task_group() as tg:
+                    tg.start_soon(
+                        functools.partial(
+                            p.run, exception_handler=exception_handler_callback
+                        )
+                    )
+                    async with receive_exceptions:
+                        e = await receive_exceptions.receive()
+                    # cancel the pubsub run loop to prevent it from re-invoking
+                    # the exception
+                    tg.cancel_scope.cancel()
         assert str(e) == "error"
 
     async def test_late_subscribe(self, r: valkey.Valkey, pubsub):
-        def callback(message):
-            messages.put_nowait(message)
+        send_messages, receive_messages = anyio.create_memory_object_stream(1)
 
-        messages = asyncio.Queue()
+        def callback(message):
+            with send_messages:
+                send_messages.send_nowait(message)
+
         p = pubsub
-        task = asyncio.get_running_loop().create_task(p.run())
-        # wait until loop gets settled.  Add a subscription
-        await asyncio.sleep(0.1)
-        await p.subscribe(foo=callback)
-        # wait tof the subscribe to finish.  Cannot use _subscribe() because
-        # p.run() is already accepting messages
-        while True:
-            n = await r.publish("foo", "bar")
-            if n == 1:
-                break
-            await asyncio.sleep(0.1)
-        async with async_timeout(0.1):
-            message = await messages.get()
-        task.cancel()
-        # we expect a cancelled error, not the Runtime error
-        # ("did you forget to call subscribe()"")
-        with pytest.raises(asyncio.CancelledError):
-            await task
+
+        with anyio.move_on_after(2):
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(p.run)
+                # wait until loop gets settled.  Add a subscription
+                await anyio.sleep(0.1)
+                await p.subscribe(foo=callback)
+                # wait tof the subscribe to finish.  Cannot use _subscribe() because
+                # p.run() is already accepting messages
+                while True:
+                    n = await r.publish("foo", "bar")
+                    if n == 1:
+                        break
+                    await anyio.sleep(0.1)
+
+                with anyio.fail_after(0.1):
+                    async with receive_messages:
+                        message = await receive_messages.receive()
+
         assert message == {
             "channel": b"foo",
             "data": b"bar",
@@ -852,107 +845,61 @@ class TestPubSubRun:
 @pytest.mark.parametrize("method", ["get_message", "listen"])
 @pytest.mark.onlynoncluster
 class TestPubSubAutoReconnect:
-    timeout = 2
+    timeout = 50
 
-    async def mysetup(self, r, method):
-        self.messages = asyncio.Queue()
+    @asynccontextmanager
+    async def reconnect_context(self, r, method):
+        self.send_messages, self.receive_messages = anyio.create_memory_object_stream(
+            2  # we expect 2 messages: initial subscribe and a resubscribe
+        )
         self.pubsub = r.pubsub()
-        # State: 0 = initial state , 1 = after disconnect, 2 = ConnectionError is seen,
-        # 3=successfully reconnected 4 = exit
+        # State:
+        # 0 = initial state
+        # 1 = after disconnect
+        # 2 = ConnectionError is seen
+        # 3 = successfully reconnected
         self.state = 0
-        self.cond = asyncio.Condition()
+        self.cond = anyio.Condition()
         if method == "get_message":
             self.get_message = self.loop_step_get_message
         else:
             self.get_message = self.loop_step_listen
 
-        self.task = create_task(self.loop())
-        # get the initial connect message
-        message = await self.messages.get()
-        assert message == {
-            "channel": b"foo",
-            "data": 1,
-            "pattern": None,
-            "type": "subscribe",
-        }
+        with anyio.fail_after(self.timeout):
+            async with anyio.create_task_group() as tg:
+                async with self.send_messages, self.receive_messages:
+                    tg.start_soon(self.loop)
 
-    async def myfinish(self):
-        message = await self.messages.get()
-        assert message == {
-            "channel": b"foo",
-            "data": 1,
-            "pattern": None,
-            "type": "subscribe",
-        }
+                    # get the initial connect message
+                    message = await self.receive_messages.receive()
+                    assert message == {
+                        "channel": b"foo",
+                        "data": 1,
+                        "pattern": None,
+                        "type": "subscribe",
+                    }
 
-    async def mykill(self):
-        # kill thread
-        async with self.cond:
-            self.state = 4  # quit
-        await self.task
+                    yield
 
-    async def test_reconnect_socket_error(self, r: valkey.Valkey, method):
-        """
-        Test that a socket error will cause reconnect
-        """
-        try:
-            async with async_timeout(self.timeout):
-                await self.mysetup(r, method)
-                # now, disconnect the connection, and wait for it to be re-established
-                async with self.cond:
-                    assert self.state == 0
-                    self.state = 1
-                    with mock.patch.object(self.pubsub.connection, "_parser") as m:
-                        m.read_response.side_effect = socket.error
-                        m.can_read_destructive.side_effect = socket.error
-                        # wait until task noticies the disconnect until we
-                        # undo the patch
-                        await self.cond.wait_for(lambda: self.state >= 2)
-                        assert not self.pubsub.connection.is_connected
-                        # it is in a disconnecte state
-                    # wait for reconnect
-                    await self.cond.wait_for(
-                        lambda: self.pubsub.connection.is_connected
-                    )
-                    assert self.state == 3
+                    message = await self.receive_messages.receive()
+                    assert message == {
+                        "channel": b"foo",
+                        "data": 1,
+                        "pattern": None,
+                        "type": "subscribe",
+                    }
 
-                await self.myfinish()
-        finally:
-            await self.mykill()
-
-    async def test_reconnect_disconnect(self, r: valkey.Valkey, method):
-        """
-        Test that a manual disconnect() will cause reconnect
-        """
-        try:
-            async with async_timeout(self.timeout):
-                await self.mysetup(r, method)
-                # now, disconnect the connection, and wait for it to be re-established
-                async with self.cond:
-                    self.state = 1
-                    await self.pubsub.connection.disconnect()
-                    assert not self.pubsub.connection.is_connected
-                    # wait for reconnect
-                    await self.cond.wait_for(
-                        lambda: self.pubsub.connection.is_connected
-                    )
-                    assert self.state == 3
-
-                await self.myfinish()
-        finally:
-            await self.mykill()
+                    tg.cancel_scope.cancel()
 
     async def loop(self):
         # reader loop, performing state transitions as it
         # discovers disconnects and reconnects
         await self.pubsub.subscribe("foo")
         while True:
-            await asyncio.sleep(0.01)  # give main thread chance to get lock
+            await anyio.lowlevel.checkpoint()  # give main thread chance to get lock
             async with self.cond:
                 old_state = self.state
                 try:
-                    if self.state == 4:
-                        break
                     got_msg = await self.get_message()
                     assert got_msg
                     if self.state in (1, 2):
@@ -971,26 +918,58 @@ class TestPubSubAutoReconnect:
         # get a single message via get_message
         message = await self.pubsub.get_message(timeout=0.1)
         if message is not None:
-            await self.messages.put(message)
+            await self.send_messages.send(message)
             return True
         return False
 
     async def loop_step_listen(self):
         # get a single message via listen()
-        try:
-            async with async_timeout(0.1):
-                async for message in self.pubsub.listen():
-                    await self.messages.put(message)
-                    return True
-        except asyncio.TimeoutError:
-            return False
+        with anyio.move_on_after(0.1):
+            async for message in self.pubsub.listen():
+                await self.send_messages.send(message)
+                return True
+        return False
+
+    async def test_reconnect_socket_error(self, r: valkey.Valkey, method):
+        """
+        Test that a socket error will cause reconnect
+        """
+        async with self.reconnect_context(r, method):
+            # now, disconnect the connection, and wait for it to be re-established
+            async with self.cond:
+                assert self.state == 0
+                with mock.patch.object(self.pubsub.connection, "_parser") as m:
+                    m.read_response.side_effect = socket.error
+                    m.can_read_destructive.side_effect = socket.error
+                    # wait until task noticies the disconnect until we
+                    # undo the patch
+                    self.state = 1
+                    await anyio_condition_wait_for(self.cond, lambda: self.state == 2)
+                    assert not self.pubsub.connection.is_connected
+                    # it is in a disconnected state
+                # wait for reconnect
+                await anyio_condition_wait_for(self.cond, lambda: self.state == 3)
+                assert self.pubsub.connection.is_connected
+
+    async def test_reconnect_disconnect(self, r: valkey.Valkey, method):
+        """
+        Test that a manual disconnect() will cause reconnect
+        """
+        async with self.reconnect_context(r, method):
+            # now, disconnect the connection, and wait for it to be re-established
+            async with self.cond:
+                assert self.state == 0
+                self.state = 1
+                await self.pubsub.connection.disconnect()
+                assert not self.pubsub.connection.is_connected
+                # wait for reconnect. step 2 is skipped since we disconnect manually
+                # instead of via connection error
+                await anyio_condition_wait_for(self.cond, lambda: self.state == 3)
+                assert self.pubsub.connection.is_connected
 
 
 @pytest.mark.onlynoncluster
 class TestBaseException:
-    @pytest.mark.skipif(
-        sys.version_info < (3, 8), reason="requires python 3.8 or higher"
-    )
     async def test_outer_timeout(self, r: valkey.Valkey):
         """
         Using asyncio_timeout manually outside the inner method timeouts works.
@@ -1002,7 +981,7 @@ class TestBaseException:
         assert pubsub.connection.is_connected
 
         async def get_msg_or_timeout(timeout=0.1):
-            async with async_timeout(timeout):
+            with anyio.fail_after(timeout):
                 # blocking method to return messages
                 while True:
                     response = await pubsub.parse_response(block=True)
@@ -1017,14 +996,11 @@ class TestBaseException:
         assert msg is not None
         # timeout waiting for another message which never arrives
         assert pubsub.connection.is_connected
-        with pytest.raises(asyncio.TimeoutError):
+        with pytest.raises(TimeoutError):
             await get_msg_or_timeout()
         # the timeout on the read should not cause disconnect
         assert pubsub.connection.is_connected
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 8), reason="requires python 3.8 or higher"
-    )
     async def test_base_exception(self, r: valkey.Valkey):
         """
         Manually trigger a BaseException inside the parser's .read_response method

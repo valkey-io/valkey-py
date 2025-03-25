@@ -5,6 +5,7 @@ import time
 from io import TextIOWrapper
 
 import pytest
+
 import valkey.asyncio as valkey
 import valkey.commands.search
 import valkey.commands.search.aggregation as aggregations
@@ -17,7 +18,7 @@ from valkey.commands.search.query import GeoFilter, NumericFilter, Query
 from valkey.commands.search.result import Result
 from valkey.commands.search.suggestion import Suggestion
 
-pytestmark = pytest.mark.skip
+pytestmark = [pytest.mark.skip, pytest.mark.anyio]
 
 WILL_PLAY_TEXT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "testdata", "will_play_text.csv.bz2")

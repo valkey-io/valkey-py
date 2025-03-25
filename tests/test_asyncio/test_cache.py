@@ -1,12 +1,13 @@
-import time
-
+import anyio
 import pytest
-import pytest_asyncio
+
 from valkey._cache import EvictionPolicy, _LocalCache
 from valkey.utils import LIBVALKEY_AVAILABLE
 
+pytestmark = pytest.mark.anyio
 
-@pytest_asyncio.fixture
+
+@pytest.fixture
 async def r(request, create_valkey):
     cache = request.param.get("cache")
     kwargs = request.param.get("kwargs", {})
@@ -14,7 +15,7 @@ async def r(request, create_valkey):
     yield r, cache
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def local_cache():
     yield _LocalCache()
 
@@ -71,7 +72,7 @@ class TestLocalCache:
         # get key from local cache
         assert cache.get(("GET", "foo")) == b"bar"
         # wait for the key to expire
-        time.sleep(1)
+        await anyio.sleep(1)
         # the key is not in the local cache anymore
         assert cache.get(("GET", "foo")) is None
 
@@ -371,7 +372,6 @@ class TestClusterLocalCache:
 @pytest.mark.skipif(LIBVALKEY_AVAILABLE, reason="PythonParser only")
 @pytest.mark.onlynoncluster
 class TestSentinelLocalCache:
-
     async def test_get_from_cache(self, local_cache, master):
         await master.set("foo", "bar")
         # get key from valkey and save in local cache

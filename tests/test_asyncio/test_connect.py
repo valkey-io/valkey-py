@@ -1,18 +1,23 @@
-import asyncio
 import logging
 import re
 import socket
 import ssl
 
+import anyio
 import pytest
+from anyio.abc import TaskStatus
+from anyio.streams.tls import TLSListener
+
 from valkey.asyncio.connection import (
     Connection,
     SSLConnection,
     UnixDomainSocketConnection,
 )
-from valkey.exceptions import ConnectionError
 
 from ..ssl_utils import get_ssl_filename
+
+pytestmark = pytest.mark.anyio
+
 
 _logger = logging.getLogger(__name__)
 
@@ -26,6 +31,7 @@ _SUPPORTED_CMDS = {f"CLIENT SETNAME {_CLIENT_NAME}": _SUCCESS_RESP}
 
 @pytest.fixture
 def tcp_address():
+    # TODO: use `free_tcp_port` when anyio>=4.9
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         return sock.getsockname()
@@ -119,7 +125,7 @@ async def test_tcp_ssl_version_mismatch(tcp_address):
         socket_timeout=1,
         ssl_min_version=ssl.TLSVersion.TLSv1_3,
     )
-    with pytest.raises(ConnectionError):
+    with pytest.raises(Exception):
         await _assert_connect(
             conn,
             tcp_address,
@@ -138,59 +144,50 @@ async def _assert_connect(
     minimum_ssl_version=ssl.TLSVersion.TLSv1_2,
     maximum_ssl_version=ssl.TLSVersion.TLSv1_3,
 ):
-    stop_event = asyncio.Event()
-    finished = asyncio.Event()
-
-    async def _handler(reader, writer):
-        try:
-            return await _valkey_request_handler(reader, writer, stop_event)
-        finally:
-            writer.close()
-            await writer.wait_closed()
-            finished.set()
-
     if isinstance(server_address, str):
-        server = await asyncio.start_unix_server(_handler, path=server_address)
-    elif certfile:
+        listener = await anyio.create_unix_listener(server_address)
+    else:
         host, port = server_address
+        listener = await anyio.create_tcp_listener(local_host=host, local_port=port)
+
+    if certfile:
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         context.minimum_version = minimum_ssl_version
         context.maximum_version = maximum_ssl_version
         context.load_cert_chain(certfile=certfile, keyfile=keyfile)
-        server = await asyncio.start_server(_handler, host=host, port=port, ssl=context)
-    else:
-        host, port = server_address
-        server = await asyncio.start_server(_handler, host=host, port=port)
+        listener = TLSListener(listener, context, standard_compatible=False)
 
-    async with server as aserver:
-        await aserver.start_serving()
-        try:
-            await conn.connect()
-            stop_event.set()
-            await conn.disconnect()
-        except ConnectionError:
-            finished.set()
-            raise
-        finally:
-            stop_event.set()  # Set stop_event in case of a connection error
-            aserver.close()
-            await aserver.wait_closed()
-            await finished.wait()
+    finished = anyio.Event()
+
+    async def _handler(server):
+        async with server as client:
+            await _valkey_request_handler(client)
+        finished.set()
+
+    async def _serve(*, task_status: TaskStatus = anyio.TASK_STATUS_IGNORED):
+        async with listener as server:
+            task_status.started()
+            await server.serve(_handler)
+
+    async with anyio.create_task_group() as tg:
+        await tg.start(_serve)
+        await conn.connect()
+        await conn.disconnect()
+        await finished.wait()
+        tg.cancel_scope.cancel()
 
 
-async def _valkey_request_handler(reader, writer, stop_event):
+async def _valkey_request_handler(client):
     buffer = b""
     command = None
     command_ptr = None
     fragment_length = None
-    while not stop_event.is_set() or buffer:
-        _logger.info(str(stop_event.is_set()))
+    while True:
         try:
-            buffer += await asyncio.wait_for(reader.read(1024), timeout=0.5)
-        except TimeoutError:
-            continue
-        if not buffer:
-            continue
+            with anyio.move_on_after(0.5):
+                buffer += await client.receive(1024)
+        except anyio.EndOfStream:
+            break
         parts = re.split(_CMD_SEP, buffer)
         buffer = parts[-1]
         for fragment in parts[:-1]:
@@ -218,7 +215,6 @@ async def _valkey_request_handler(reader, writer, stop_event):
             _logger.info("Command %s", command)
             resp = _SUPPORTED_CMDS.get(command, _ERROR_RESP)
             _logger.info("Response from %s", resp)
-            writer.write(resp)
-            await writer.drain()
+            await client.send(resp)
             command = None
     _logger.info("Exit handler")

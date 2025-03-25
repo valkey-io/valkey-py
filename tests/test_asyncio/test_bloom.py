@@ -1,6 +1,7 @@
 from math import inf
 
 import pytest
+
 import valkey.asyncio as valkey
 from tests.conftest import (
     assert_resp_response,
@@ -9,7 +10,7 @@ from tests.conftest import (
 )
 from valkey.exceptions import ValkeyError
 
-pytestmark = pytest.mark.skip
+pytestmark = [pytest.mark.skip, pytest.mark.anyio]
 
 
 def intlist(obj):

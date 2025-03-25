@@ -1,5 +1,5 @@
 import pytest
-import pytest_asyncio
+
 from tests.conftest import skip_if_server_version_lt
 from valkey import exceptions
 
@@ -19,10 +19,12 @@ local names = message['name']
 return "hello " .. name
 """
 
+pytestmark = pytest.mark.anyio
+
 
 @pytest.mark.onlynoncluster
 class TestScripting:
-    @pytest_asyncio.fixture
+    @pytest.fixture
     async def r(self, create_valkey):
         valkey = await create_valkey()
         yield valkey

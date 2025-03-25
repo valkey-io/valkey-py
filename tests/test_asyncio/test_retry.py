@@ -1,9 +1,12 @@
 import pytest
+
 from valkey.asyncio import Valkey
 from valkey.asyncio.connection import Connection, UnixDomainSocketConnection
 from valkey.asyncio.retry import Retry
 from valkey.backoff import AbstractBackoff, ExponentialBackoff, NoBackoff
 from valkey.exceptions import ConnectionError, TimeoutError
+
+pytestmark = pytest.mark.anyio
 
 
 class BackoffMock(AbstractBackoff):
@@ -92,7 +95,6 @@ class TestRetry:
             raise ConnectionError()
 
     @pytest.mark.parametrize("retries", range(10))
-    @pytest.mark.asyncio
     async def test_retry(self, retries: int):
         backoff = BackoffMock()
         retry = Retry(backoff, retries)
@@ -104,7 +106,6 @@ class TestRetry:
         assert backoff.reset_calls == 1
         assert backoff.calls == retries
 
-    @pytest.mark.asyncio
     async def test_infinite_retry(self):
         backoff = BackoffMock()
         # specify infinite retries, but give up after 5
