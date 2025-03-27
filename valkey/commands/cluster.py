@@ -333,7 +333,9 @@ class AsyncClusterMultiKeyCommands(ClusterMultiKeyCommands):
                 command,
                 *slot_args,
                 target_nodes=[
-                    self.nodes_manager.get_node_from_slot(slot, read_from_replicas)
+                    await self.nodes_manager.get_node_from_slot(
+                        slot, read_from_replicas
+                    )
                 ],
             )
             for slot, slot_args in slots_to_args.items()

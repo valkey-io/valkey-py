@@ -624,7 +624,7 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
 
         # get the node that holds the key's slot
         return [
-            self.nodes_manager.get_node_from_slot(
+            await self.nodes_manager.get_node_from_slot(
                 await self._determine_slot(command, *args),
                 self.read_from_replicas and command in READ_COMMANDS,
             )
@@ -804,7 +804,7 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
                     # MOVED occurred and the slots cache was updated,
                     # refresh the target node
                     slot = await self._determine_slot(*args)
-                    target_node = self.nodes_manager.get_node_from_slot(
+                    target_node = await self.nodes_manager.get_node_from_slot(
                         slot, self.read_from_replicas and args[0] in READ_COMMANDS
                     )
                     moved = False
@@ -1196,25 +1196,26 @@ class NodesManager:
                 "get_node requires one of the following: 1. node name 2. host and port"
             )
 
-    def set_nodes(
+    async def set_nodes(
         self,
         old: Dict[str, "ClusterNode"],
         new: Dict[str, "ClusterNode"],
         remove_old: bool = False,
     ) -> None:
-        if remove_old:
-            for name in list(old.keys()):
-                if name not in new:
-                    task = asyncio.create_task(old.pop(name).disconnect())  # noqa
+        async with anyio.create_task_group() as tg:
+            if remove_old:
+                for name in list(old.keys()):
+                    if name not in new:
+                        tg.start_soon(old.pop(name).disconnect)
 
-        for name, node in new.items():
-            if name in old:
-                if old[name] is node:
-                    continue
-                task = asyncio.create_task(old[name].disconnect())  # noqa
-            old[name] = node
+            for name, node in new.items():
+                if name in old:
+                    if old[name] is node:
+                        continue
+                    tg.start_soon(old[name].disconnect)
+                old[name] = node
 
-    def _update_moved_slots(self) -> None:
+    async def _update_moved_slots(self) -> None:
         e = self._moved_exception
         redirected_node = self.get_node(host=e.host, port=e.port)
         if redirected_node:
@@ -1227,7 +1228,9 @@ class NodesManager:
             redirected_node = ClusterNode(
                 e.host, e.port, PRIMARY, **self.connection_kwargs
             )
-            self.set_nodes(self.nodes_cache, {redirected_node.name: redirected_node})
+            await self.set_nodes(
+                self.nodes_cache, {redirected_node.name: redirected_node}
+            )
         if redirected_node in self.slots_cache[e.slot_id]:
             # The MOVED error resulted from a failover, and the new slot owner
             # had previously been a replica.
@@ -1252,11 +1255,11 @@ class NodesManager:
         # Reset moved_exception
         self._moved_exception = None
 
-    def get_node_from_slot(
+    async def get_node_from_slot(
         self, slot: int, read_from_replicas: bool = False
     ) -> "ClusterNode":
         if self._moved_exception:
-            self._update_moved_slots()
+            await self._update_moved_slots()
 
         try:
             if read_from_replicas:
@@ -1399,11 +1402,11 @@ class NodesManager:
 
         # Set the tmp variables to the real variables
         self.slots_cache = tmp_slots
-        self.set_nodes(self.nodes_cache, tmp_nodes_cache, remove_old=True)
+        await self.set_nodes(self.nodes_cache, tmp_nodes_cache, remove_old=True)
 
         if self._dynamic_startup_nodes:
             # Populate the startup nodes with all discovered nodes
-            self.set_nodes(self.startup_nodes, self.nodes_cache, remove_old=True)
+            await self.set_nodes(self.startup_nodes, self.nodes_cache, remove_old=True)
 
         # Set the default node
         self.default_node = self.get_nodes_by_server_type(PRIMARY)[0]
