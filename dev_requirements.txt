@@ -10,6 +10,7 @@ packaging>=20.4
 pytest
 pytest-cov
 pytest-timeout
+trio
 ujson>=4.2.0
 uvloop
 vulture>=2.3.0

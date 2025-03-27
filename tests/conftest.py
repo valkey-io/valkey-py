@@ -1,4 +1,3 @@
-import argparse
 import math
 import time
 from typing import Callable, TypeVar
@@ -28,50 +27,6 @@ default_cluster_nodes = 6
 
 _DecoratedTest = TypeVar("_DecoratedTest", bound="Callable")
 _TestDecorator = Callable[[_DecoratedTest], _DecoratedTest]
-
-
-# Taken from python3.9
-class BooleanOptionalAction(argparse.Action):
-    def __init__(
-        self,
-        option_strings,
-        dest,
-        default=None,
-        type=None,
-        choices=None,
-        required=False,
-        help=None,
-        metavar=None,
-    ):
-        _option_strings = []
-        for option_string in option_strings:
-            _option_strings.append(option_string)
-
-            if option_string.startswith("--"):
-                option_string = "--no-" + option_string[2:]
-                _option_strings.append(option_string)
-
-        if help is not None and default is not None:
-            help += f" (default: {default})"
-
-        super().__init__(
-            option_strings=_option_strings,
-            dest=dest,
-            nargs=0,
-            default=default,
-            type=type,
-            choices=choices,
-            required=required,
-            help=help,
-            metavar=metavar,
-        )
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        if option_string in self.option_strings:
-            setattr(namespace, self.dest, not option_string.startswith("--no-"))
-
-    def format_usage(self):
-        return " | ".join(self.option_strings)
 
 
 def pytest_addoption(parser):
@@ -105,7 +60,13 @@ def pytest_addoption(parser):
     )
 
     parser.addoption(
-        "--uvloop", action=BooleanOptionalAction, help="Run tests with uvloop"
+        "--async-backend",
+        default=[],
+        action="extend",
+        nargs="*",
+        type=str,
+        help="Backend(s) to use for async tests",
+        choices=("asyncio", "uvloop", "trio"),
     )
 
     parser.addoption(
@@ -160,17 +121,13 @@ def pytest_sessionstart(session):
         cluster_nodes = session.config.getoption("--valkey-cluster-nodes")
         wait_for_cluster_creation(valkey_url, cluster_nodes)
 
-    use_uvloop = session.config.getoption("--uvloop")
-
-    if use_uvloop:
-        try:
-            import uvloop
-
-            uvloop.install()
-        except ImportError as e:
-            raise RuntimeError(
-                "Can not import uvloop, make sure it is installed"
-            ) from e
+    # store async backends to test against, and which to test by default when none are
+    # specified
+    session.config.ASYNC_BACKENDS = session.config.getoption("--async-backend") or [
+        "asyncio",
+        # "uvloop",
+        "trio",
+    ]
 
 
 def wait_for_cluster_creation(valkey_url, cluster_nodes, timeout=60):

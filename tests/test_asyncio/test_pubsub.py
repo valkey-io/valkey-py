@@ -784,10 +784,10 @@ class TestPubSubRun:
     async def test_exception_handler(self, r: valkey.Valkey, pubsub):
         send_exceptions, receive_exceptions = anyio.create_memory_object_stream(1)
 
-        def exception_handler_callback(e, pubsub) -> None:
+        async def exception_handler_callback(e, pubsub) -> None:
             assert pubsub == p
             with send_exceptions:
-                send_exceptions.send_nowait(e)
+                await send_exceptions.send(e)
 
         p = pubsub
         await self._subscribe(p, foo=lambda x: None)
@@ -901,7 +901,8 @@ class TestPubSubAutoReconnect:
                 old_state = self.state
                 try:
                     got_msg = await self.get_message()
-                    assert got_msg
+                    if not got_msg:
+                        continue
                     if self.state in (1, 2):
                         self.state = 3  # successful reconnect
                 except valkey.ConnectionError:

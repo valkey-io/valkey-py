@@ -254,7 +254,7 @@ async def moved_redirection_helper(
     slot = 12182
     redirect_node = None
     # Get the current primary that holds this slot
-    prev_primary = rc.nodes_manager.get_node_from_slot(slot)
+    prev_primary = await rc.nodes_manager.get_node_from_slot(slot)
     if failover:
         if len(rc.nodes_manager.slots_cache[slot]) < 2:
             warnings.warn("Skipping this test since it requires to have a replica")
@@ -1104,7 +1104,7 @@ class TestClusterValkeyCommands:
         assert await r.cluster_addslotsrange(node, 1, 5)
 
     async def test_cluster_countkeysinslot(self, r: ValkeyCluster) -> None:
-        node = r.nodes_manager.get_node_from_slot(1)
+        node = await r.nodes_manager.get_node_from_slot(1)
         mock_node_resp(node, 2)
         assert await r.cluster_countkeysinslot(1) == 2
 
@@ -1257,7 +1257,7 @@ class TestClusterValkeyCommands:
 
     async def test_cluster_get_keys_in_slot(self, r: ValkeyCluster) -> None:
         response = ["{foo}1", "{foo}2"]
-        node = r.nodes_manager.get_node_from_slot(12182)
+        node = await r.nodes_manager.get_node_from_slot(12182)
         mock_node_resp(node, response)
         keys = await r.cluster_get_keys_in_slot(12182, 4)
         assert keys == response
@@ -1281,7 +1281,7 @@ class TestClusterValkeyCommands:
             await r.cluster_failover(node, "STATE")
 
     async def test_cluster_setslot_stable(self, r: ValkeyCluster) -> None:
-        node = r.nodes_manager.get_node_from_slot(12182)
+        node = await r.nodes_manager.get_node_from_slot(12182)
         mock_node_resp(node, "OK")
         assert await r.cluster_setslot_stable(12182) is True
         assert node._free.pop().read_response.called
@@ -1363,7 +1363,7 @@ class TestClusterValkeyCommands:
         await r.set("z{1}", 3)
         # Get node that handles the slot
         slot = r.keyslot("x{1}")
-        node = r.nodes_manager.get_node_from_slot(slot)
+        node = await r.nodes_manager.get_node_from_slot(slot)
         # Run info on that node
         info = await r.info(target_nodes=node)
         assert isinstance(info, dict)
@@ -1427,7 +1427,7 @@ class TestClusterValkeyCommands:
 
     async def test_slowlog_length(self, r: ValkeyCluster, slowlog: None) -> None:
         await r.get("foo")
-        node = r.nodes_manager.get_node_from_slot(key_slot(b"foo"))
+        node = await r.nodes_manager.get_node_from_slot(key_slot(b"foo"))
         slowlog_len = await r.slowlog_len(target_nodes=node)
         assert isinstance(slowlog_len, int)
 
@@ -1451,7 +1451,7 @@ class TestClusterValkeyCommands:
         # put a key into the current db to make sure that "db.<current-db>"
         # has data
         await r.set("foo", "bar")
-        node = r.nodes_manager.get_node_from_slot(key_slot(b"foo"))
+        node = await r.nodes_manager.get_node_from_slot(key_slot(b"foo"))
         stats = await r.memory_stats(target_nodes=node)
         assert isinstance(stats, dict)
         for key, value in stats.items():
