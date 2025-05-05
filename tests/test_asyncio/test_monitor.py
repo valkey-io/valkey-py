@@ -1,4 +1,5 @@
 import pytest
+from tests.conftest import skip_if_version_is_one_of
 
 from .conftest import wait_for_command
 
@@ -6,7 +7,7 @@ from .conftest import wait_for_command
 @pytest.mark.onlynoncluster
 class TestMonitor:
     async def test_wait_command_not_found(self, r):
-        """Make sure the wait_for_command func works when command is not found"""
+        """Make sure the wait_for_command func works when command is not found."""
         async with r.monitor() as m:
             response = await wait_for_command(r, m, "nothing")
             assert response is None
@@ -23,6 +24,9 @@ class TestMonitor:
             assert isinstance(response["client_port"], str)
             assert response["command"] == "PING"
 
+    # Escaping in MONITOR is broken in Valkey 8.1.0 and 8.1.1
+    # https://github.com/valkey-io/valkey/issues/2035
+    @skip_if_version_is_one_of(["8.1.0", "8.1.1"])
     async def test_command_with_quoted_key(self, r):
         async with r.monitor() as m:
             await r.get('foo"bar')
@@ -36,6 +40,9 @@ class TestMonitor:
             response = await wait_for_command(r, m, "GET foo\\x92")
             assert response["command"] == "GET foo\\x92"
 
+    # Escaping in MONITOR is broken in Valkey 8.1.0 and 8.1.1
+    # https://github.com/valkey-io/valkey/issues/2035
+    @skip_if_version_is_one_of(["8.1.0", "8.1.1"])
     async def test_command_with_escaped_data(self, r):
         async with r.monitor() as m:
             byte_string = b"foo\\x92"
