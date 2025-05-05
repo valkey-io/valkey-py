@@ -47,6 +47,7 @@ from .conftest import (
     assert_resp_response,
     is_resp2_connection,
     skip_if_server_version_lt,
+    skip_if_version_is_one_of,
     skip_unless_arch_bits,
     wait_for_command,
 )
@@ -3381,6 +3382,9 @@ class TestClusterMonitor:
             assert isinstance(response["client_port"], str)
             assert response["command"] == "PING"
 
+    # Escaping in MONITOR is broken in Valkey 8.1.0 and 8.1.1
+    # https://github.com/valkey-io/valkey/issues/2035
+    @skip_if_version_is_one_of(["8.1.0", "8.1.1"])
     def test_command_with_quoted_key(self, r):
         key = "{foo}1"
         node = r.get_node_from_key(key)
@@ -3398,6 +3402,9 @@ class TestClusterMonitor:
             response = wait_for_command(r, m, "GET {foo}bar\\x92", key=key)
             assert response["command"] == "GET {foo}bar\\x92"
 
+    # Escaping in MONITOR is broken in Valkey 8.1.0 and 8.1.1
+    # https://github.com/valkey-io/valkey/issues/2035
+    @skip_if_version_is_one_of(["8.1.0", "8.1.1"])
     def test_command_with_escaped_data(self, r):
         key = "{foo}1"
         node = r.get_node_from_key(key)
