@@ -40,6 +40,7 @@ class _LibvalkeyParser(BaseParser):
             raise ValkeyError("libvalkey is not installed")
         self.socket_read_size = socket_read_size
         self._buffer = bytearray(socket_read_size)
+        self.invalidations_push_handler_func = None
 
     def __del__(self):
         try:
@@ -144,6 +145,9 @@ class _LibvalkeyParser(BaseParser):
             raise response[0]
         return response
 
+    def set_invalidation_push_handler(self, invalidations_push_handler_func):
+        self.invalidations_push_handler_func = invalidations_push_handler_func
+
 
 class _AsyncLibvalkeyParser(AsyncBaseParser):
     """Async implementation of parser class for connections using libvalkey"""
@@ -155,6 +159,7 @@ class _AsyncLibvalkeyParser(AsyncBaseParser):
             raise ValkeyError("libvalkey is not available.")
         super().__init__(socket_read_size=socket_read_size)
         self._reader = None
+        self.invalidations_push_handler_func = None
 
     def on_connect(self, connection):
         import libvalkey
@@ -228,3 +233,6 @@ class _AsyncLibvalkeyParser(AsyncBaseParser):
         ):
             raise response[0]
         return response
+
+    def set_invalidation_push_handler(self, invalidations_push_handler_func):
+        self.invalidations_push_handler_func = invalidations_push_handler_func
