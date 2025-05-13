@@ -827,7 +827,7 @@ async def test_tags(decoded_r: valkey.Valkey):
         assert 1 == res.total
 
         q2 = await decoded_r.ft().tagvals("tags")
-        assert (tags.split(",") + tags2.split(",")).sort() == q2.sort()
+        assert sorted(tags.split(",") + tags2.split(",")) == sorted(q2)
     else:
         res = await decoded_r.ft().search(q)
         assert 1 == res["total_results"]
