@@ -113,7 +113,7 @@ For more details, please see the documentation on [advanced topics page](https:/
 
 ### Pipelines
 
-The following is a basic example of a [Valkey pipeline](https://redis.io/docs/manual/pipelining/), a method to optimize round-trip calls, by batching Valkey commands, and receiving their results as a list.
+The following is a basic example of a [Valkey pipeline](https://valkey.io/topics/pipelining/), a method to optimize round-trip calls, by batching Valkey commands, and receiving their results as a list.
 
 
 ``` python
@@ -127,7 +127,7 @@ The following is a basic example of a [Valkey pipeline](https://redis.io/docs/ma
 
 ### PubSub
 
-The following example shows how to utilize [Valkey Pub/Sub](https://redis.io/docs/manual/pubsub/) to subscribe to specific channels.
+The following example shows how to utilize [Valkey Pub/Sub](https://valkey.io/topics/pubsub/) to subscribe to specific channels.
 
 ``` python
 >>> r = valkey.Valkey(...)
