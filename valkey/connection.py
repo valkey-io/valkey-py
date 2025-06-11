@@ -5,6 +5,7 @@ import sys
 import threading
 import weakref
 from abc import abstractmethod
+from collections.abc import Callable, Iterable, Sequence
 from itertools import chain
 
 # We need to explicitly import `getpid` from `os` instead of importing `os`. The
@@ -23,7 +24,7 @@ from itertools import chain
 from os import getpid
 from queue import Empty, Full, LifoQueue
 from time import time
-from typing import Any, Callable, Iterable, List, Optional, Sequence, Tuple, Type, Union
+from typing import Any, Optional, Union
 
 from ._cache import (
     DEFAULT_ALLOW_LIST,
@@ -66,7 +67,7 @@ SYM_EMPTY = b""
 
 DEFAULT_RESP_VERSION = 2
 
-DefaultParser: Type[Union[_RESP2Parser, _RESP3Parser, _LibvalkeyParser]]
+DefaultParser: type[Union[_RESP2Parser, _RESP3Parser, _LibvalkeyParser]]
 if LIBVALKEY_AVAILABLE:
     DefaultParser = _LibvalkeyParser
 else:
@@ -74,9 +75,9 @@ else:
 
 
 class LibvalkeyRespSerializer:
-    def pack(self, *args) -> List[bytes]:
+    def pack(self, *args) -> list[bytes]:
         """Pack a series of arguments into the Valkey protocol"""
-        output: List[bytes] = []
+        output: list[bytes] = []
 
         if isinstance(args[0], str):
             args = tuple(args[0].encode().split()) + args[1:]
@@ -96,7 +97,7 @@ class PythonRespSerializer:
         self._buffer_cutoff = buffer_cutoff
         self.encode = encode
 
-    def pack(self, *args) -> List[bytes]:
+    def pack(self, *args) -> list[bytes]:
         """Pack a series of arguments into the Valkey protocol"""
         output = []
         # the client might have included 1 or more literal arguments in
@@ -152,7 +153,7 @@ class AbstractConnection:
         socket_timeout: Optional[float] = 5,
         socket_connect_timeout: Optional[float] = None,
         retry_on_timeout: bool = False,
-        retry_on_error: Optional[List[Type[Exception]]] = None,
+        retry_on_error: Optional[list[type[Exception]]] = None,
         encoding: str = "utf-8",
         encoding_errors: str = "strict",
         decode_responses: bool = False,
@@ -173,8 +174,8 @@ class AbstractConnection:
         cache_max_size: int = 10000,
         cache_ttl: int = 0,
         cache_policy=DEFAULT_EVICTION_POLICY,
-        cache_deny_list: List[str] = DEFAULT_DENY_LIST,
-        cache_allow_list: List[str] = DEFAULT_ALLOW_LIST,
+        cache_deny_list: list[str] = DEFAULT_DENY_LIST,
+        cache_allow_list: list[str] = DEFAULT_ALLOW_LIST,
     ):
         """
         Initialize a new Connection.
@@ -226,7 +227,7 @@ class AbstractConnection:
         self._sock: Optional[socket.socket] = None
         self._socket_read_size = socket_read_size
         self.set_parser(parser_class)
-        self._connect_callbacks: List[weakref.WeakMethod] = []
+        self._connect_callbacks: list[weakref.WeakMethod] = []
         self._buffer_cutoff = 6000
         try:
             p = int(protocol) if protocol is not None else DEFAULT_RESP_VERSION
@@ -256,7 +257,7 @@ class AbstractConnection:
         return f"<{self.__class__.__module__}.{self.__class__.__name__}({repr_args})>"
 
     @abstractmethod
-    def repr_pieces(self) -> List[Tuple[str, Any]]:
+    def repr_pieces(self) -> list[tuple[str, Any]]:
         pass
 
     def __del__(self):
@@ -589,8 +590,8 @@ class AbstractConnection:
 
     def pack_commands(self, commands):
         """Pack multiple commands into the Valkey protocol"""
-        output: List[bytes] = []
-        pieces: List[bytes] = []
+        output: list[bytes] = []
+        pieces: list[bytes] = []
         buffer_length = 0
         buffer_cutoff = self._buffer_cutoff
 
@@ -618,7 +619,7 @@ class AbstractConnection:
         return output
 
     def _cache_invalidation_process(
-        self, data: List[Union[str, Optional[List[str]]]]
+        self, data: list[Union[str, Optional[list[str]]]]
     ) -> None:
         """
         Invalidate (delete) all valkey commands associated with a specific key.
@@ -648,7 +649,7 @@ class AbstractConnection:
         return self.client_cache.get(command)
 
     def _add_to_local_cache(
-        self, command: Sequence[str], response: ResponseT, keys: List[KeyT]
+        self, command: Sequence[str], response: ResponseT, keys: list[KeyT]
     ):
         """
         Add the command and response to the local cache if the command
