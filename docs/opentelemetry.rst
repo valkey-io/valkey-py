@@ -36,15 +36,15 @@ To install OpenTelemetry `instrumentation <https://opentelemetry-python-contrib.
 
 .. code-block:: shell
 
-   pip install opentelemetry-instrumentation-valkey
+   pip install opentelemetry-instrumentation-redis
 
 You can then use it to instrument code like this:
 
 .. code-block:: python
 
-   from opentelemetry.instrumentation.valkey import ValkeyInstrumentor
+   from opentelemetry.instrumentation.redis import RedisInstrumentor
 
-   ValkeyInstrumentor().instrument()
+   RedisInstrumentor().instrument()
 
 Once the code is patched, you can use valkey-py as usually:
 
@@ -99,9 +99,9 @@ Uptrace
 
 Uptrace is an `open source APM <https://uptrace.dev/get/open-source-apm.html>`_ that supports distributed tracing, metrics, and logs. You can use it to monitor applications and set up automatic alerts to receive notifications via email, Slack, Telegram, and more.
 
-You can use Uptrace to monitor valkey-py using this `GitHub example <https://github.com/valkey/valkey-py/tree/master/docs/examples/opentelemetry>`_ as a starting point.
+You can use Uptrace to monitor valkey-py using this `GitHub example <https://github.com/valkey-io/valkey-py/tree/main/docs/examples/opentelemetry>`_ as a starting point.
 
-.. image:: images/opentelemetry/valkey-py-trace.png
+.. image:: images/opentelemetry/redis-py-trace.png
   :alt: Valkey-py trace
 
 You can `install Uptrace <https://uptrace.dev/get/install.html>`_ by downloading a DEB/RPM package or a pre-compiled binary.
@@ -113,9 +113,9 @@ In addition to monitoring valkey-py client, you can also monitor Valkey Server p
 
 OpenTelemetry Collector is a proxy/middleman between your application and a `distributed tracing tool <https://uptrace.dev/blog/distributed-tracing-tools.html>`_ such as Uptrace or Jaeger. Collector receives telemetry data, processes it, and then exports the data to APM tools that can store it permanently.
 
-For example, you can use the `OpenTelemetry Valkey receiver <https://uptrace.dev/get/monitor/opentelemetry-valkey.html>` provided by Otel Collector to monitor Valkey performance:
+For example, you can use the `OpenTelemetry Redis receiver <https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/redisreceiver>`_ provided by Otel Collector to monitor Valkey performance:
 
-.. image:: images/opentelemetry/valkey-metrics.png
+.. image:: images/opentelemetry/redis-metrics.png
   :alt: Valkey metrics
 
 See introduction to `OpenTelemetry Collector <https://uptrace.dev/opentelemetry/collector.html>`_ for details.
