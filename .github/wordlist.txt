@@ -38,6 +38,7 @@ READONLY
 RediSearch
 RedisBloom
 RedisGraph
+RedisInstrumentor
 RedisJSON
 RedisTimeSeries
 SHA
