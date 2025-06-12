@@ -635,7 +635,7 @@ class ManagementCommands(CommandsProtocol):
         Enables the tracking feature of the Valkey server, that is used
         for server assisted client side caching.
 
-        ``on`` indicate for tracking on or tracking off. The dafualt is on.
+        ``on`` indicate for tracking on or tracking off. The default is on.
 
         ``clientid`` send invalidation messages to the connection with
         the specified ID.
@@ -1009,7 +1009,7 @@ class ManagementCommands(CommandsProtocol):
 
     def latency_doctor(self):
         """Raise a NotImplementedError, as the client will not support LATENCY DOCTOR.
-        This funcion is best used within the valkey-cli.
+        This function is best used within the valkey-cli.
 
         For more information see https://valkey.io/commands/latency-doctor
         """
@@ -1023,7 +1023,7 @@ class ManagementCommands(CommandsProtocol):
 
     def latency_graph(self):
         """Raise a NotImplementedError, as the client will not support LATENCY GRAPH.
-        This funcion is best used within the valkey-cli.
+        This function is best used within the valkey-cli.
 
         For more information see https://valkey.io/commands/latency-graph.
         """
@@ -1047,7 +1047,7 @@ class ManagementCommands(CommandsProtocol):
             return self.execute_command("LOLWUT", **kwargs)
 
     def reset(self) -> ResponseT:
-        """Perform a full reset on the connection's server side contenxt.
+        """Perform a full reset on the connection's server side context.
 
         See: https://valkey.io/commands/reset
         """
@@ -1465,7 +1465,7 @@ class BitFieldOperation:
         """
         Update the overflow algorithm of successive INCRBY operations
         :param overflow: Overflow algorithm, one of WRAP, SAT, FAIL. See the
-            Valkey docs for descriptions of these algorithmsself.
+            Valkey docs for descriptions of these algorithms.
         :returns: a :py:class:`BitFieldOperation` instance.
         """
         overflow = overflow.upper()
@@ -2236,7 +2236,7 @@ class BasicKeyCommands(CommandsProtocol):
             try:
                 params.append(int(idletime))
             except ValueError:
-                raise DataError("idletimemust be an integer")
+                raise DataError("idletime must be an integer")
 
         if frequency is not None:
             params.append("FREQ")
@@ -2522,7 +2522,7 @@ class BasicKeyCommands(CommandsProtocol):
     ) -> Union[str, int, list]:
         """
         Find the longest common subsequence between ``key1`` and ``key2``.
-        If ``len`` is true the length of the match will will be returned.
+        If ``len`` is true the length of the match will be returned.
         If ``idx`` is true the match position in each strings will be returned.
         ``minmatchlen`` restrict the list of matches to the ones of
         the given ``minmatchlen``.
@@ -2918,7 +2918,7 @@ class ListCommands(CommandsProtocol):
             pieces.extend([b"LIMIT", start, num])
         if get is not None:
             # If get is a string assume we want to get a single value.
-            # Otherwise assume it's an interable and we want to get multiple
+            # Otherwise assume it's an iterable and we want to get multiple
             # values. We can't just iterate blindly because strings are
             # iterable.
             if isinstance(get, (bytes, str)):
@@ -4451,7 +4451,7 @@ class SortedSetCommands(CommandsProtocol):
         num: Union[int, None] = None,
     ) -> ResponseT:
         if byscore and bylex:
-            raise DataError("``byscore`` and ``bylex`` can not be specified together.")
+            raise DataError("``byscore`` and ``bylex`` cannot be specified together.")
         if (offset is not None and num is None) or (num is not None and offset is None):
             raise DataError("``offset`` and ``num`` must both be specified.")
         if bylex and withscores:

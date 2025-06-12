@@ -7,7 +7,7 @@ from .node import Node  # noqa
 from .path import Path  # noqa
 
 DB_LABELS = "DB.LABELS"
-DB_RAELATIONSHIPTYPES = "DB.RELATIONSHIPTYPES"
+DB_RELATIONSHIPTYPES = "DB.RELATIONSHIPTYPES"
 DB_PROPERTYKEYS = "DB.PROPERTYKEYS"
 
 
@@ -164,7 +164,7 @@ class Graph(GraphCommands):
         return self.call_procedure(DB_LABELS, read_only=True).result_set
 
     def relationship_types(self):
-        return self.call_procedure(DB_RAELATIONSHIPTYPES, read_only=True).result_set
+        return self.call_procedure(DB_RELATIONSHIPTYPES, read_only=True).result_set
 
     def property_keys(self):
         return self.call_procedure(DB_PROPERTYKEYS, read_only=True).result_set
@@ -259,5 +259,5 @@ class AsyncGraph(Graph, AsyncGraphCommands):
 
     async def relationship_types(self):
         return (
-            await self.call_procedure(DB_RAELATIONSHIPTYPES, read_only=True)
+            await self.call_procedure(DB_RELATIONSHIPTYPES, read_only=True)
         ).result_set

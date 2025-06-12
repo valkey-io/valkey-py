@@ -167,9 +167,7 @@ def pytest_sessionstart(session):
 
             uvloop.install()
         except ImportError as e:
-            raise RuntimeError(
-                "Can not import uvloop, make sure it is installed"
-            ) from e
+            raise RuntimeError("Cannot import uvloop, make sure it is installed") from e
 
 
 def wait_for_cluster_creation(valkey_url, cluster_nodes, timeout=60):
@@ -510,7 +508,7 @@ def assert_resp_response(r, response, resp2_expected, resp3_expected):
 def assert_geo_is_close(coords, expected_coords):
     """Verifies that the coordinates are close within the floating point tolerance.
 
-    Valkey uses 52-bit presicion
+    Valkey uses 52-bit precision
     """
     for a, b in zip(coords, expected_coords):
         assert math.isclose(a, b)

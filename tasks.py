@@ -74,7 +74,7 @@ def cluster_tests(c, uvloop=False, protocol=2, color=False):
         )
     else:
         run(
-            f"pytest --color={'yes' if color else 'no'} --protocol={protocol} --cov=./ --cov-report=xml:coverage_clusteclient.xml -W always -m 'not onlynoncluster and not valkeymod' --valkey-url={cluster_url} --junit-xml=cluster-results.xml"
+            f"pytest --color={'yes' if color else 'no'} --protocol={protocol} --cov=./ --cov-report=xml:coverage_clusterclient.xml -W always -m 'not onlynoncluster and not valkeymod' --valkey-url={cluster_url} --junit-xml=cluster-results.xml"
         )
 
 

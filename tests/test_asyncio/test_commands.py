@@ -62,7 +62,7 @@ async def r_teardown(r: valkey.Valkey):
 async def slowlog(r: valkey.Valkey):
     current_config = await r.config_get()
     old_slower_than_value = current_config["slowlog-log-slower-than"]
-    old_max_legnth_value = current_config["slowlog-max-len"]
+    old_max_length_value = current_config["slowlog-max-len"]
 
     await r.config_set("slowlog-log-slower-than", 0)
     await r.config_set("slowlog-max-len", 128)
@@ -70,7 +70,7 @@ async def slowlog(r: valkey.Valkey):
     yield
 
     await r.config_set("slowlog-log-slower-than", old_slower_than_value)
-    await r.config_set("slowlog-max-len", old_max_legnth_value)
+    await r.config_set("slowlog-max-len", old_max_length_value)
 
 
 async def valkey_server_time(client: valkey.Valkey):
@@ -1972,10 +1972,10 @@ class TestValkeyCommands:
         await r.zadd("b", {"a1": 2, "a2": 2, "a3": 2})
         await r.zadd("c", {"a1": 6, "a3": 5, "a4": 4})
         assert await r.zunionstore("d", ["a", "b", "c"], aggregate="MAX") == 4
-        respponse = await r.zrange("d", 0, -1, withscores=True)
+        response = await r.zrange("d", 0, -1, withscores=True)
         assert_resp_response(
             r,
-            respponse,
+            response,
             [(b"a2", 2.0), (b"a4", 4.0), (b"a3", 5.0), (b"a1", 6.0)],
             [[b"a2", 2.0], [b"a4", 4.0], [b"a3", 5.0], [b"a1", 6.0]],
         )
@@ -2647,7 +2647,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("6.2.0")
     async def test_geosearch_negative(self, r: valkey.Valkey):
-        # not specifying member nor longitude and latitude
+        # neither specifying member nor longitude and latitude
         with pytest.raises(exceptions.DataError):
             assert await r.geosearch("barcelona")
         # specifying member and longitude and latitude
@@ -2661,7 +2661,7 @@ class TestValkeyCommands:
         with pytest.raises(exceptions.DataError):
             assert await r.geosearch("barcelona", latitude=2)
 
-        # not specifying radius nor width and height
+        # neither specifying radius nor width and height
         with pytest.raises(exceptions.DataError):
             assert await r.geosearch("barcelona", member="Paris")
         # specifying radius and width and height
@@ -3549,8 +3549,8 @@ class TestValkeyCommands:
             with pytest.raises(asyncio.CancelledError):
                 # blocking pop
                 ready.set()
-                await r.brpop(["nonexist"])
-            # If the following is not done, further Timout operations will fail,
+                await r.brpop(["nonexistent"])
+            # If the following is not done, further Timeout operations will fail,
             # because the timeout won't catch its Cancelled Error if the task
             # has a pending cancel.  Python documentation probably should reflect this.
             if sys.version_info >= (3, 11):

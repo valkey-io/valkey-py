@@ -1,7 +1,7 @@
 matrix:
 - name: Markdown
   expect_match: false
-  apsell:
+  aspell:
     lang: en
     d: en_US
     ignore-case: true

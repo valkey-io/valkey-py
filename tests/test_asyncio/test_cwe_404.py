@@ -134,7 +134,7 @@ async def test_standalone(delay, master_host):
                     await t
 
                 # make sure that our previous request, cancelled while waiting for
-                # a repsponse, didn't leave the connection open andin a bad state
+                # a response, didn't leave the connection open and in a bad state
                 assert await r.get("bar") == b"bar"
                 assert await r.ping()
                 assert await r.get("foo") == b"foo"
@@ -173,7 +173,7 @@ async def test_standalone_pipeline(delay, master_host):
                 with pytest.raises(asyncio.CancelledError):
                     await t
 
-                # we have now cancelled the pieline in the middle of a request,
+                # we have now cancelled the pipeline in the middle of a request,
                 # make sure that the connection is still usable
                 pipe.get("bar")
                 pipe.ping()

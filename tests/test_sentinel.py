@@ -42,7 +42,7 @@ class SentinelTestClient:
 
 
 class SentinelTestCluster:
-    def __init__(self, servisentinel_ce_name="mymaster", ip="127.0.0.1", port=6379):
+    def __init__(self, service_sentinel_name="mymaster", ip="127.0.0.1", port=6379):
         self.clients = {}
         self.master = {
             "ip": ip,
@@ -52,7 +52,7 @@ class SentinelTestCluster:
             "is_odown": False,
             "num-other-sentinels": 0,
         }
-        self.service_name = servisentinel_ce_name
+        self.service_name = service_sentinel_name
         self.slaves = []
         self.nodes_down = set()
         self.nodes_timeout = set()
