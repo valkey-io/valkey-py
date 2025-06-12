@@ -5,6 +5,7 @@ import sys
 import threading
 import weakref
 from abc import abstractmethod
+from collections.abc import Callable, Iterable, Sequence
 from itertools import chain
 
 # We need to explicitly import `getpid` from `os` instead of importing `os`. The
@@ -23,7 +24,7 @@ from itertools import chain
 from os import getpid
 from queue import Empty, Full, LifoQueue
 from time import time
-from typing import Any, Callable, List, Optional, Sequence, Type, Union
+from typing import Any, Optional, Union
 
 from ._cache import (
     DEFAULT_ALLOW_LIST,
@@ -46,7 +47,7 @@ from .exceptions import (
     ValkeyError,
 )
 from .retry import Retry
-from .typing import KeysT, ResponseT
+from .typing import KeyT, ResponseT
 from .utils import (
     CRYPTOGRAPHY_AVAILABLE,
     LIBVALKEY_AVAILABLE,
@@ -66,9 +67,7 @@ SYM_EMPTY = b""
 
 DEFAULT_RESP_VERSION = 2
 
-SENTINEL = object()
-
-DefaultParser: Type[Union[_RESP2Parser, _RESP3Parser, _LibvalkeyParser]]
+DefaultParser: type[Union[_RESP2Parser, _RESP3Parser, _LibvalkeyParser]]
 if LIBVALKEY_AVAILABLE:
     DefaultParser = _LibvalkeyParser
 else:
@@ -76,9 +75,9 @@ else:
 
 
 class LibvalkeyRespSerializer:
-    def pack(self, *args: List):
+    def pack(self, *args) -> list[bytes]:
         """Pack a series of arguments into the Valkey protocol"""
-        output = []
+        output: list[bytes] = []
 
         if isinstance(args[0], str):
             args = tuple(args[0].encode().split()) + args[1:]
@@ -98,7 +97,7 @@ class PythonRespSerializer:
         self._buffer_cutoff = buffer_cutoff
         self.encode = encode
 
-    def pack(self, *args):
+    def pack(self, *args) -> list[bytes]:
         """Pack a series of arguments into the Valkey protocol"""
         output = []
         # the client might have included 1 or more literal arguments in
@@ -154,7 +153,7 @@ class AbstractConnection:
         socket_timeout: Optional[float] = 5,
         socket_connect_timeout: Optional[float] = None,
         retry_on_timeout: bool = False,
-        retry_on_error=SENTINEL,
+        retry_on_error: Optional[list[type[Exception]]] = None,
         encoding: str = "utf-8",
         encoding_errors: str = "strict",
         decode_responses: bool = False,
@@ -166,17 +165,17 @@ class AbstractConnection:
         lib_version: Optional[str] = get_lib_version(),
         username: Optional[str] = None,
         retry: Union[Any, None] = None,
-        valkey_connect_func: Optional[Callable[[], None]] = None,
+        valkey_connect_func: Optional[Callable[["AbstractConnection"], None]] = None,
         credential_provider: Optional[CredentialProvider] = None,
-        protocol: Optional[int] = 2,
+        protocol: Optional[Union[int, str]] = 2,
         command_packer: Optional[Callable[[], None]] = None,
         cache_enabled: bool = False,
         client_cache: Optional[AbstractCache] = None,
         cache_max_size: int = 10000,
         cache_ttl: int = 0,
-        cache_policy: str = DEFAULT_EVICTION_POLICY,
-        cache_deny_list: List[str] = DEFAULT_DENY_LIST,
-        cache_allow_list: List[str] = DEFAULT_ALLOW_LIST,
+        cache_policy=DEFAULT_EVICTION_POLICY,
+        cache_deny_list: list[str] = DEFAULT_DENY_LIST,
+        cache_allow_list: list[str] = DEFAULT_ALLOW_LIST,
     ):
         """
         Initialize a new Connection.
@@ -205,7 +204,7 @@ class AbstractConnection:
             socket_connect_timeout = socket_timeout
         self.socket_connect_timeout = socket_connect_timeout
         self.retry_on_timeout = retry_on_timeout
-        if retry_on_error is SENTINEL:
+        if retry_on_error is None:
             retry_on_error = []
         if retry_on_timeout:
             # Add TimeoutError to the errors list to retry on
@@ -222,18 +221,16 @@ class AbstractConnection:
         else:
             self.retry = Retry(NoBackoff(), 0)
         self.health_check_interval = health_check_interval
-        self.next_health_check = 0
+        self.next_health_check = 0.0
         self.valkey_connect_func = valkey_connect_func
         self.encoder = Encoder(encoding, encoding_errors, decode_responses)
-        self._sock = None
+        self._sock: Optional[socket.socket] = None
         self._socket_read_size = socket_read_size
         self.set_parser(parser_class)
-        self._connect_callbacks = []
+        self._connect_callbacks: list[weakref.WeakMethod] = []
         self._buffer_cutoff = 6000
         try:
-            p = int(protocol)
-        except TypeError:
-            p = DEFAULT_RESP_VERSION
+            p = int(protocol) if protocol is not None else DEFAULT_RESP_VERSION
         except ValueError:
             raise ConnectionError("protocol must be an integer")
         finally:
@@ -260,7 +257,7 @@ class AbstractConnection:
         return f"<{self.__class__.__module__}.{self.__class__.__name__}({repr_args})>"
 
     @abstractmethod
-    def repr_pieces(self):
+    def repr_pieces(self) -> list[tuple[str, Any]]:
         pass
 
     def __del__(self):
@@ -310,7 +307,7 @@ class AbstractConnection:
 
     def connect(self):
         "Connects to the Valkey server if not already connected"
-        if self._sock:
+        if self._sock is not None:
             return
         try:
             sock = self.retry.call_with_retry(
@@ -348,7 +345,7 @@ class AbstractConnection:
         pass
 
     @abstractmethod
-    def _host_error(self):
+    def _host_error(self) -> str:
         pass
 
     def _error_message(self, exception):
@@ -377,7 +374,7 @@ class AbstractConnection:
                 self._parser.EXCEPTION_CLASSES = parser.EXCEPTION_CLASSES
                 self._parser.on_connect(self)
             if len(auth_args) == 1:
-                auth_args = ["default", auth_args[0]]
+                auth_args = ("default", auth_args[0])
             self.send_command("HELLO", self.protocol, "AUTH", *auth_args)
             response = self.read_response()
             # if response.get(b"proto") != self.protocol and response.get(
@@ -492,6 +489,7 @@ class AbstractConnection:
         """Send an already packed command to the Valkey server"""
         if not self._sock:
             self.connect()
+        assert self._sock is not None
         # guard against health check recursion
         if check_health:
             self.check_health()
@@ -592,8 +590,8 @@ class AbstractConnection:
 
     def pack_commands(self, commands):
         """Pack multiple commands into the Valkey protocol"""
-        output = []
-        pieces = []
+        output: list[bytes] = []
+        pieces: list[bytes] = []
         buffer_length = 0
         buffer_cutoff = self._buffer_cutoff
 
@@ -621,7 +619,7 @@ class AbstractConnection:
         return output
 
     def _cache_invalidation_process(
-        self, data: List[Union[str, Optional[List[str]]]]
+        self, data: list[Union[str, Optional[list[str]]]]
     ) -> None:
         """
         Invalidate (delete) all valkey commands associated with a specific key.
@@ -629,6 +627,7 @@ class AbstractConnection:
         and the second string is the list of keys to invalidate.
         (if the list of keys is None, then all keys are invalidated)
         """
+        assert self.client_cache is not None
         if data[1] is None:
             self.client_cache.flush()
         else:
@@ -650,7 +649,7 @@ class AbstractConnection:
         return self.client_cache.get(command)
 
     def _add_to_local_cache(
-        self, command: Sequence[str], response: ResponseT, keys: List[KeysT]
+        self, command: Sequence[str], response: ResponseT, keys: list[KeyT]
     ):
         """
         Add the command and response to the local cache if the command
@@ -671,7 +670,7 @@ class AbstractConnection:
         if self.client_cache:
             self.client_cache.delete_command(command)
 
-    def invalidate_key_from_cache(self, key: KeysT):
+    def invalidate_key_from_cache(self, key: KeyT):
         if self.client_cache:
             self.client_cache.invalidate_key(key)
 
@@ -1036,7 +1035,7 @@ class ConnectionPool:
         self._fork_lock = threading.Lock()
         self.reset()
 
-    def __repr__(self) -> (str, str):
+    def __repr__(self) -> str:
         return (
             f"<{type(self).__module__}.{type(self).__name__}"
             f"({repr(self.connection_class(**self.connection_kwargs))})>"
@@ -1045,8 +1044,8 @@ class ConnectionPool:
     def reset(self) -> None:
         self._lock = threading.Lock()
         self._created_connections = 0
-        self._available_connections = []
-        self._in_use_connections = set()
+        self._available_connections: list[Connection] = []
+        self._in_use_connections: set[Connection] = set()
 
         # this must be the last operation in this method. while reset() is
         # called when holding _fork_lock, other threads in this process
@@ -1193,7 +1192,7 @@ class ConnectionPool:
         self._checkpid()
         with self._lock:
             if inuse_connections:
-                connections = chain(
+                connections: Iterable[Connection] = chain(
                     self._available_connections, self._in_use_connections
                 )
             else:
@@ -1388,7 +1387,7 @@ class BlockingConnectionPool(ConnectionPool):
             # we don't want this connection
             pass
 
-    def disconnect(self):
+    def disconnect(self, _: bool = True) -> None:
         "Disconnects all connections in the pool."
         self._checkpid()
         for connection in self._connections:
