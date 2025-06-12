@@ -1,5 +1,6 @@
 import binascii
 import datetime
+import math
 import select
 import socket
 import socketserver
@@ -46,6 +47,7 @@ from .conftest import (
     assert_resp_response,
     is_resp2_connection,
     skip_if_server_version_lt,
+    skip_if_version_is_one_of,
     skip_unless_arch_bits,
     wait_for_command,
 )
@@ -1663,7 +1665,7 @@ class TestClusterValkeyCommands:
 
     @skip_if_server_version_lt("2.6.0")
     def test_cluster_bitop_not(self, r):
-        test_str = b"\xAA\x00\xFF\x55"
+        test_str = b"\xaa\x00\xff\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
         r["{foo}a"] = test_str
         r.bitop("not", "{foo}r", "{foo}a")
@@ -1671,7 +1673,7 @@ class TestClusterValkeyCommands:
 
     @skip_if_server_version_lt("2.6.0")
     def test_cluster_bitop_not_in_place(self, r):
-        test_str = b"\xAA\x00\xFF\x55"
+        test_str = b"\xaa\x00\xff\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
         r["{foo}a"] = test_str
         r.bitop("not", "{foo}a", "{foo}a")
@@ -1679,7 +1681,7 @@ class TestClusterValkeyCommands:
 
     @skip_if_server_version_lt("2.6.0")
     def test_cluster_bitop_single_string(self, r):
-        test_str = b"\x01\x02\xFF"
+        test_str = b"\x01\x02\xff"
         r["{foo}a"] = test_str
         r.bitop("and", "{foo}res1", "{foo}a")
         r.bitop("or", "{foo}res2", "{foo}a")
@@ -1690,8 +1692,8 @@ class TestClusterValkeyCommands:
 
     @skip_if_server_version_lt("2.6.0")
     def test_cluster_bitop_string_operands(self, r):
-        r["{foo}a"] = b"\x01\x02\xFF\xFF"
-        r["{foo}b"] = b"\x01\x02\xFF"
+        r["{foo}a"] = b"\x01\x02\xff\xff"
+        r["{foo}b"] = b"\x01\x02\xff"
         r.bitop("and", "{foo}res1", "{foo}a", "{foo}b")
         r.bitop("or", "{foo}res2", "{foo}a", "{foo}b")
         r.bitop("xor", "{foo}res3", "{foo}a", "{foo}b")
@@ -2247,7 +2249,11 @@ class TestClusterValkeyCommands:
             storedist=True,
         )
         # instead of save the geo score, the distance is saved.
-        assert r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
+        E = 1e-9
+        assert (
+            math.fabs(r.zscore("{foo}places_barcelona", "place1") - 88.05060698409301)
+            < E
+        )
 
     @skip_if_server_version_lt("3.2.0")
     def test_cluster_georadius_store(self, r):
@@ -2277,7 +2283,11 @@ class TestClusterValkeyCommands:
             "{foo}barcelona", 2.191, 41.433, 1000, store_dist="{foo}places_barcelona"
         )
         # instead of save the geo score, the distance is saved.
-        assert r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
+        E = 1e-9
+        assert (
+            math.fabs(r.zscore("{foo}places_barcelona", "place1") - 88.05060698409301)
+            < E
+        )
 
     def test_cluster_dbsize(self, r):
         d = {"a": b"1", "b": b"2", "c": b"3", "d": b"4"}
@@ -2805,7 +2815,7 @@ class TestNodesManager:
         ]
         startup_nodes = list(rc.nodes_manager.startup_nodes.keys())
         if dynamic_startup_nodes is True:
-            assert startup_nodes.sort() == discovered_nodes.sort()
+            assert sorted(startup_nodes) == sorted(discovered_nodes)
         else:
             assert startup_nodes == ["my@DNS.com:7000"]
 
@@ -3372,6 +3382,9 @@ class TestClusterMonitor:
             assert isinstance(response["client_port"], str)
             assert response["command"] == "PING"
 
+    # Escaping in MONITOR is broken in Valkey 8.1.0 and 8.1.1
+    # https://github.com/valkey-io/valkey/issues/2035
+    @skip_if_version_is_one_of(["8.1.0", "8.1.1"])
     def test_command_with_quoted_key(self, r):
         key = "{foo}1"
         node = r.get_node_from_key(key)
@@ -3389,6 +3402,9 @@ class TestClusterMonitor:
             response = wait_for_command(r, m, "GET {foo}bar\\x92", key=key)
             assert response["command"] == "GET {foo}bar\\x92"
 
+    # Escaping in MONITOR is broken in Valkey 8.1.0 and 8.1.1
+    # https://github.com/valkey-io/valkey/issues/2035
+    @skip_if_version_is_one_of(["8.1.0", "8.1.1"])
     def test_command_with_escaped_data(self, r):
         key = "{foo}1"
         node = r.get_node_from_key(key)

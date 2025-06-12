@@ -1,7 +1,8 @@
 import argparse
 import math
 import time
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 from unittest import mock
 from unittest.mock import Mock
 from urllib.parse import urlparse
@@ -173,13 +174,12 @@ def pytest_sessionstart(session):
 
 
 def wait_for_cluster_creation(valkey_url, cluster_nodes, timeout=60):
-    """
-    Waits for the cluster creation to complete.
+    """Waits for the cluster creation to complete.
     As soon as all :cluster_nodes: nodes become available, the cluster will be
     considered ready.
     :param valkey_url: the cluster's url, e.g. valkey://localhost:16379/0
     :param cluster_nodes: The number of nodes in the cluster
-    :param timeout: the amount of time to wait (in seconds)
+    :param timeout: the amount of time to wait (in seconds).
     """
     now = time.time()
     end_time = now + timeout
@@ -215,6 +215,14 @@ def skip_if_server_version_gte(min_version: str) -> _TestDecorator:
     return pytest.mark.skipif(check, reason=f"Valkey version required < {min_version}")
 
 
+def skip_if_version_is_one_of(versions: list[str]) -> _TestDecorator:
+    valkey_version = VALKEY_INFO.get("version", "0")
+    check = Version(valkey_version) in [Version(v) for v in versions]
+    return pytest.mark.skipif(
+        check, reason=f"Valkey version required not in {versions}"
+    )
+
+
 def skip_unless_arch_bits(arch_bits: int) -> _TestDecorator:
     return pytest.mark.skipif(
         VALKEY_INFO.get("arch_bits", "") != arch_bits,
@@ -234,7 +242,7 @@ def skip_ifmodversion_lt(min_version: str, module_name: str):
         if module_name == j.get("name"):
             version = j.get("ver")
             mv = int(
-                "".join(["%02d" % int(segment) for segment in min_version.split(".")])
+                "".join([f"{int(segment):02}" for segment in min_version.split(".")])
             )
             check = version < mv
             return pytest.mark.skipif(check, reason="Valkey module version")
@@ -263,8 +271,7 @@ def skip_if_cryptography() -> _TestDecorator:
 def _get_client(
     cls, request, single_connection_client=True, flushdb=True, from_url=None, **kwargs
 ):
-    """
-    Helper for fixtures or tests that need a Valkey client
+    """Helper for fixtures or tests that need a Valkey client.
 
     Uses the "--valkey-url" command line argument for connection info. Unlike
     ConnectionPool.from_url, keyword arguments to this function override
@@ -320,38 +327,38 @@ def cluster_teardown(client, flushdb):
     client.disconnect_connection_pools()
 
 
-@pytest.fixture()
+@pytest.fixture
 def r(request):
     with _get_client(valkey.Valkey, request) as client:
         yield client
 
 
-@pytest.fixture()
+@pytest.fixture
 def decoded_r(request):
     with _get_client(valkey.Valkey, request, decode_responses=True) as client:
         yield client
 
 
-@pytest.fixture()
+@pytest.fixture
 def r_timeout(request):
     with _get_client(valkey.Valkey, request, socket_timeout=1) as client:
         yield client
 
 
-@pytest.fixture()
+@pytest.fixture
 def r2(request):
-    "A second client for tests that need multiple"
+    """A second client for tests that need multiple."""
     with _get_client(valkey.Valkey, request) as client:
         yield client
 
 
-@pytest.fixture()
+@pytest.fixture
 def sslclient(request):
     with _get_client(valkey.Valkey, request, ssl=True) as client:
         yield client
 
 
-@pytest.fixture()
+@pytest.fixture
 def sentinel_setup(local_cache, request):
     sentinel_ips = request.config.getoption("--sentinels")
     sentinel_endpoints = [
@@ -371,7 +378,7 @@ def sentinel_setup(local_cache, request):
         s.close()
 
 
-@pytest.fixture()
+@pytest.fixture
 def master(request, sentinel_setup):
     master_service = request.config.getoption("--master-service")
     master = sentinel_setup.master_for(master_service)
@@ -388,19 +395,19 @@ def _gen_cluster_mock_resp(r, response):
         yield r
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_cluster_resp_ok(request, **kwargs):
     r = _get_client(valkey.Valkey, request, **kwargs)
     yield from _gen_cluster_mock_resp(r, "OK")
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_cluster_resp_int(request, **kwargs):
     r = _get_client(valkey.Valkey, request, **kwargs)
     yield from _gen_cluster_mock_resp(r, 2)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_cluster_resp_info(request, **kwargs):
     r = _get_client(valkey.Valkey, request, **kwargs)
     response = (
@@ -414,7 +421,7 @@ def mock_cluster_resp_info(request, **kwargs):
     yield from _gen_cluster_mock_resp(r, response)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_cluster_resp_nodes(request, **kwargs):
     r = _get_client(valkey.Valkey, request, **kwargs)
     response = (
@@ -438,7 +445,7 @@ def mock_cluster_resp_nodes(request, **kwargs):
     yield from _gen_cluster_mock_resp(r, response)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_cluster_resp_slaves(request, **kwargs):
     r = _get_client(valkey.Valkey, request, **kwargs)
     response = (
@@ -456,7 +463,7 @@ def master_host(request):
     return parts.hostname, (parts.port or 6379)
 
 
-@pytest.fixture()
+@pytest.fixture
 def valkey_version():
     return Version(VALKEY_INFO["version"])
 
@@ -502,8 +509,7 @@ def assert_resp_response(r, response, resp2_expected, resp3_expected):
 
 
 def assert_geo_is_close(coords, expected_coords):
-    """
-    Verifies that the coordinates are close within the floating point tolerance
+    """Verifies that the coordinates are close within the floating point tolerance.
 
     Valkey uses 52-bit presicion
     """
@@ -512,7 +518,7 @@ def assert_geo_is_close(coords, expected_coords):
 
 
 def assert_resp_response_isclose(r, response, resp2_expected, resp3_expected):
-    """Verifies that the responses are close within the floating point tolerance"""
+    """Verifies that the responses are close within the floating point tolerance."""
     protocol = get_protocol_version(r)
 
     if protocol in [2, "2", None]:

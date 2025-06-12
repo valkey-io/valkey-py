@@ -8,7 +8,7 @@ setup(
     long_description_content_type="text/markdown",
     keywords=["Valkey", "key-value store", "database"],
     license="MIT",
-    version="6.1.0b1",
+    version="6.1.1b1",
     packages=find_packages(
         include=[
             "valkey",
@@ -34,9 +34,9 @@ setup(
     },
     author="valkey-py authors",
     author_email="valkey-py@lists.valkey.io",
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     install_requires=[
-        'async-timeout>=4.0.3; python_version<"3.11.3"',
+        'async-timeout>=4.0.3; python_full_version<"3.11.3"',
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -47,7 +47,6 @@ setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",

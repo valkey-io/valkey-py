@@ -639,7 +639,7 @@ class TestValkeyCommands:
     @skip_if_server_version_lt("2.6.0")
     @pytest.mark.onlynoncluster
     async def test_bitop_not(self, r: valkey.Valkey):
-        test_str = b"\xAA\x00\xFF\x55"
+        test_str = b"\xaa\x00\xff\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
         await r.set("a", test_str)
         await r.bitop("not", "r", "a")
@@ -648,7 +648,7 @@ class TestValkeyCommands:
     @skip_if_server_version_lt("2.6.0")
     @pytest.mark.onlynoncluster
     async def test_bitop_not_in_place(self, r: valkey.Valkey):
-        test_str = b"\xAA\x00\xFF\x55"
+        test_str = b"\xaa\x00\xff\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
         await r.set("a", test_str)
         await r.bitop("not", "a", "a")
@@ -657,7 +657,7 @@ class TestValkeyCommands:
     @skip_if_server_version_lt("2.6.0")
     @pytest.mark.onlynoncluster
     async def test_bitop_single_string(self, r: valkey.Valkey):
-        test_str = b"\x01\x02\xFF"
+        test_str = b"\x01\x02\xff"
         await r.set("a", test_str)
         await r.bitop("and", "res1", "a")
         await r.bitop("or", "res2", "a")
@@ -669,8 +669,8 @@ class TestValkeyCommands:
     @skip_if_server_version_lt("2.6.0")
     @pytest.mark.onlynoncluster
     async def test_bitop_string_operands(self, r: valkey.Valkey):
-        await r.set("a", b"\x01\x02\xFF\xFF")
-        await r.set("b", b"\x01\x02\xFF")
+        await r.set("a", b"\x01\x02\xff\xff")
+        await r.set("b", b"\x01\x02\xff")
         await r.bitop("and", "res1", "a", "b")
         await r.bitop("or", "res2", "a", "b")
         await r.bitop("xor", "res3", "a", "b")

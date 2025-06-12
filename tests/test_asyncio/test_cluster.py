@@ -1,6 +1,7 @@
 import asyncio
 import binascii
 import datetime
+import math
 import ssl
 import warnings
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Type, Union
@@ -1556,7 +1557,7 @@ class TestClusterValkeyCommands:
 
     @skip_if_server_version_lt("2.6.0")
     async def test_cluster_bitop_not(self, r: ValkeyCluster) -> None:
-        test_str = b"\xAA\x00\xFF\x55"
+        test_str = b"\xaa\x00\xff\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
         await r.set("{foo}a", test_str)
         await r.bitop("not", "{foo}r", "{foo}a")
@@ -1564,7 +1565,7 @@ class TestClusterValkeyCommands:
 
     @skip_if_server_version_lt("2.6.0")
     async def test_cluster_bitop_not_in_place(self, r: ValkeyCluster) -> None:
-        test_str = b"\xAA\x00\xFF\x55"
+        test_str = b"\xaa\x00\xff\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
         await r.set("{foo}a", test_str)
         await r.bitop("not", "{foo}a", "{foo}a")
@@ -1572,7 +1573,7 @@ class TestClusterValkeyCommands:
 
     @skip_if_server_version_lt("2.6.0")
     async def test_cluster_bitop_single_string(self, r: ValkeyCluster) -> None:
-        test_str = b"\x01\x02\xFF"
+        test_str = b"\x01\x02\xff"
         await r.set("{foo}a", test_str)
         await r.bitop("and", "{foo}res1", "{foo}a")
         await r.bitop("or", "{foo}res2", "{foo}a")
@@ -1583,8 +1584,8 @@ class TestClusterValkeyCommands:
 
     @skip_if_server_version_lt("2.6.0")
     async def test_cluster_bitop_string_operands(self, r: ValkeyCluster) -> None:
-        await r.set("{foo}a", b"\x01\x02\xFF\xFF")
-        await r.set("{foo}b", b"\x01\x02\xFF")
+        await r.set("{foo}a", b"\x01\x02\xff\xff")
+        await r.set("{foo}b", b"\x01\x02\xff")
         await r.bitop("and", "{foo}res1", "{foo}a", "{foo}b")
         await r.bitop("or", "{foo}res2", "{foo}a", "{foo}b")
         await r.bitop("xor", "{foo}res3", "{foo}a", "{foo}b")
@@ -2158,7 +2159,9 @@ class TestClusterValkeyCommands:
             storedist=True,
         )
         # instead of save the geo score, the distance is saved.
-        assert await r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
+        E = 1e-9
+        res = await r.zscore("{foo}places_barcelona", "place1")
+        assert math.fabs(res - 88.05060698409301) < E
 
     @skip_if_server_version_lt("3.2.0")
     async def test_cluster_georadius_store(self, r: ValkeyCluster) -> None:
@@ -2188,7 +2191,9 @@ class TestClusterValkeyCommands:
             "{foo}barcelona", 2.191, 41.433, 1000, store_dist="{foo}places_barcelona"
         )
         # instead of save the geo score, the distance is saved.
-        assert await r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
+        E = 1e-9
+        res = await r.zscore("{foo}places_barcelona", "place1")
+        assert math.fabs(res - 88.05060698409301) < E
 
     async def test_cluster_dbsize(self, r: ValkeyCluster) -> None:
         d = {"a": b"1", "b": b"2", "c": b"3", "d": b"4"}
@@ -2597,6 +2602,27 @@ class TestNodesManager:
                 async with ValkeyCluster(startup_nodes=[node_1, node_2]) as rc:
                     assert rc.get_node(host=default_host, port=7001) is not None
                     assert rc.get_node(host=default_host, port=7002) is not None
+
+    @pytest.mark.parametrize("dynamic_startup_nodes", [True, False])
+    async def test_init_slots_dynamic_startup_nodes(self, dynamic_startup_nodes):
+        rc = await get_mocked_valkey_client(
+            host="my@DNS.com",
+            port=7000,
+            cluster_slots=default_cluster_slots,
+            dynamic_startup_nodes=dynamic_startup_nodes,
+        )
+        # Nodes are taken from default_cluster_slots
+        discovered_nodes = [
+            "127.0.0.1:7000",
+            "127.0.0.1:7001",
+            "127.0.0.1:7002",
+            "127.0.0.1:7003",
+        ]
+        startup_nodes = list(rc.nodes_manager.startup_nodes.keys())
+        if dynamic_startup_nodes is True:
+            assert sorted(startup_nodes) == sorted(discovered_nodes)
+        else:
+            assert startup_nodes == ["my@DNS.com:7000"]
 
 
 class TestClusterPipeline:

@@ -1019,7 +1019,7 @@ class TestValkeyCommands:
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.6.0")
     def test_bitop_not(self, r):
-        test_str = b"\xAA\x00\xFF\x55"
+        test_str = b"\xaa\x00\xff\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
         r["a"] = test_str
         r.bitop("not", "r", "a")
@@ -1028,7 +1028,7 @@ class TestValkeyCommands:
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.6.0")
     def test_bitop_not_in_place(self, r):
-        test_str = b"\xAA\x00\xFF\x55"
+        test_str = b"\xaa\x00\xff\x55"
         correct = ~0xAA00FF55 & 0xFFFFFFFF
         r["a"] = test_str
         r.bitop("not", "a", "a")
@@ -1037,7 +1037,7 @@ class TestValkeyCommands:
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.6.0")
     def test_bitop_single_string(self, r):
-        test_str = b"\x01\x02\xFF"
+        test_str = b"\x01\x02\xff"
         r["a"] = test_str
         r.bitop("and", "res1", "a")
         r.bitop("or", "res2", "a")
@@ -1049,8 +1049,8 @@ class TestValkeyCommands:
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.6.0")
     def test_bitop_string_operands(self, r):
-        r["a"] = b"\x01\x02\xFF\xFF"
-        r["b"] = b"\x01\x02\xFF"
+        r["a"] = b"\x01\x02\xff\xff"
+        r["b"] = b"\x01\x02\xff"
         r.bitop("and", "res1", "a", "b")
         r.bitop("or", "res2", "a", "b")
         r.bitop("xor", "res3", "a", "b")
@@ -1324,6 +1324,26 @@ class TestValkeyCommands:
         assert r.get("integer") == str(integer).encode()
         assert r.get("unicode_string").decode("utf-8") == unicode_string
 
+    def test_set_options_mutually_exclusive(self, r):
+        with pytest.raises(exceptions.DataError):
+            r.set("test", 1, ex=1, px=1)
+
+        with pytest.raises(exceptions.DataError):
+            r.set("test2", 2, exat=3, pxat=5)
+
+        with pytest.raises(exceptions.DataError):
+            r.set("test3", 3, ex=5, exat=1)
+
+    def test_set_options_type_check(self, r):
+        with pytest.raises(exceptions.DataError):
+            r.set("test", 1, ex="hi")
+
+        with pytest.raises(exceptions.DataError):
+            r.set("test1", 3, px=object())
+
+        with pytest.raises(exceptions.DataError):
+            r.set("test3", 1, pxat=3j)
+
     @skip_if_server_version_lt("6.2.0")
     def test_getdel(self, r):
         assert r.getdel("a") is None
@@ -1336,6 +1356,14 @@ class TestValkeyCommands:
         r.set("a", 1)
         with pytest.raises(valkey.DataError):
             r.getex("a", ex=10, px=10)
+        with pytest.raises(valkey.DataError):
+            r.getex("a", ex=10, exat=10)
+        with pytest.raises(valkey.DataError):
+            r.getex("a", ex=10, pxat=10)
+        with pytest.raises(valkey.DataError):
+            r.getex("a", exat=10, pxat=10)
+        with pytest.raises(valkey.DataError):
+            r.getex("a", px=10, exat=10)
         assert r.getex("a") == b"1"
         assert r.ttl("a") == -1
         assert r.getex("a", ex=60) == b"1"

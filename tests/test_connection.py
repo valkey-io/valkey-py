@@ -341,3 +341,10 @@ def test_unix_socket_connection_failure():
         str(e.value)
         == "Error 2 connecting to unix:///tmp/a.sock. No such file or directory."
     )
+
+
+def test_parsing_unix_socket_relative_path():
+    parsed = parse_url("unix:./valkey.sock", False)
+    assert parsed["path"] == "./valkey.sock"
+    assert parsed["connection_class"] is UnixDomainSocketConnection
+    assert len(parsed) == 2

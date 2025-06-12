@@ -428,8 +428,7 @@ def parse_stralgo(response, **options):
     if options.get("idx", False):
         if options.get("withmatchlen", False):
             matches = [
-                [(int(match[-1]))] + list(map(tuple, match[:-1]))
-                for match in response[1]
+                [int(match[-1])] + list(map(tuple, match[:-1])) for match in response[1]
             ]
         else:
             matches = [list(map(tuple, match)) for match in response[1]]

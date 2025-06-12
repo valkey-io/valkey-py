@@ -8,7 +8,6 @@ from typing import (
     AsyncIterator,
     Awaitable,
     Callable,
-    Dict,
     Iterable,
     Iterator,
     List,
@@ -2290,6 +2289,11 @@ class BasicKeyCommands(CommandsProtocol):
 
         For more information see https://valkey.io/commands/set
         """
+        params = sum(op is not None for op in [ex, px, exat, pxat])
+        if params > 1:
+            raise DataError(
+                "``ex``, ``px``, ``exat`` and ``pxat`` " "are mutually exclusive."
+            )
         pieces: list[EncodableT] = [name, value]
         options = {}
         if ex is not None:
@@ -2993,7 +2997,7 @@ class ScanCommands(CommandsProtocol):
         count: Union[int, None] = None,
         _type: Union[str, None] = None,
         **kwargs,
-    ) -> Tuple[int, List[bytes]]:
+    ) -> ResponseT:
         """
         Incrementally return lists of key names. Also return a cursor
         indicating the scan position.
@@ -3053,7 +3057,7 @@ class ScanCommands(CommandsProtocol):
         cursor: int = 0,
         match: Union[PatternT, None] = None,
         count: Union[int, None] = None,
-    ) -> Tuple[int, List[bytes]]:
+    ) -> ResponseT:
         """
         Incrementally return lists of elements in a set. Also return a cursor
         indicating the scan position.
@@ -3097,7 +3101,7 @@ class ScanCommands(CommandsProtocol):
         match: Union[PatternT, None] = None,
         count: Union[int, None] = None,
         no_values: Union[bool, None] = None,
-    ) -> Tuple[int, Dict[bytes, bytes]]:
+    ) -> ResponseT:
         """
         Incrementally return key/value slices in a hash. Also return a cursor
         indicating the scan position.
@@ -3153,7 +3157,7 @@ class ScanCommands(CommandsProtocol):
         match: Union[PatternT, None] = None,
         count: Union[int, None] = None,
         score_cast_func: Union[type, Callable] = float,
-    ) -> Tuple[int, List[Tuple[bytes, float]]]:
+    ) -> ResponseT:
         """
         Incrementally return lists of elements in a sorted set. Also return a
         cursor indicating the scan position.

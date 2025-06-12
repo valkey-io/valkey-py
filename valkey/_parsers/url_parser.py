@@ -3,7 +3,9 @@ from types import MappingProxyType
 from typing import Callable, Mapping, Optional
 from urllib.parse import ParseResult, parse_qs, unquote, urlparse
 
-from valkey.asyncio.connection import ConnectKwargs
+from valkey.asyncio.connection import (
+    ConnectKwargs,
+)
 from valkey.asyncio.connection import SSLConnection as SSLConnectionAsync
 from valkey.asyncio.connection import (
     UnixDomainSocketConnection as UnixDomainSocketConnectionAsync,
@@ -40,10 +42,11 @@ def parse_url(url: str, async_connection: bool):
     supported_schemes = ["valkey", "valkeys", "redis", "rediss", "unix"]
     parsed: ParseResult = urlparse(url)
     kwargs: ConnectKwargs = {}
+    lower_url = url.lower()
     pattern = re.compile(
-        r"^(?:" + "|".join(map(re.escape, supported_schemes)) + r")://", re.IGNORECASE
+        r"^(?:" + "|".join(map(re.escape, supported_schemes)) + r")://"
     )
-    if not pattern.match(url):
+    if not pattern.match(lower_url) and not lower_url.startswith("unix:"):
         raise ValueError(
             f"Valkey URL must specify one of the following schemes {supported_schemes}"
         )

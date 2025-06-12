@@ -121,7 +121,7 @@ class Valkey(
         url: str,
         single_connection_client: bool = False,
         auto_close_connection_pool: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         """
         Return a Valkey client object configured from the given URL
@@ -533,7 +533,7 @@ class Valkey(
             thread_local=thread_local,
         )
 
-    def pubsub(self, **kwargs) -> "PubSub":
+    def pubsub(self, **kwargs: Any) -> "PubSub":
         """
         Return a Publish/Subscribe object. With this object, you can
         subscribe to channels and listen for messages that get published to
