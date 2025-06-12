@@ -391,7 +391,7 @@ class AbstractValkeyCluster:
         ),
         list_keys_to_dict(
             [
-                "PING",
+                # "PING",
                 "CONFIG SET",
                 "CONFIG REWRITE",
                 "CONFIG RESETSTAT",
