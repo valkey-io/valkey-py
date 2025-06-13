@@ -5,7 +5,7 @@ import time
 import uptrace
 import valkey
 from opentelemetry import trace
-from opentelemetry.instrumentation.valkey import ValkeyInstrumentor
+from opentelemetry.instrumentation.redis import RedisInstrumentor
 
 tracer = trace.get_tracer("app_or_package_name", "1.0.0")
 
@@ -16,7 +16,7 @@ def main():
         service_name="myservice",
         service_version="1.0.0",
     )
-    ValkeyInstrumentor().instrument()
+    RedisInstrumentor().instrument()
 
     client = valkey.StrictValkey(host="localhost", port=6379)
 

@@ -9,7 +9,7 @@ from typing import List, Sequence, Union
 from valkey.typing import KeyT, ResponseT
 
 
-class EvictionPolicy(Enum):
+class EvictionPolicy(str, Enum):
     LRU = "lru"
     LFU = "lfu"
     RANDOM = "random"
