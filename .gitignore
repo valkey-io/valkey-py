@@ -13,6 +13,7 @@ vagrant/.vagrant
 env
 venv
 coverage.xml
+.tox/
 .venv*
 *.xml
 .coverage*
