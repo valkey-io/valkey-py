@@ -5,10 +5,9 @@ import pytest
 import pytest_asyncio
 import valkey.asyncio as valkey
 from tests.conftest import VALKEY_INFO
-from valkey._parsers import parse_url
 from valkey.asyncio import Sentinel
 from valkey.asyncio.client import Monitor
-from valkey.asyncio.connection import Connection
+from valkey.asyncio.connection import Connection, parse_url
 from valkey.asyncio.retry import Retry
 from valkey.backoff import NoBackoff
 
@@ -55,7 +54,7 @@ async def create_valkey(request):
         cluster_mode = VALKEY_INFO["cluster_enabled"]
         if not cluster_mode:
             single = kwargs.pop("single_connection_client", False) or single_connection
-            url_options = parse_url(url, True)
+            url_options = parse_url(url)
             url_options.update(kwargs)
             pool = valkey.ConnectionPool(**url_options)
             client = cls(connection_pool=pool)
@@ -270,4 +269,4 @@ def valkey_url(request):
 @pytest.fixture()
 def connect_args(request):
     url = request.config.getoption("--valkey-url")
-    return parse_url(url, True)
+    return parse_url(url)

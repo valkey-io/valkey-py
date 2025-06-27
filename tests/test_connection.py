@@ -6,9 +6,14 @@ from unittest.mock import patch
 import pytest
 import valkey
 from valkey import ConnectionPool, Valkey
-from valkey._parsers import _LibvalkeyParser, _RESP2Parser, _RESP3Parser, parse_url
+from valkey._parsers import _LibvalkeyParser, _RESP2Parser, _RESP3Parser
 from valkey.backoff import NoBackoff
-from valkey.connection import Connection, SSLConnection, UnixDomainSocketConnection
+from valkey.connection import (
+    Connection,
+    SSLConnection,
+    UnixDomainSocketConnection,
+    parse_url,
+)
 from valkey.exceptions import ConnectionError, InvalidResponse, TimeoutError
 from valkey.retry import Retry
 from valkey.utils import LIBVALKEY_AVAILABLE
@@ -217,7 +222,7 @@ def test_pool_auto_close(request, from_url):
     """Verify that basic Valkey instances have auto_close_connection_pool set to True"""
 
     url: str = request.config.getoption("--valkey-url")
-    url_args = parse_url(url, False)
+    url_args = parse_url(url)
 
     def get_valkey_connection():
         if from_url:
@@ -235,7 +240,7 @@ def test_valkey_connection_pool(request, from_url):
     have auto_close_connection_pool set to False"""
 
     url: str = request.config.getoption("--valkey-url")
-    url_args = parse_url(url, True)
+    url_args = parse_url(url)
 
     pool = None
 
@@ -267,7 +272,7 @@ def test_valkey_from_pool(request, from_url):
     have auto_close_connection_pool set to True"""
 
     url: str = request.config.getoption("--valkey-url")
-    url_args = parse_url(url, True)
+    url_args = parse_url(url)
 
     pool = None
 
@@ -344,7 +349,7 @@ def test_unix_socket_connection_failure():
 
 
 def test_parsing_unix_socket_relative_path():
-    parsed = parse_url("unix:./valkey.sock", False)
+    parsed = parse_url("unix:./valkey.sock")
     assert parsed["path"] == "./valkey.sock"
     assert parsed["connection_class"] is UnixDomainSocketConnection
     assert len(parsed) == 2

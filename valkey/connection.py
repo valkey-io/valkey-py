@@ -74,6 +74,12 @@ else:
     DefaultParser = _RESP2Parser
 
 
+def parse_url(url: str):
+    from ._parsers.url_parser import parse_url
+
+    return parse_url(url, async_connection=False)
+
+
 class LibvalkeyRespSerializer:
     def pack(self, *args) -> list[bytes]:
         """Pack a series of arguments into the Valkey protocol"""
@@ -1001,9 +1007,8 @@ class ConnectionPool:
         class initializer. In the case of conflicting arguments, querystring
         arguments always win.
         """
-        from ._parsers.url_parser import parse_url
 
-        url_options = parse_url(url, False)
+        url_options = parse_url(url)
         if "connection_class" in kwargs:
             url_options["connection_class"] = kwargs["connection_class"]
 
