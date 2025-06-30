@@ -71,6 +71,12 @@ SYM_LF = b"\n"
 SYM_EMPTY = b""
 
 
+def parse_url(url: str):
+    from .._parsers.url_parser import parse_url
+
+    return parse_url(url, async_connection=True)
+
+
 class _Sentinel(enum.Enum):
     sentinel = object()
 
@@ -1021,9 +1027,8 @@ class ConnectionPool:
         class initializer. In the case of conflicting arguments, querystring
         arguments always win.
         """
-        from .._parsers.url_parser import parse_url
 
-        url_options = parse_url(url, True)
+        url_options = parse_url(url)
         kwargs.update(url_options)
         return cls(**kwargs)
 
