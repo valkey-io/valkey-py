@@ -142,7 +142,7 @@ class TestSSL:
         assert "No cipher can be selected" in str(e)
         r.close()
 
-    def _create_oscp_conn(self, request):
+    def _create_ocsp_conn(self, request):
         ssl_url = request.config.option.valkey_ssl_url
         p = urlparse(ssl_url)[1].split(":")
         r = valkey.Valkey(
@@ -159,7 +159,7 @@ class TestSSL:
 
     @skip_if_cryptography()
     def test_ssl_ocsp_called(self, request):
-        r = self._create_oscp_conn(request)
+        r = self._create_ocsp_conn(request)
         with pytest.raises(ValkeyError) as e:
             r.ping()
         assert "cryptography is not installed" in str(e)
@@ -167,7 +167,7 @@ class TestSSL:
 
     @skip_if_nocryptography()
     def test_ssl_ocsp_called_withcrypto(self, request):
-        r = self._create_oscp_conn(request)
+        r = self._create_ocsp_conn(request)
         with pytest.raises(ConnectionError) as e:
             assert r.ping()
         assert "No AIA information present in ssl certificate" in str(e)

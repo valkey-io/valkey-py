@@ -119,7 +119,7 @@ class GeoField(Field):
 class TagField(Field):
     """
     TagField is a tag-indexing field with simpler compression and tokenization.
-    See http://valkeyearch.io/Tags/
+    See https://valkey.io/topics/search/#tag-index
     """
 
     SEPARATOR = "SEPARATOR"
@@ -145,7 +145,7 @@ class TagField(Field):
 class VectorField(Field):
     """
     Allows vector similarity queries against the value in this attribute.
-    See https://oss.valkey.com/valkeyearch/Vectors/#vector_fields.
+    See https://valkey.io/topics/search/
     """
 
     def __init__(self, name: str, algorithm: str, attributes: dict, **kwargs):
@@ -159,7 +159,7 @@ class VectorField(Field):
 
         ``attributes`` each algorithm can have specific attributes. Some of them
         are mandatory and some of them are optional. See
-        https://oss.valkey.com/valkeyearch/master/Vectors/#specific_creation_attributes_per_algorithm
+        https://valkey.io/topics/search/
         for more information.
         """
         sort = kwargs.get("sortable", False)

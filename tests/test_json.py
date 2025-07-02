@@ -60,7 +60,7 @@ def test_json_merge(client):
         "person1": {"personal_data": {"name": "John", "hobbies": "reading"}}
     }
 
-    # Test with root path path $.person1.personal_data
+    # Test with root path $.person1.personal_data
     assert client.json().merge(
         "person_data", "$.person1.personal_data", {"country": "Israel"}
     )
@@ -96,7 +96,7 @@ def test_jsonsetexistentialmodifiersshouldsucceed(client):
     assert client.json().set("obj", Path("foo"), "baz", xx=True)
     assert client.json().set("obj", Path("qaz"), "baz", nx=True)
 
-    # Test that flags are mutually exlusive
+    # Test that flags are mutually exclusive
     with pytest.raises(Exception):
         client.json().set("obj", Path("foo"), "baz", nx=True, xx=True)
 
@@ -828,7 +828,7 @@ def test_objkeys_dollar(client):
     # Test missing key
     assert client.json().objkeys("non_existing_doc", "..a") is None
 
-    # Test non existing doc
+    # Test nonexistent doc
     with pytest.raises(exceptions.ResponseError):
         assert client.json().objkeys("non_existing_doc", "$..a") == []
 

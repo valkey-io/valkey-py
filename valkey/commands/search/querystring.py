@@ -271,7 +271,7 @@ class DisjunctNode(IntersectNode):
             return "-" + ret
 
 
-class DistjunctUnion(DisjunctNode):
+class DisjunctUnion(DisjunctNode):
     """
     This node is true if *all* of its children are false. This is equivalent to
     ```
@@ -310,7 +310,7 @@ def disjunct(*args, **kwargs):
 
 
 def disjunct_union(*args, **kwargs):
-    return DistjunctUnion(*args, **kwargs)
+    return DisjunctUnion(*args, **kwargs)
 
 
 def querystring(*args, **kwargs):

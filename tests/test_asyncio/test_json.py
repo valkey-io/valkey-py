@@ -58,7 +58,7 @@ async def test_json_merge(decoded_r: valkey.Valkey):
         "person1": {"personal_data": {"name": "John", "hobbies": "reading"}}
     }
 
-    # Test with root path path $.person1.personal_data
+    # Test with root path $.person1.personal_data
     assert await decoded_r.json().merge(
         "person_data", "$.person1.personal_data", {"country": "Israel"}
     )
@@ -89,7 +89,7 @@ async def test_jsonsetexistentialmodifiersshouldsucceed(decoded_r: valkey.Valkey
     assert await decoded_r.json().set("obj", Path("foo"), "baz", xx=True)
     assert await decoded_r.json().set("obj", Path("qaz"), "baz", nx=True)
 
-    # Test that flags are mutually exlusive
+    # Test that flags are mutually exclusive
     with pytest.raises(Exception):
         await decoded_r.json().set("obj", Path("foo"), "baz", nx=True, xx=True)
 
@@ -825,7 +825,7 @@ async def test_objkeys_dollar(decoded_r: valkey.Valkey):
     # Test missing key
     assert await decoded_r.json().objkeys("non_existing_doc", "..a") is None
 
-    # Test non existing doc
+    # Test nonexistent doc
     with pytest.raises(exceptions.ResponseError):
         assert await decoded_r.json().objkeys("non_existing_doc", "$..a") == []
 

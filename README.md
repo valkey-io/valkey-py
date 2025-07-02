@@ -83,7 +83,7 @@ Alternatively, you might want to look at [Async connections](https://valkey-py.r
 
 ### Valkey Commands
 
-There is built-in support for all of the [out-of-the-box Valkey commands](https://valkey.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) except where a word (i.e. del) is reserved by the language. The complete set of commands can be found [here](https://github.com/valkey-io/valkey-py/tree/main/valkey/commands), or [the documentation](https://valkey-py.readthedocs.io/en/latest/commands.html).
+There is built-in support for all of the [out-of-the-box Valkey commands](https://valkey.io/commands). They are exposed using the raw Redis command names (`HSET`, `HGETALL`, etc.) except where a word (i.e. del) is reserved by the language. See the [complete set of commands](https://github.com/valkey-io/valkey-py/tree/main/valkey/commands), or [the documentation](https://valkey-py.readthedocs.io/en/latest/commands.html).
 
 ## Documentation
 
@@ -142,8 +142,7 @@ The following example shows how to utilize [Valkey Pub/Sub](https://valkey.io/to
 
 ### Author
 
-valkey-py can be found [here](
-https://github.com/valkey-io/valkey-py), or downloaded from [pypi](https://pypi.org/project/valkey/).
+You can read valkey-py sources on [GitHub](https://github.com/valkey-io/valkey-py), or download it from [pypi](https://pypi.org/project/valkey/)
 It was created as a fork of [redis-py](https://github.com/redis/redis-py)
 
 Special thanks to:

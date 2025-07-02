@@ -3,7 +3,7 @@
 
 class MockSocket:
     """
-    A class simulating an readable socket, optionally raising a
+    A class simulating a readable socket, optionally raising a
     special exception every other read.
     """
 

@@ -212,7 +212,7 @@ async def test_connection_parse_response_resume(r: valkey.Valkey):
     [_AsyncRESP2Parser, _AsyncRESP3Parser, _AsyncLibvalkeyParser],
     ids=["AsyncRESP2Parser", "AsyncRESP3Parser", "AsyncLibvalkeyParser"],
 )
-async def test_connection_disconect_race(parser_class, connect_args):
+async def test_connection_disconnect_race(parser_class, connect_args):
     """
     This test reproduces the case in issue #2349
     where a connection is closed while the parser is reading to feed the

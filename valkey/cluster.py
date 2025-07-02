@@ -2091,8 +2091,8 @@ class ClusterPipeline(ValkeyCluster):
 
         If the cluster reports it is down it is assumed that:
          - connection_pool was disconnected
-         - connection_pool was reseted
-         - refereh_table_asap set to True
+         - connection_pool was reset
+         - refresh_table_asap set to True
 
         It will try the number of times specified by
         the config option "self.cluster_error_retry_attempts"

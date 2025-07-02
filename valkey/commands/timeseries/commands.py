@@ -57,8 +57,8 @@ class TimeSeriesCommands:
             - 'block': an error will occur for any out of order sample.
             - 'first': ignore the new value.
             - 'last': override with latest value.
-            - 'min': only override if the value is lower than the existing value.
-            - 'max': only override if the value is higher than the existing value.
+            - 'min': only override if the value is less than the existing value.
+            - 'max': only override if the value is greater than the existing value.
             - 'sum': If a previous sample exists, add the new sample to it so that \
             the updated value is equal to (previous + new). If no previous sample \
             exists, set the updated value equal to the new value.
@@ -104,8 +104,8 @@ class TimeSeriesCommands:
             - 'block': an error will occur for any out of order sample.
             - 'first': ignore the new value.
             - 'last': override with latest value.
-            - 'min': only override if the value is lower than the existing value.
-            - 'max': only override if the value is higher than the existing value.
+            - 'min': only override if the value is less than the existing value.
+            - 'max': only override if the value is greater than the existing value.
             - 'sum': If a previous sample exists, add the new sample to it so that \
             the updated value is equal to (previous + new). If no previous sample \
             exists, set the updated value equal to the new value.
@@ -158,8 +158,8 @@ class TimeSeriesCommands:
             - 'block': an error will occur for any out of order sample.
             - 'first': ignore the new value.
             - 'last': override with latest value.
-            - 'min': only override if the value is lower than the existing value.
-            - 'max': only override if the value is higher than the existing value.
+            - 'min': only override if the value is less than the existing value.
+            - 'max': only override if the value is greater than the existing value.
             - 'sum': If a previous sample exists, add the new sample to it so that \
             the updated value is equal to (previous + new). If no previous sample \
             exists, set the updated value equal to the new value.
@@ -201,7 +201,7 @@ class TimeSeriesCommands:
         chunk_size: Optional[int] = None,
     ):
         """
-        Increment (or create an time-series and increment) the latest sample's of a series.
+        Increment (or create a time-series and increment) the latest sample's of a series.
         This command can be used as a counter or gauge that automatically gets history as a time series.
 
         Args:
@@ -244,7 +244,7 @@ class TimeSeriesCommands:
         chunk_size: Optional[int] = None,
     ):
         """
-        Decrement (or create an time-series and decrement) the latest sample's of a series.
+        Decrement (or create a time-series and decrement) the latest sample's of a series.
         This command can be used as a counter or gauge that automatically gets history as a time series.
 
         Args:
@@ -383,7 +383,7 @@ class TimeSeriesCommands:
         empty: Optional[bool] = False,
     ):
         """
-        Query a range in forward direction for a specific time-serie.
+        Query a range in forward direction for a specific time-series.
 
         Args:
 

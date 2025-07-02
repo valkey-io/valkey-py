@@ -584,7 +584,7 @@ class ClusterManagementCommands(ManagementCommands):
         self, target_node: "TargetNodesT", node_id: str, slot_id: int, state: str
     ) -> ResponseT:
         """
-        Bind an hash slot to a specific node
+        Bind a hash slot to a specific node
 
         :target_node: 'ClusterNode'
             The node to execute the command on

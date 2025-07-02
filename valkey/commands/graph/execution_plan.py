@@ -96,7 +96,7 @@ class ExecutionPlan:
         return True
 
     def __str__(self) -> str:
-        def aggraget_str(str_children):
+        def aggregate_str(str_children):
             return "\n".join(
                 [
                     "    " + line
@@ -109,7 +109,7 @@ class ExecutionPlan:
             return f"{x}\n{y}"
 
         return self._operation_traverse(
-            self.structured_plan, str, aggraget_str, combine_str
+            self.structured_plan, str, aggregate_str, combine_str
         )
 
     def __eq__(self, o: object) -> bool:
@@ -201,7 +201,7 @@ class ExecutionPlan:
                 i += 1
             elif op_level < level:
                 # if the operation is not child of current operation
-                # go back to it's parent operation
+                # go back to its parent operation
                 levels_back = level - op_level + 1
                 for _ in range(levels_back):
                     current = stack.pop()

@@ -3756,7 +3756,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("6.2.0")
     def test_geosearch_negative(self, r):
-        # not specifying member nor longitude and latitude
+        # neither specifying member nor longitude and latitude
         with pytest.raises(exceptions.DataError):
             assert r.geosearch("barcelona")
         # specifying member and longitude and latitude
@@ -3768,7 +3768,7 @@ class TestValkeyCommands:
         with pytest.raises(exceptions.DataError):
             assert r.geosearch("barcelona", latitude=2)
 
-        # not specifying radius nor width and height
+        # neither specifying radius nor width and height
         with pytest.raises(exceptions.DataError):
             assert r.geosearch("barcelona", member="Paris")
         # specifying radius and width and height
@@ -4102,7 +4102,7 @@ class TestValkeyCommands:
         with pytest.raises(valkey.ResponseError):
             assert r.xadd(stream, {"foo": "bar"}, maxlen=3, approximate=False, limit=2)
 
-        # limit can not be provided without maxlen or minid
+        # limit cannot be provided without maxlen or minid
         with pytest.raises(valkey.ResponseError):
             assert r.xadd(stream, {"foo": "bar"}, limit=2)
 
@@ -4110,7 +4110,7 @@ class TestValkeyCommands:
         assert r.xadd(stream, {"foo": "bar"}, maxlen=3, approximate=True, limit=2)
         r.delete(stream)
 
-        # maxlen and minid can not be provided together
+        # maxlen and minid cannot be provided together
         with pytest.raises(valkey.DataError):
             assert r.xadd(stream, {"foo": "bar"}, maxlen=3, minid="sometestvalue")
 
@@ -4313,7 +4313,7 @@ class TestValkeyCommands:
         assert r.xinfo_groups(stream) == expected
 
     @skip_if_server_version_lt("7.0.0")
-    def test_xgroup_create_entriesread(self, r: valkey.Valkey):
+    def test_xgroup_create_entries_read(self, r: valkey.Valkey):
         stream = "stream"
         group = "group"
         r.xadd(stream, {"foo": "bar"})
@@ -5118,7 +5118,7 @@ class TestValkeyCommands:
                 with patch.object(
                     r.connection._parser, "read_response", side_effect=CancelledError
                 ):
-                    r.brpop(["nonexist"])
+                    r.brpop(["nonexistent"])
             # if all is well, we can continue.
             r.set("status", "down")  # should not hang
             nonlocal ok

@@ -775,7 +775,7 @@ class TestValkeyClusterObj:
 
     async def test_all_nodes_masters(self, r: ValkeyCluster) -> None:
         """
-        Set a list of nodes with random primaries/replicas config and it shold
+        Set a list of nodes with random primaries/replicas config and it should
         be possible to iterate over all of them.
         """
         nodes = [
@@ -1128,7 +1128,7 @@ class TestClusterValkeyCommands:
         assert await r.cluster_failover(node, "FORCE") is True
         assert await r.cluster_failover(node, "TAKEOVER") is True
         with pytest.raises(ValkeyError):
-            await r.cluster_failover(node, "FORCT")
+            await r.cluster_failover(node, "NONEXISTENT_KEY")
 
     async def test_cluster_info(self, r: ValkeyCluster) -> None:
         info = await r.cluster_info()
@@ -2446,7 +2446,7 @@ class TestNodesManager:
 
     async def test_init_slots_cache_cluster_mode_disabled(self) -> None:
         """
-        Test that creating a ValkeyCluster failes if one of the startup nodes
+        Test that creating a ValkeyCluster fails if one of the startup nodes
         has cluster mode disabled
         """
         with pytest.raises(ValkeyClusterException) as e:
@@ -2469,7 +2469,7 @@ class TestNodesManager:
 
     async def test_wrong_startup_nodes_type(self) -> None:
         """
-        If something other then a list type itteratable is provided it should
+        If something other then a list type iterable is provided it should
         fail
         """
         with pytest.raises(ValkeyClusterException):
