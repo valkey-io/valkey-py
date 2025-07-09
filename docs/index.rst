@@ -83,6 +83,7 @@ Contributing
 - `Issue Tracker <https://github.com/valkey-io/valkey-py/issues>`_
 - `Source Code <https://github.com/valkey-io/valkey-py/>`_
 - `Release History <https://github.com/valkey-io/valkey-py/releases/>`_
+- `Valkey Slack <https://valkey.io/slack/>`_
 
 License
 *******
