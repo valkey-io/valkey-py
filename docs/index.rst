@@ -9,7 +9,7 @@ valkey-py - Python Client for Valkey
 Getting Started
 ****************
 
-`valkey-py <https://pypi.org/project/valkey>`_ requires a running Valkey server, and Python 3.7+. See the `Valkey
+`valkey-py <https://pypi.org/project/valkey>`_ requires a running Valkey server, and Python 3.9+. See the `Valkey
 quickstart <https://valkey.io/topics/quickstart>`_ for Valkey installation instructions.
 
 valkey-py can be installed using pip via ``pip install valkey``.
