@@ -2997,7 +2997,9 @@ class ScanCommands(CommandsProtocol):
     ) -> ResponseT:
         """
         Incrementally return lists of key names. Also return a cursor
-        indicating the scan position.
+        indicating the scan position. In ValkeyCluster, the cursors are returned
+        as a dictionary with the primary node name as the key and the cursor as
+        the value.
 
         ``match`` allows for filtering the keys by pattern
 
