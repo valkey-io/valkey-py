@@ -12,6 +12,6 @@ pytest-asyncio
 pytest-cov
 pytest-timeout
 ujson>=4.2.0
-uvloop
+uvloop; implementation_name != "pypy"
 vulture>=2.3.0
 wheel>=0.30.0
