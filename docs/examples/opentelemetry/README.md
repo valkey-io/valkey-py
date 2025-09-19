@@ -10,7 +10,7 @@ for details.
 **Step 1**. Download the example using Git:
 
 ```shell
-git clone https://github.com/valkey/valkey-py.git
+git clone https://github.com/valkey-io/valkey-py.git
 cd example/opentelemetry
 ```
 
