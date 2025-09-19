@@ -1,7 +1,7 @@
 RESP 3 Features
 ===============
 
-valkey-py supports the `RESP 3 standard <https://github.com/valkey/valkey-specifications/blob/master/protocol/RESP3.md>`_. Practically, this means that client using RESP 3 will be faster and more performant as fewer type translations occur in the client. It also means new response types like doubles, true simple strings, maps, and booleans are available.
+valkey-py supports the `RESP 3 standard <https://github.com/redis/redis-specifications/blob/master/protocol/RESP3.md>`_. Practically, this means that client using RESP 3 will be faster and more performant as fewer type translations occur in the client. It also means new response types like doubles, true simple strings, maps, and booleans are available.
 
 Connecting
 -----------
@@ -51,7 +51,7 @@ Connecting to an OSS Valkey Cluster with RESP 3
 Push notifications
 ------------------
 
-Push notifications are a way that valkey sends out of band data. The RESP 3 protocol includes a `push type <https://github.com/valkey/valkey-specifications/blob/master/protocol/RESP3.md#push-type>`_ that allows our client to intercept these out of band messages. By default, clients will log simple messages, but valkey-py includes the ability to bring your own function processor.
+Push notifications are a way that valkey sends out of band data. The RESP 3 protocol includes a `push type <https://github.com/redis/redis-specifications/blob/master/protocol/RESP3.md#push-type>`_ that allows our client to intercept these out of band messages. By default, clients will log simple messages, but valkey-py includes the ability to bring your own function processor.
 
 This means that should you want to perform something, on a given push notification, you specify a function during the connection, as per this examples:
 
