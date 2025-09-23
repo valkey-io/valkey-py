@@ -15,7 +15,6 @@ from .base import AsyncBaseParser, BaseParser
 from .socket import (
     NONBLOCKING_EXCEPTION_ERROR_NUMBERS,
     NONBLOCKING_EXCEPTIONS,
-    SENTINEL,
     SERVER_CLOSED_CONNECTION_ERROR,
 )
 
@@ -80,9 +79,11 @@ class _LibvalkeyParser(BaseParser):
                 return self.read_from_socket(timeout=timeout, raise_on_timeout=False)
         return True
 
-    def read_from_socket(self, timeout=SENTINEL, raise_on_timeout=True):
+    def read_from_socket(
+        self, timeout: Optional[float] = None, raise_on_timeout: bool = True
+    ):
         sock = self._sock
-        custom_timeout = timeout is not SENTINEL
+        custom_timeout = timeout is not None
         try:
             if custom_timeout:
                 sock.settimeout(timeout)
