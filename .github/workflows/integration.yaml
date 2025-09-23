@@ -89,7 +89,7 @@ jobs:
        max-parallel: 15
        fail-fast: false
        matrix:
-         python-version: ['3.9', '3.10', '3.11', '3.11.1', '3.12', '3.13', '3.14-dev', 'pypy-3.9', 'pypy-3.10']
+         python-version: ['3.10', '3.11', '3.11.1', '3.12', '3.13', '3.14-dev', 'pypy-3.9', 'pypy-3.10']
          test-type: ['standalone', 'cluster']
          connection-type: ['libvalkey', 'plain']
          protocol-version: ['2','3']
@@ -181,7 +181,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.11.1', '3.12', '3.13', '3.14-dev', 'pypy-3.9', 'pypy-3.10']
+        python-version: ['3.10', '3.11', '3.11.1', '3.12', '3.13', '3.14-dev', 'pypy-3.9', 'pypy-3.10']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
