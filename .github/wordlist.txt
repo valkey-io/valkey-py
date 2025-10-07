@@ -128,6 +128,7 @@ pubsub
 punsubscribe
 py
 pypi
+pyproject
 quickstart
 readonly
 readwrite
@@ -149,6 +150,7 @@ subcommands
 thevalueofmykey
 timeseries
 toctree
+toml
 topk
 triaging
 txt

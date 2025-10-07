@@ -1,0 +1,96 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "valkey"
+version = "6.1.1"
+description = "Python client for Valkey forked from redis-py"
+readme = "README.md"
+license = { file = "LICENSE" }
+keywords = ["Valkey", "key-value store", "database"]
+
+authors = [
+    { name = "valkey-py authors", email = "valkey-py@lists.valkey.io" }
+]
+
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+
+requires-python = ">=3.10"
+
+dependencies = [
+    'async-timeout>=4.0.3; python_full_version<"3.11.3"',
+]
+
+[project.optional-dependencies]
+libvalkey = ["libvalkey>=4.0.1"]
+ocsp = ["cryptography>=36.0.1", "pyopenssl==23.2.1", "requests>=2.31.0"]
+dev = [
+    "black",
+    "build",
+    "cachetools",
+    "click",
+    "flake8-isort",
+    "flake8",
+    "flynt",
+    "invoke",
+    "mock",
+    "packaging>=20.4",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-timeout",
+    "ujson>=4.2.0",
+    "uvloop; implementation_name != 'pypy'",
+    "vulture>=2.3.0",
+    "wheel>=0.30.0",
+]
+docs = [
+    "sphinx>=5.0,<7.0",
+    "docutils<0.18",
+    "nbsphinx",
+    "sphinx_gallery",
+    "ipython",
+    "sphinx-autodoc-typehints",
+    "furo",
+    "pandoc",
+]
+
+[project.urls]
+Homepage = "https://github.com/valkey-io/valkey-py"
+Documentation = "https://valkey-py.readthedocs.io/en/latest/"
+Changes = "https://github.com/valkey-io/valkey-py/releases"
+Code = "https://github.com/valkey-io/valkey-py"
+"Issue tracker" = "https://github.com/valkey-io/valkey-py/issues"
+
+[tool.setuptools.packages.find]
+include = [
+    "valkey",
+    "valkey._parsers",
+    "valkey.asyncio",
+    "valkey.commands",
+    "valkey.commands.bf",
+    "valkey.commands.json",
+    "valkey.commands.search",
+    "valkey.commands.timeseries",
+    "valkey.commands.graph",
+]
+
+[tool.setuptools.package-data]
+valkey = ["py.typed"]
