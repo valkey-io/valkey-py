@@ -90,6 +90,7 @@ firsttimersonly
 fo
 genindex
 gmail
+hatchling
 html
 http
 https

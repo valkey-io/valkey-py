@@ -19,8 +19,8 @@ if [ -d ${DESTENV} ]; then
 fi
 python -m venv ${DESTENV}
 source ${DESTENV}/bin/activate
-pip install --upgrade --quiet pip setuptools wheel
-pip install --quiet '.[dev]'
+pip install --upgrade --quiet pip
+pip install --quiet -r dev_requrements.txt
 invoke devenv
 invoke package
 

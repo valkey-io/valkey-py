@@ -91,4 +91,4 @@ def clean(c):
 @task
 def package(c):
     """Create the python packages"""
-    run("python -m build -sw")
+    run("hatchling build")

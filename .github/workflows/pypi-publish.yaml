@@ -22,12 +22,12 @@ jobs:
           python-version: 3.9
       - name: Install dev tools
         run: |
-          pip install '.[dev]'
-          pip install twine wheel
+          pip install -r dev_requirements.txt
+          pip install twine
 
       - name: Build package
         run: |
-          python -m build -sw
+          hatchling build
 
       - name: Basic package test prior to upload
         run: |

@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "valkey"
@@ -41,36 +41,7 @@ dependencies = [
 [project.optional-dependencies]
 libvalkey = ["libvalkey>=4.0.1"]
 ocsp = ["cryptography>=36.0.1", "pyopenssl==23.2.1", "requests>=2.31.0"]
-dev = [
-    "black",
-    "build",
-    "cachetools",
-    "click",
-    "flake8-isort",
-    "flake8",
-    "flynt",
-    "invoke",
-    "mock",
-    "packaging>=20.4",
-    "pytest",
-    "pytest-asyncio",
-    "pytest-cov",
-    "pytest-timeout",
-    "ujson>=4.2.0",
-    "uvloop; implementation_name != 'pypy'",
-    "vulture>=2.3.0",
-    "wheel>=0.30.0",
-]
-docs = [
-    "sphinx>=5.0,<7.0",
-    "docutils<0.18",
-    "nbsphinx",
-    "sphinx_gallery",
-    "ipython",
-    "sphinx-autodoc-typehints",
-    "furo",
-    "pandoc",
-]
+
 
 [project.urls]
 Homepage = "https://github.com/valkey-io/valkey-py"
@@ -79,18 +50,9 @@ Changes = "https://github.com/valkey-io/valkey-py/releases"
 Code = "https://github.com/valkey-io/valkey-py"
 "Issue tracker" = "https://github.com/valkey-io/valkey-py/issues"
 
-[tool.setuptools.packages.find]
+[tool.hatch.build.targets.sdist]
 include = [
-    "valkey",
-    "valkey._parsers",
-    "valkey.asyncio",
-    "valkey.commands",
-    "valkey.commands.bf",
-    "valkey.commands.json",
-    "valkey.commands.search",
-    "valkey.commands.timeseries",
-    "valkey.commands.graph",
+    "/tests",
+    "/valkey",
+    "dev_requirements.txt",
 ]
-
-[tool.setuptools.package-data]
-valkey = ["py.typed"]

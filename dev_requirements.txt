@@ -1,0 +1,17 @@
+black
+cachetools
+click
+flake8-isort
+flake8
+flynt
+hatchling
+invoke
+mock
+packaging>=20.4
+pytest
+pytest-asyncio
+pytest-cov
+pytest-timeout
+ujson>=4.2.0
+uvloop; implementation_name != "pypy"
+vulture>=2.3.0

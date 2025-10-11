@@ -38,7 +38,7 @@ jobs:
            sudo apt-get install -yqq pandoc make
        - name: run code linters
          run: |
-           pip install '.[dev,docs]'
+           pip install -r dev_requrements.txt -r docs/requirements.txt
            invoke build-docs
 
        - name: upload docs

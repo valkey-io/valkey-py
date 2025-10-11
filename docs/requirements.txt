@@ -1,0 +1,8 @@
+sphinx>=5.0,<7.0
+docutils<0.18
+nbsphinx
+sphinx_gallery
+ipython
+sphinx-autodoc-typehints
+furo
+pandoc
