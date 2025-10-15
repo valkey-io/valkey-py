@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "valkey"
-version = "6.1.1"
+dynamic = ["version"]
 description = "Python client for Valkey forked from redis-py"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -79,6 +79,9 @@ Documentation = "https://valkey-py.readthedocs.io/en/latest/"
 Changes = "https://github.com/valkey-io/valkey-py/releases"
 Code = "https://github.com/valkey-io/valkey-py"
 "Issue tracker" = "https://github.com/valkey-io/valkey-py/issues"
+
+[tool.hatch.version]
+path = "valkey/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
