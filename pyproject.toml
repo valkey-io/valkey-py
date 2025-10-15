@@ -88,3 +88,18 @@ include = [
     "/tests",
     "/valkey",
 ]
+
+[tool.pytest.ini_options]
+addopts = "-s"
+markers = [
+    "valkeymod: run only the valkey module tests",
+    "pipeline: pipeline tests",
+    "onlycluster: marks tests to be run only with cluster mode valkey",
+    "onlynoncluster: marks tests to be run only with standalone valkey",
+    "ssl: marker for only the ssl tests",
+    "asyncio: marker for async tests",
+    "replica: replica tests",
+    "experimental: run only experimental tests",
+]
+asyncio_mode = "auto"
+timeout = 30
