@@ -35,11 +35,6 @@ jobs:
            inputs: .
            ignore-vulns: |
              GHSA-w596-4wvx-j9j6  # subversion related git pull, dependency for pytest. There is no impact here.
-       - uses: pypa/gh-action-pip-audit@v1.1.0
-         with:
-           inputs: dev_requirements.txt
-           ignore-vulns: |
-             GHSA-w596-4wvx-j9j6  # subversion related git pull, dependency for pytest. There is no impact here.
 
    lint:
      name: Code linters
@@ -52,7 +47,7 @@ jobs:
            cache: 'pip'
        - name: run code linters
          run: |
-           pip install -r dev_requirements.txt
+           pip install --group dev
            invoke linters
 
    get-date:
@@ -120,7 +115,7 @@ jobs:
 
        - name: run tests
          run: |
-           pip install -r dev_requirements.txt
+           pip install --group dev
            pip install .
            if [ "${{matrix.connection-type}}" == "libvalkey" ]; then
             pip install "libvalkey>=4.0.1"

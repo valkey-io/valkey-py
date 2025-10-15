@@ -22,7 +22,7 @@ jobs:
           python-version: 3.9
       - name: Install dev tools
         run: |
-          pip install -r dev_requirements.txt
+          pip install --group dev
           pip install twine
 
       - name: Build package

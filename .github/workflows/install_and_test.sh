@@ -20,7 +20,7 @@ fi
 python -m venv ${DESTENV}
 source ${DESTENV}/bin/activate
 pip install --upgrade --quiet pip
-pip install --quiet -r dev_requrements.txt
+pip install --quiet --group dev
 invoke devenv
 invoke package
 
