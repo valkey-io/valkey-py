@@ -1,5 +1,3 @@
-from importlib import metadata
-
 from valkey import asyncio  # noqa
 from valkey.backoff import default_backoff
 from valkey.client import StrictValkey, Valkey
@@ -44,17 +42,8 @@ def int_or_str(value):
         return value
 
 
-try:
-    __version__ = metadata.version("valkey")
-except metadata.PackageNotFoundError:
-    __version__ = "99.99.99"
-
-
-try:
-    VERSION = tuple(map(int_or_str, __version__.split(".")))
-except AttributeError:
-    VERSION = tuple([99, 99, 99])
-
+__version__ = "6.1.1"
+VERSION = tuple(map(int_or_str, __version__.split(".")))
 
 Redis = Valkey
 StrictRedis = StrictValkey

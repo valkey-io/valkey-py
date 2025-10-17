@@ -1,6 +1,5 @@
 
 Please use
- python setup.py install
+ pip install .
 
-and report errors to via https://github.com/valkey-io/valkey-py/issues/new
-
+and report errors to us via https://github.com/valkey-io/valkey-py/issues/new
