@@ -42,12 +42,10 @@ dependencies = [
 dev = [
     'black',
     'cachetools',
-    'click',
     'flake8-isort',
     'flake8',
     'flynt',
     'hatchling',
-    'invoke',
     'mock',
     'packaging>=20.4',
     'pytest',

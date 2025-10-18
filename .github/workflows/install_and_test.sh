@@ -21,8 +21,8 @@ python -m venv ${DESTENV}
 source ${DESTENV}/bin/activate
 pip install --upgrade --quiet pip
 pip install --quiet --group dev
-invoke devenv
-invoke package
+make devenv
+make package
 
 # find packages
 PKG=`ls ${ROOT}/dist/*.${SUFFIX}`
