@@ -89,7 +89,7 @@ async def test_bf_scandump_and_loadchunk(decoded_r: valkey.Valkey):
             await decoded_r.bf().add("myBloom", x)
             rv = await decoded_r.bf().exists("myBloom", x)
             assert rv
-            rv = await decoded_r.bf().exists("myBloom", f"nonexist_{x}")
+            rv = await decoded_r.bf().exists("myBloom", f"nonexistent_{x}")
             res += rv == x
         assert res < 5
 

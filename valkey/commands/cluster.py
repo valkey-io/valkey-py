@@ -225,7 +225,7 @@ class ClusterMultiKeyCommands(ClusterCommandsProtocol):
         The keys are first split up into slots
         and then an DEL command is sent for every slot
 
-        Non-existent keys are ignored.
+        Nonexistent keys are ignored.
         Returns the number of keys that were deleted.
 
         For more information see https://valkey.io/commands/del
@@ -240,7 +240,7 @@ class ClusterMultiKeyCommands(ClusterCommandsProtocol):
         The keys are first split up into slots
         and then an TOUCH command is sent for every slot
 
-        Non-existent keys are ignored.
+        Nonexistent keys are ignored.
         Returns the number of keys that were touched.
 
         For more information see https://valkey.io/commands/touch
@@ -254,7 +254,7 @@ class ClusterMultiKeyCommands(ClusterCommandsProtocol):
         The keys are first split up into slots
         and then an TOUCH command is sent for every slot
 
-        Non-existent keys are ignored.
+        Nonexistent keys are ignored.
         Returns the number of keys that were unlinked.
 
         For more information see https://valkey.io/commands/unlink
