@@ -69,7 +69,7 @@ def test_alter(client):
 
 
 @skip_ifmodversion_lt("1.4.0", "timeseries")
-def test_alter_diplicate_policy(client):
+def test_alter_duplicate_policy(client):
     assert client.ts().create(1)
     info = client.ts().info(1)
     assert_resp_response(
