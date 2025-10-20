@@ -2889,7 +2889,7 @@ class ListCommands(CommandsProtocol):
         ``start`` and ``num`` allow for paging through the sorted data
 
         ``by`` allows using an external key to weight and sort the items.
-            Use an "*" to indicate where in the key the item value is located
+            Use an "*" to indicate the location of the item value in the key
 
         ``get`` allows for returning items from external keys rather than the
             sorted data itself.  Use an "*" to indicate where in the key
@@ -2961,7 +2961,7 @@ class ListCommands(CommandsProtocol):
         ``start`` and ``num`` allow for paging through the sorted data
 
         ``by`` allows using an external key to weight and sort the items.
-            Use an "*" to indicate where in the key the item value is located
+            Use an "*" to indicate the location of the item value in the key
 
         ``get`` allows for returning items from external keys rather than the
             sorted data itself.  Use an "*" to indicate where in the key
