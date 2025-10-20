@@ -2838,7 +2838,7 @@ class ListCommands(CommandsProtocol):
         Get position of ``value`` within the list ``name``
 
          If specified, ``rank`` indicates the "rank" of the first element to
-         return in case there are multiple copies of ``value`` in the list.
+         return if there are multiple copies of ``value`` in the list.
          By default, LPOS returns the position of the first occurrence of
          ``value`` in the list. When ``rank`` 2, LPOS returns the position of
          the second ``value`` in the list. If ``rank`` is negative, LPOS
