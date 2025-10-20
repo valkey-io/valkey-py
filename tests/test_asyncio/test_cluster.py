@@ -2657,7 +2657,7 @@ class TestClusterPipeline:
             )
 
     async def test_empty_stack(self, r: ValkeyCluster) -> None:
-        """If a pipeline is executed with no commands it should return a empty list."""
+        """If a pipeline is executed with no commands it should return an empty list."""
         p = r.pipeline()
         result = await p.execute()
         assert result == []

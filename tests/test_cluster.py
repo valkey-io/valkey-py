@@ -3268,7 +3268,7 @@ class TestClusterPipeline:
     def test_empty_stack(self, r):
         """
         If pipeline is executed with no commands it should
-        return a empty list.
+        return an empty list.
         """
         p = r.pipeline()
         result = p.execute()

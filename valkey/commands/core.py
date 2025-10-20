@@ -3608,7 +3608,7 @@ class StreamCommands(CommandsProtocol):
 
         try:
             if int(count) < 0:
-                raise DataError("XPENDING count must be a integer >= 0")
+                raise DataError("XPENDING count must be an integer >= 0")
             pieces.extend([b"COUNT", count])
         except TypeError:
             pass
@@ -3891,14 +3891,14 @@ class StreamCommands(CommandsProtocol):
         # idle
         try:
             if int(idle) < 0:
-                raise DataError("XPENDING idle must be a integer >= 0")
+                raise DataError("XPENDING idle must be an integer >= 0")
             pieces.extend(["IDLE", idle])
         except TypeError:
             pass
         # count
         try:
             if int(count) < 0:
-                raise DataError("XPENDING count must be a integer >= 0")
+                raise DataError("XPENDING count must be an integer >= 0")
             pieces.extend([min, max, count])
         except TypeError:
             pass
