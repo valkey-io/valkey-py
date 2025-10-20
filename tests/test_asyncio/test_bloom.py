@@ -163,7 +163,7 @@ async def test_bf_card(decoded_r: valkey.Valkey):
     assert await decoded_r.bf().add("bf1", "item_foo") == 1
     assert await decoded_r.bf().card("bf1") == 1
 
-    # Error when key is of a type other than Bloom filtedecoded_r.
+    # Error when key is of a type other than Bloom filter decoded_r.
     with pytest.raises(valkey.ResponseError):
         await decoded_r.set("setKey", "value")
         await decoded_r.bf().card("setKey")
