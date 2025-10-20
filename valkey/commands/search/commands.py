@@ -441,7 +441,7 @@ class SearchCommands:
 
     def info(self):
         """
-        Get info and stats about the the current index, including the number of
+        Get info and stats about the current index, including the number of
         documents, memory consumption, etc
 
         For more information see `FT.INFO <https://valkey.io/commands/ft.info>`_.
@@ -898,7 +898,7 @@ class SearchCommands:
 class AsyncSearchCommands(SearchCommands):
     async def info(self):
         """
-        Get info and stats about the the current index, including the number of
+        Get info and stats about the current index, including the number of
         documents, memory consumption, etc
 
         For more information see `FT.INFO <https://valkey.io/commands/ft.info>`_.
