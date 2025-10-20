@@ -53,7 +53,7 @@ async def waitForIndex(env, idx, timeout=None):
 
 def getClient(decoded_r: valkey.Valkey):
     """
-    Gets a client client attached to an index name which is ready to be
+    Gets a client attached to an index name which is ready to be
     created
     """
     return decoded_r
