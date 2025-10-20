@@ -121,7 +121,7 @@ topology and attempt to retry executing the command.
    >>> rc.bgsave(Valkey.PRIMARIES)
 
 You could also pass ClusterNodes directly if you want to execute a
-command on a specific node / node group that isn’t addressed by the
+command on a specific node / node group that isn't addressed by the
 nodes flag. However, if the command execution fails due to cluster
 topology changes, a retry attempt will not be made, since the passed
 target node/s may no longer be valid, and the relevant cluster or
