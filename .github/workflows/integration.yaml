@@ -48,7 +48,7 @@ jobs:
        - name: run code linters
          run: |
            pip install --group dev
-           invoke linters
+           make linters
 
    get-date:
     name: Get current date for cache
@@ -120,17 +120,17 @@ jobs:
            if [ "${{matrix.connection-type}}" == "libvalkey" ]; then
             pip install "libvalkey>=4.0.1"
            fi
-           invoke devenv
+           make devenv
            if [[ "${{matrix.test-type}}" == "standalone" ]]; then
             ./util/wait-for-it.sh localhost:6379
            else
             ./util/wait-for-it.sh localhost:16379
            fi
-           invoke ${{matrix.test-type}}-tests --protocol=${{ matrix.protocol-version }}
+           make ${{matrix.test-type}}-tests PROTOCOL=${{ matrix.protocol-version }}
            # TODO: remove check for 3.14 once it's fixed
            # https://github.com/MagicStack/uvloop/issues/637
            if [[ "${{matrix.python-version}}" != pypy-* && "${{matrix.python-version}}" != "3.14-dev" ]]; then
-            invoke ${{matrix.test-type}}-tests --uvloop --protocol=${{ matrix.protocol-version }}
+            make ${{matrix.test-type}}-tests USE_UVLOOP=1 PROTOCOL=${{ matrix.protocol-version }}
            fi
 
        - uses: actions/upload-artifact@v4

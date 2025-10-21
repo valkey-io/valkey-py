@@ -95,18 +95,18 @@ Here's how to get started with your code contribution:
         b.  source .venv/bin/activate
         c.  pip install --group dev
 
-4.  If you need a development environment, run `invoke devenv`. Note: this relies on docker compose to build environments, and assumes that you have a version supporting [docker profiles](https://docs.docker.com/compose/profiles/).
-5.  While developing, make sure the tests pass by running `invoke tests`
+4.  If you need a development environment, run `make devenv`. Note: this relies on docker compose to build environments, and assumes that you have a version supporting [docker profiles](https://docs.docker.com/compose/profiles/).
+5.  While developing, make sure the tests pass by running `make tests`
 6.  If you like the change and think the project could use it, send a
     pull request
 
-To see what else is part of the automation, run `invoke -l`
+To see what else is part of the automation, run `make help`
 
 ## The Development Environment
 
-Running `invoke devenv` starts all of the dockers used by this
+Running `make devenv` starts all of the dockers used by this
 project, and leaves them running. These can be easily cleaned up with
-`invoke clean`. NOTE: it is assumed that the user running these tests,
+`make clean`. NOTE: it is assumed that the user running these tests,
 can execute docker and its various commands.
 
 -   A master Valkey node
@@ -124,22 +124,22 @@ configuration](https://redis.io/topics/sentinel).
 
 ## Testing
 
-Call `invoke tests` to run all tests, or `invoke all-tests` to run linters
+Call `make tests` to run all tests, or `make all-tests` to run linters
 tests as well. With the 'tests' and 'all-tests' targets, all Valkey and
 ValkeyCluster tests will be run.
 
 It is possible to run only Valkey client tests (with cluster mode disabled) by
-using `invoke standalone-tests`; similarly, ValkeyCluster tests can be run by using
-`invoke cluster-tests`.
+using `make standalone-tests`; similarly, ValkeyCluster tests can be run by using
+`make cluster-tests`.
 
 Each run of tests starts and stops the various dockers required. Sometimes
-things get stuck, an `invoke clean` can help.
+things get stuck, an `make clean` can help.
 
 ## Documentation
 
 If relevant, update the code documentation, via docstrings, or in `/docs`.
 
-You can check how the documentation looks locally by running `invoke build-docs`
+You can check how the documentation looks locally by running `make build-docs`
 and loading the generated HTML files in a browser.
 
 Historically there is a mix of styles in the docstrings, but the preferred way

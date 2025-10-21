@@ -40,7 +40,7 @@ jobs:
          run: |
            pip install --group dev --group docs
            pip install .
-           invoke build-docs
+           make build-docs
 
        - name: upload docs
          uses: actions/upload-artifact@v4
