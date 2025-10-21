@@ -229,8 +229,8 @@ following keys.
 
 -  **type**: One of the following: 'subscribe', 'unsubscribe',
    'psubscribe', 'punsubscribe', 'message', 'pmessage'
--  **channel**: The channel [un]subscribed to or the channel a message
-   was published to
+-  **channel**: The channel [un]subscribed to or the channel to which a message
+   was published
 -  **pattern**: The pattern that matched a published message's channel.
    Will be None in all cases except for 'pmessage' types.
 -  **data**: The message data. With [un]subscribe messages, this value

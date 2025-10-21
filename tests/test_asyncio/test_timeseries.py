@@ -67,7 +67,7 @@ async def test_alter(decoded_r: valkey.Valkey):
 
 
 @skip_ifmodversion_lt("1.4.0", "timeseries")
-async def test_alter_diplicate_policy(decoded_r: valkey.Valkey):
+async def test_alter_duplicate_policy(decoded_r: valkey.Valkey):
     assert await decoded_r.ts().create(1)
     info = await decoded_r.ts().info(1)
     assert_resp_response(

@@ -1136,7 +1136,7 @@ class ConnectionPool:
         Disconnects connections in the pool
 
         If ``inuse_connections`` is True, disconnect connections that are
-        current in use, potentially by other tasks. Otherwise only disconnect
+        current in use, potentially by other tasks. Otherwise, only disconnect
         connections that are idle in the pool.
         """
         if inuse_connections:

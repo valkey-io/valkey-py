@@ -47,7 +47,7 @@ def _verify_response(issuer_cert, ocsp_response):
 
 
 def _check_certificate(issuer_cert, ocsp_bytes, validate=True):
-    """A wrapper the return the validity of a known ocsp certificate"""
+    """A wrapper to return the validity of a known ocsp certificate"""
 
     ocsp_response = ocsp.load_der_ocsp_response(ocsp_bytes)
 

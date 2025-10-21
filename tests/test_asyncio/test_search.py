@@ -53,7 +53,7 @@ async def waitForIndex(env, idx, timeout=None):
 
 def getClient(decoded_r: valkey.Valkey):
     """
-    Gets a client client attached to an index name which is ready to be
+    Gets a client attached to an index name which is ready to be
     created
     """
     return decoded_r
@@ -485,7 +485,7 @@ async def test_example(decoded_r: valkey.Valkey):
         "doc1",
         mapping={
             "title": "RediSearch",
-            "body": "RediSearch impements a search engine on top of valkey",
+            "body": "RediSearch implements a search engine on top of valkey",
         },
     )
 
@@ -1121,7 +1121,7 @@ async def test_aggregations_groupby(decoded_r: valkey.Valkey):
         "search",
         mapping={
             "title": "RediSearch",
-            "body": "RediSearch impements a search engine on top of valkey",
+            "body": "RediSearch implements a search engine on top of valkey",
             "parent": "valkey",
             "random_num": 10,
         },

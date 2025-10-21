@@ -383,7 +383,7 @@ class SearchCommands:
         ### Parameters
 
         - **doc_id**: the document's id. This has to be an existing HASH key
-                      in Valkey that will hold the fields the index needs.
+                      in Valkey that will hold the fields needed by the index.
         - **score**:  the document ranking, between 0.0 and 1.0
         - **replace**: if True, and the document already is in the index, we
                       perform an update and reindex the document
@@ -441,7 +441,7 @@ class SearchCommands:
 
     def info(self):
         """
-        Get info an stats about the the current index, including the number of
+        Get info and stats about the current index, including the number of
         documents, memory consumption, etc
 
         For more information see `FT.INFO <https://valkey.io/commands/ft.info>`_.
@@ -898,7 +898,7 @@ class SearchCommands:
 class AsyncSearchCommands(SearchCommands):
     async def info(self):
         """
-        Get info an stats about the the current index, including the number of
+        Get info and stats about the current index, including the number of
         documents, memory consumption, etc
 
         For more information see `FT.INFO <https://valkey.io/commands/ft.info>`_.

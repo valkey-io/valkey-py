@@ -392,8 +392,8 @@ def parse_slowlog_get(response, **options):
     def parse_item(item):
         result = {"id": item[0], "start_time": int(item[1]), "duration": int(item[2])}
         # Valkey Enterprise injects another entry at index [3], which has
-        # the complexity info (i.e. the value N in case the command has
-        # an O(N) complexity) instead of the command.
+        # the complexity info (i.e. the value N for a command of complexity
+        # O(N)) instead of the command.
         if isinstance(item[3], list):
             result["command"] = space.join(item[3])
             result["client_address"] = item[4]

@@ -2838,7 +2838,7 @@ class ListCommands(CommandsProtocol):
         Get position of ``value`` within the list ``name``
 
          If specified, ``rank`` indicates the "rank" of the first element to
-         return in case there are multiple copies of ``value`` in the list.
+         return if there are multiple copies of ``value`` in the list.
          By default, LPOS returns the position of the first occurrence of
          ``value`` in the list. When ``rank`` 2, LPOS returns the position of
          the second ``value`` in the list. If ``rank`` is negative, LPOS
@@ -2889,7 +2889,7 @@ class ListCommands(CommandsProtocol):
         ``start`` and ``num`` allow for paging through the sorted data
 
         ``by`` allows using an external key to weight and sort the items.
-            Use an "*" to indicate where in the key the item value is located
+            Use an "*" to indicate the location of the item value in the key
 
         ``get`` allows for returning items from external keys rather than the
             sorted data itself.  Use an "*" to indicate where in the key
@@ -2961,7 +2961,7 @@ class ListCommands(CommandsProtocol):
         ``start`` and ``num`` allow for paging through the sorted data
 
         ``by`` allows using an external key to weight and sort the items.
-            Use an "*" to indicate where in the key the item value is located
+            Use an "*" to indicate the location of the item value in the key
 
         ``get`` allows for returning items from external keys rather than the
             sorted data itself.  Use an "*" to indicate where in the key
@@ -3608,7 +3608,7 @@ class StreamCommands(CommandsProtocol):
 
         try:
             if int(count) < 0:
-                raise DataError("XPENDING count must be a integer >= 0")
+                raise DataError("XPENDING count must be an integer >= 0")
             pieces.extend([b"COUNT", count])
         except TypeError:
             pass
@@ -3891,14 +3891,14 @@ class StreamCommands(CommandsProtocol):
         # idle
         try:
             if int(idle) < 0:
-                raise DataError("XPENDING idle must be a integer >= 0")
+                raise DataError("XPENDING idle must be an integer >= 0")
             pieces.extend(["IDLE", idle])
         except TypeError:
             pass
         # count
         try:
             if int(count) < 0:
-                raise DataError("XPENDING count must be a integer >= 0")
+                raise DataError("XPENDING count must be an integer >= 0")
             pieces.extend([min, max, count])
         except TypeError:
             pass

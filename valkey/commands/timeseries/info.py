@@ -32,7 +32,7 @@ class TSInfo:
         rules:
             A list of compaction rules of the time series.
         sourceKey:
-            Key name for source time series in case the current series
+            Key name for source time series if the current series
             is a target of a rule.
         chunkCount:
             Number of Memory Chunks used for the time series.

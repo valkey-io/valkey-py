@@ -89,7 +89,7 @@ async def test_bf_scandump_and_loadchunk(decoded_r: valkey.Valkey):
             await decoded_r.bf().add("myBloom", x)
             rv = await decoded_r.bf().exists("myBloom", x)
             assert rv
-            rv = await decoded_r.bf().exists("myBloom", f"nonexist_{x}")
+            rv = await decoded_r.bf().exists("myBloom", f"nonexistent_{x}")
             res += rv == x
         assert res < 5
 
@@ -163,7 +163,7 @@ async def test_bf_card(decoded_r: valkey.Valkey):
     assert await decoded_r.bf().add("bf1", "item_foo") == 1
     assert await decoded_r.bf().card("bf1") == 1
 
-    # Error when key is of a type other than Bloom filtedecoded_r.
+    # Error when key is of a type other than Bloom filter decoded_r.
     with pytest.raises(valkey.ResponseError):
         await decoded_r.set("setKey", "value")
         await decoded_r.bf().card("setKey")

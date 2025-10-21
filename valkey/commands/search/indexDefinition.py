@@ -9,7 +9,7 @@ class IndexType(Enum):
 
 
 class IndexDefinition:
-    """IndexDefinition is used to define a index definition for automatic
+    """IndexDefinition is used to define an index definition for automatic
     indexing on Hash or Json update."""
 
     def __init__(

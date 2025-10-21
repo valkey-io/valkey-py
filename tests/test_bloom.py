@@ -112,7 +112,7 @@ def test_bf_scandump_and_loadchunk(client):
             client.bf().add("myBloom", x)
             rv = client.bf().exists("myBloom", x)
             assert rv
-            rv = client.bf().exists("myBloom", f"nonexist_{x}")
+            rv = client.bf().exists("myBloom", f"nonexistent_{x}")
             res += rv == x
         assert res < 5
 
