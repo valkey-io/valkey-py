@@ -133,7 +133,7 @@ jobs:
             make ${{matrix.test-type}}-tests USE_UVLOOP=1 PROTOCOL=${{ matrix.protocol-version }}
            fi
 
-       - uses: actions/upload-artifact@v4
+       - uses: actions/upload-artifact@v5
          if: success() || failure()
          with:
            name: pytest-results-${{matrix.test-type}}-${{matrix.connection-type}}-${{matrix.python-version}}-RESP${{ matrix.protocol-version }}
