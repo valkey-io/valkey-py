@@ -22,6 +22,7 @@ from valkey._parsers.helpers import (
 from valkey.client import EMPTY_RESPONSE, NEVER_DECODE
 
 from .conftest import (
+    VALKEY_INFO,
     _get_client,
     assert_geo_is_close,
     assert_resp_response,
@@ -844,11 +845,13 @@ class TestValkeyCommands:
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("5.0.0")
     def test_lolwut(self, r):
+        version = Version(VALKEY_INFO.get("version", "0"))
+        str_to_match = "Valkey ver." if version >= Version("9.0.0") else "Redis ver."
         lolwut = r.lolwut().decode("utf-8")
-        assert "Valkey ver." in lolwut
+        assert str_to_match in lolwut
 
         lolwut = r.lolwut(5, 6, 7, 8).decode("utf-8")
-        assert "Valkey ver." in lolwut
+        assert str_to_match in lolwut
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.2.0")
