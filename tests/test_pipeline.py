@@ -331,6 +331,30 @@ class TestPipeline:
         assert r["c"] == b"4"
 
     @pytest.mark.onlynoncluster
+    def test_transaction_loop(self, r):
+        r["a"] = 0
+        run_count = 0
+
+        def my_transaction(pipe):
+            nonlocal run_count
+            run_count += 1
+            if run_count > 10:
+                raise RuntimeError("Run too many times")
+            a_value = int(pipe.get("a"))
+            pipe.multi()
+            r.set("a", a_value + 1)  # force WatchError
+
+        with pytest.raises(RuntimeError) as ex:
+            r.transaction(my_transaction, "a")
+        assert str(ex.value).startswith("Run too many times")
+        assert run_count == 11
+        run_count = 0
+        with pytest.raises(valkey.ValkeyError) as ex:
+            r.transaction(my_transaction, "a", max_tries=3)
+        assert str(ex.value).startswith("Bailing out of transaction after 3 tries")
+        assert run_count == 3
+
+    @pytest.mark.onlynoncluster
     def test_transaction_callable_returns_value_from_callable(self, r):
         def callback(pipe):
             # No need to do anything here since we only want the return value
