@@ -459,7 +459,7 @@ def test_example(client):
         "doc1",
         mapping={
             "title": "RediSearch",
-            "body": "RediSearch impements a search engine on top of valkey",
+            "body": "RediSearch implements a search engine on top of valkey",
         },
     )
 
@@ -1026,7 +1026,7 @@ def test_aggregations_groupby(client):
         "search",
         mapping={
             "title": "RediSearch",
-            "body": "RediSearch impements a search engine on top of valkey",
+            "body": "RediSearch implements a search engine on top of valkey",
             "parent": "valkey",
             "random_num": 10,
         },

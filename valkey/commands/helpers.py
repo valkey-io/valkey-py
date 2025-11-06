@@ -114,7 +114,7 @@ def random_string(length=10):
 def quote_string(v):
     """
     RedisGraph strings must be quoted,
-    quote_string wraps given v with quotes incase
+    quote_string wraps given v with quotes in case
     v is a string.
     """
 
