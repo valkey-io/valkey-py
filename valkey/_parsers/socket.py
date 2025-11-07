@@ -2,12 +2,14 @@ import errno
 import io
 import socket
 from io import SEEK_END
-from typing import Optional, Union
+from typing import Optional
 
 from ..exceptions import ConnectionError, TimeoutError
 from ..utils import SSL_AVAILABLE
 
-NONBLOCKING_EXCEPTION_ERROR_NUMBERS = {BlockingIOError: errno.EWOULDBLOCK}
+NONBLOCKING_EXCEPTION_ERROR_NUMBERS: dict[type[OSError], int] = {
+    BlockingIOError: errno.EWOULDBLOCK
+}
 
 if SSL_AVAILABLE:
     import ssl
@@ -21,19 +23,19 @@ if SSL_AVAILABLE:
 NONBLOCKING_EXCEPTIONS = tuple(NONBLOCKING_EXCEPTION_ERROR_NUMBERS.keys())
 
 SERVER_CLOSED_CONNECTION_ERROR = "Connection closed by server."
-SENTINEL = object()
 
 SYM_CRLF = b"\r\n"
 
 
 class SocketBuffer:
     def __init__(
-        self, socket: socket.socket, socket_read_size: int, socket_timeout: float
+        self, sock: socket.socket, socket_read_size: int, socket_timeout: float
     ):
-        self._sock = socket
+        self._sock = sock
         self.socket_read_size = socket_read_size
         self.socket_timeout = socket_timeout
         self._buffer = io.BytesIO()
+        self._closed = False
 
     def unread_bytes(self) -> int:
         """
@@ -47,13 +49,13 @@ class SocketBuffer:
     def _read_from_socket(
         self,
         length: Optional[int] = None,
-        timeout: Union[float, object] = SENTINEL,
+        timeout: Optional[float] = None,
         raise_on_timeout: Optional[bool] = True,
     ) -> bool:
         sock = self._sock
         socket_read_size = self.socket_read_size
         marker = 0
-        custom_timeout = timeout is not SENTINEL
+        custom_timeout = timeout is not None
 
         buf = self._buffer
         current_pos = buf.tell()
@@ -92,11 +94,14 @@ class SocketBuffer:
                 sock.settimeout(self.socket_timeout)
 
     def can_read(self, timeout: float) -> bool:
-        return bool(self.unread_bytes()) or self._read_from_socket(
-            timeout=timeout, raise_on_timeout=False
+        return not self._closed and (
+            bool(self.unread_bytes())
+            or self._read_from_socket(timeout=timeout, raise_on_timeout=False)
         )
 
     def read(self, length: int) -> bytes:
+        if self._closed:
+            raise ConnectionError("Socket is closed")
         length = length + 2  # make sure to read the \r\n terminator
         # BufferIO will return less than requested if buffer is short
         data = self._buffer.read(length)
@@ -108,6 +113,8 @@ class SocketBuffer:
         return data[:-2]
 
     def readline(self) -> bytes:
+        if self._closed:
+            raise ConnectionError("Socket is closed")
         buf = self._buffer
         data = buf.readline()
         while not data.endswith(SYM_CRLF):
@@ -151,6 +158,7 @@ class SocketBuffer:
     def close(self) -> None:
         try:
             self._buffer.close()
+            self._sock.close()
         except Exception:
             # issue #633 suggests the purge/close somehow raised a
             # BadFileDescriptor error. Perhaps the client ran out of
@@ -158,5 +166,4 @@ class SocketBuffer:
             # any error being raised from purge/close since we're
             # removing the reference to the instance below.
             pass
-        self._buffer = None
-        self._sock = None
+        self._closed = True
