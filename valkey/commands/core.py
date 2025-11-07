@@ -5076,6 +5076,8 @@ class HashCommands(CommandsProtocol):
         ``mapping`` accepts a dict of key/value pairs to be added to hash ``name``.
         ``items`` accepts a list of key/value pairs to be added to hash ``name``.
         Set expiration options for the hash fields.
+
+        For more information see https://valkey.io/commands/hsetex
         """
 
         if key is None and not mapping and not items:
