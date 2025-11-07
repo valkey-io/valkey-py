@@ -5055,6 +5055,64 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HSETNX", name, key, value)
 
+    def hsetex(
+        self,
+        name: str,
+        key: Optional[str] = None,
+        value: Optional[str] = None,
+        mapping: Optional[dict] = None,
+        items: Optional[list] = None,
+        ex: Union[ExpiryT, None] = None,
+        px: Union[ExpiryT, None] = None,
+        exat: Union[AbsExpiryT, None] = None,
+        pxat: Union[AbsExpiryT, None] = None,
+        nx: bool = False,
+        xx: bool = False,
+        fnx: bool = False,
+        fxx: bool = False,
+    ) -> Union[Awaitable[bool], bool]:
+        """
+        Set key to value within hash ``name``,
+        ``mapping`` accepts a dict of key/value pairs to be added to hash ``name``.
+        ``items`` accepts a list of key/value pairs to be added to hash ``name``.
+        Set expiration options for the hash fields.
+        """
+
+        if key is None and not mapping and not items:
+            raise DataError("'hsetex' with no key value pairs")
+        pieces = []
+        if ex is not None:
+            pieces.extend(["EX", ex])
+        if px is not None:
+            pieces.extend(["PX", px])
+        if exat is not None:
+            pieces.extend(["EXAT", exat])
+        if pxat is not None:
+            pieces.extend(["PXAT", pxat])
+        if nx:
+            pieces.append("NX")
+        if xx:
+            pieces.append("XX")
+        if fnx:
+            pieces.append("FNX")
+        if fxx:
+            pieces.append("FXX")
+        pieces.append("FIELDS")
+        if key is not None and value is not None:
+            pieces.append(1)  # for one field
+            pieces.append(key)
+            pieces.append(value)
+        if mapping:
+            pieces.append(len(mapping))
+            for key, value in mapping.items():
+                pieces.append(key)
+                pieces.append(value)
+        if items:
+            pieces.append(len(items) // 2)
+            pieces.extend(items)
+
+        return self.execute_command("HSETEX", name, *pieces)
+
     def hmset(self, name: str, mapping: dict) -> Union[Awaitable[str], str]:
         """
         Set key to value within hash ``name`` for each corresponding

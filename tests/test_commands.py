@@ -3236,6 +3236,27 @@ class TestValkeyCommands:
         assert r.hstrlen("a", "1") == 2
         assert r.hstrlen("a", "2") == 3
 
+    @skip_if_server_version_lt("9.0.0")
+    def test_hsetex(self, r):
+        assert r.hsetex("a", "field1", "value1", ex=5) == 1
+        assert r.hget("a", "field1") == b"value1"
+        assert r.hsetex("a", "field1", "value2", ex=5) == 1
+        assert r.hget("a", "field1") == b"value2"
+
+    @skip_if_server_version_lt("9.0.0")
+    def test_hsetex_px(self, r):
+        assert r.hsetex("a", "field1", "value1", px=5000) == 1
+        assert r.hget("a", "field1") == b"value1"
+        assert r.hsetex("a", "field1", "value2", px=5000) == 1
+        assert r.hget("a", "field1") == b"value2"
+
+    @skip_if_server_version_lt("9.0.0")
+    def test_hsetex_mapping(self, r):
+        mapping = {"field1": "value1", "field2": "value2"}
+        assert r.hsetex("a", mapping=mapping, ex=5) == 1
+        assert r.hget("a", "field1") == b"value1"
+        assert r.hget("a", "field2") == b"value2"
+
     # SORT
     def test_sort_basic(self, r):
         r.rpush("a", "3", "2", "1", "4")
