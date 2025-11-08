@@ -41,8 +41,9 @@ from valkey.typing import (
     ZScoreBoundT,
 )
 
-from ..client import _Value
+from ..client import _CommandOptions, _Key, _Value
 
+_ScoreCastFuncReturn = TypeVar("_ScoreCastFuncReturn")
 _StrType = TypeVar("_StrType", bound=str | bytes)
 
 class ACLCommands(CommandsProtocol):
@@ -904,6 +905,7 @@ class ListCommands(Generic[_StrType]):
         count: int,
         maxlen: int | None = None,
     ) -> list[_StrType] | None: ...
+    @overload
     def sort(
         self,
         name: _Value,
@@ -913,9 +915,36 @@ class ListCommands(Generic[_StrType]):
         get: _Value | Sequence[_Value] | None = None,
         desc: bool = False,
         alpha: bool = False,
-        store: _Value | None = None,
+        store: None = None,
         groups: bool | None = False,
-    ) -> list[Any] | int: ...
+    ) -> list[_StrType]: ...
+    @overload
+    def sort(
+        self,
+        name: _Value,
+        start: int | None = None,
+        num: int | None = None,
+        by: _Value | None = None,
+        get: _Value | Sequence[_Value] | None = None,
+        desc: bool = False,
+        alpha: bool = False,
+        *,
+        store: _Value,
+        groups: bool = False,
+    ) -> int: ...
+    @overload
+    def sort(
+        self,
+        name: _Value,
+        start: int | None,
+        num: int | None,
+        by: _Value | None,
+        get: _Value | Sequence[_Value] | None,
+        desc: bool,
+        alpha: bool,
+        store: _Value,
+        groups: bool = False,
+    ) -> int: ...
     def sort_ro(
         self,
         key: _Value,
@@ -925,195 +954,340 @@ class ListCommands(Generic[_StrType]):
         get: list[str] | None = None,
         desc: bool = False,
         alpha: bool = False,
-    ) -> list[Any]: ...
+    ) -> list[_StrType]: ...
 
 class AsyncListCommands(Generic[_StrType]):
+    @overload
     async def blpop(
-        self, keys: list, timeout: int | None = 0
+        self, keys: _Value | Iterable[_Value], timeout: Literal[0]
+    ) -> tuple[_StrType, _StrType]: ...
+    @overload
+    async def blpop(
+        self, keys: _Value | Iterable[_Value], timeout: float
     ) -> tuple[_StrType, _StrType] | None: ...
+    @overload
     async def brpop(
-        self, keys: list, timeout: int | None = 0
+        self, keys: _Value | Iterable[_Value], timeout: Literal[0]
+    ) -> tuple[_StrType, _StrType]: ...
+    @overload
+    async def brpop(
+        self, keys: _Value | Iterable[_Value], timeout: float
     ) -> tuple[_StrType, _StrType] | None: ...
+    @overload
     async def brpoplpush(
-        self, src: str, dst: str, timeout: int | None = 0
-    ) -> list[Any] | None: ...
+        self, src: _Value, dst: _Value, timeout: Literal[0]
+    ) -> _StrType: ...
+    @overload
+    async def brpoplpush(
+        self, src: _Value, dst: _Value, timeout: float
+    ) -> _StrType | None: ...
+    @overload
+    async def blmpop(
+        self,
+        timeout: Literal[0],
+        numkeys: int,
+        *keys: _Value,
+        direction: Literal["LEFT"] | Literal["RIGHT"],
+        count: int = 1,
+    ) -> tuple[_StrType, list[_StrType]]: ...
+    @overload
     async def blmpop(
         self,
         timeout: float,
         numkeys: int,
-        *args: list[str],
-        direction: str,
-        count: int | None = 1,
-    ) -> list[Any] | None: ...
+        *keys: _Value,
+        direction: Literal["LEFT"] | Literal["RIGHT"],
+        count: int = 1,
+    ) -> tuple[_StrType, list[_StrType]] | None: ...
     async def lmpop(
-        self, num_keys: int, *args: list[str], direction: str, count: int | None = 1
-    ) -> list[Any] | None: ...
-    async def lindex(self, name: str, index: int) -> str | None: ...
+        self,
+        numkeys: int,
+        *keys: _Value,
+        direction: Literal["LEFT"] | Literal["RIGHT"],
+        count: int = 1,
+    ) -> tuple[_StrType, list[_StrType]] | None: ...
+    async def lindex(self, name: _Value, index: int) -> _StrType | None: ...
     async def linsert(
-        self, name: str, where: str, refvalue: str, value: str
+        self,
+        name: _Value,
+        where: Literal["BEFORE"] | Literal["AFTER"],
+        refvalue: _Value,
+        value: _Value,
     ) -> int: ...
-    async def llen(self, name: str) -> int: ...
-    async def lpop(
-        self, name: str, count: int | None = None
-    ) -> str | list[Any] | None: ...
-    async def lpush(self, name: str, *values: FieldT) -> int: ...
-    async def lpushx(self, name: str, *values: FieldT) -> int: ...
-    async def lrange(self, name: str, start: int, end: int) -> list[Any]: ...
-    async def lrem(self, name: str, count: int, value: str) -> int: ...
-    async def lset(self, name: str, index: int, value: str) -> str: ...
-    async def ltrim(self, name: str, start: int, end: int) -> str: ...
-    async def rpop(
-        self, name: str, count: int | None = None
-    ) -> str | list[Any] | None: ...
-    async def rpoplpush(self, src: str, dst: str) -> str: ...
-    async def rpush(self, name: str, *values: FieldT) -> int: ...
-    async def rpushx(self, name: str, *values: str) -> int: ...
+    async def llen(self, name: _Value) -> int: ...
+    @overload
+    async def lpop(self, name: _Value) -> _StrType | None: ...
+    @overload
+    async def lpop(self, name: _Value, count: int) -> list[_StrType] | None: ...
+    async def lpush(self, name: _Value, *values: _Value) -> int: ...
+    async def lpushx(self, name: _Value, *values: _Value) -> int: ...
+    async def lrange(self, name: _Value, start: int, end: int) -> list[_StrType]: ...
+    async def lrem(self, name: _Value, count: int, value: _Value) -> int: ...
+    async def lset(self, name: _Value, index: int, value: _Value) -> bool: ...
+    async def ltrim(self, name: _Value, start: int, end: int) -> bool: ...
+    @overload
+    async def rpop(self, name: _Value) -> _StrType | None: ...
+    @overload
+    async def rpop(self, name: _Value, count: int) -> list[_StrType] | None: ...
+    async def rpoplpush(self, src: _Value, dst: _Value) -> _StrType: ...
+    async def rpush(self, name: _Value, *values: _Value) -> int: ...
+    async def rpushx(self, name: _Value, *values: _Value) -> int: ...
+    @overload
     async def lpos(
         self,
-        name: str,
-        value: str,
+        name: _Value,
         rank: int | None = None,
-        count: int | None = None,
+        count: None = None,
         maxlen: int | None = None,
-    ) -> str | list[Any] | None: ...
+    ) -> _StrType | None: ...
+    @overload
+    async def lpos(
+        self,
+        name: _Value,
+        rank: int | None = None,
+        *,
+        count: int,
+        maxlen: int | None = None,
+    ) -> list[_StrType] | None: ...
+    @overload
+    async def lpos(
+        self,
+        name: _Value,
+        value: _Value,
+        rank: int | None,
+        count: int,
+        maxlen: int | None = None,
+    ) -> list[_StrType] | None: ...
+    @overload
     async def sort(
         self,
-        name: str,
+        name: _Value,
         start: int | None = None,
         num: int | None = None,
-        by: str | None = None,
-        get: list[str] | None = None,
+        by: _Value | None = None,
+        get: _Value | Sequence[_Value] | None = None,
         desc: bool = False,
         alpha: bool = False,
-        store: str | None = None,
+        store: None = None,
         groups: bool | None = False,
-    ) -> list[Any] | int: ...
+    ) -> list[_StrType]: ...
+    @overload
+    async def sort(
+        self,
+        name: _Value,
+        start: int | None = None,
+        num: int | None = None,
+        by: _Value | None = None,
+        get: _Value | Sequence[_Value] | None = None,
+        desc: bool = False,
+        alpha: bool = False,
+        *,
+        store: _Value,
+        groups: bool = False,
+    ) -> int: ...
+    @overload
+    async def sort(
+        self,
+        name: _Value,
+        start: int | None,
+        num: int | None,
+        by: _Value | None,
+        get: _Value | Sequence[_Value] | None,
+        desc: bool,
+        alpha: bool,
+        store: _Value,
+        groups: bool = False,
+    ) -> int: ...
     async def sort_ro(
         self,
-        key: str,
+        key: _Value,
         start: int | None = None,
         num: int | None = None,
         by: str | None = None,
         get: list[str] | None = None,
         desc: bool = False,
         alpha: bool = False,
-    ) -> list[Any]: ...
+    ) -> list[_StrType]: ...
 
 class ScanCommands(Generic[_StrType]):
-    # TODO: overloads for zscan!
     def scan(
         self,
         cursor: int = 0,
-        match: PatternT | None = None,
+        match: _Key | None = None,
         count: int | None = None,
         _type: str | None = None,
-        **kwargs,
+        **kwargs: _CommandOptions,
     ) -> tuple[int, list[_StrType]]: ...
     def scan_iter(
         self,
-        match: PatternT | None = None,
+        match: _Key | None = None,
         count: int | None = None,
         _type: str | None = None,
-        **kwargs,
+        **kwargs: _CommandOptions,
     ) -> Iterator[_StrType]: ...
     def sscan(
         self,
-        name: KeyT,
+        name: _Value,
         cursor: int = 0,
-        match: PatternT | None = None,
+        match: _Key | None = None,
         count: int | None = None,
     ) -> tuple[int, list[_StrType]]: ...
     def sscan_iter(
-        self, name: KeyT, match: PatternT | None = None, count: int | None = None
+        self, name: _Value, match: _Key | None = None, count: int | None = None
     ) -> Iterator[_StrType]: ...
     def hscan(
         self,
-        name: KeyT,
+        name: _Value,
         cursor: int = 0,
-        match: PatternT | None = None,
+        match: _Key | None = None,
         count: int | None = None,
         no_values: bool | None = None,
-    ) -> tuple[int, dict[_StrType, _StrType] | list]: ...
+    ) -> tuple[int, dict[_StrType, _StrType]]: ...
     def hscan_iter(
         self,
-        name: str,
-        match: PatternT | None = None,
+        name: _Value,
+        match: _Key | None = None,
         count: int | None = None,
         no_values: bool | None = None,
     ) -> Iterator[tuple[_StrType, _StrType]]: ...
+    @overload
     def zscan(
         self,
-        name: KeyT,
+        name: _Value,
         cursor: int = 0,
-        match: PatternT | None = None,
+        match: _Key | None = None,
         count: int | None = None,
-        score_cast_func: type | Callable = ...,
     ) -> tuple[int, list[tuple[_StrType, float]]]: ...
+    @overload
+    def zscan(
+        self,
+        name: _Value,
+        cursor: int = 0,
+        match: _Key | None = None,
+        count: int | None = None,
+        *,
+        score_cast_func: Callable[[_StrType], _ScoreCastFuncReturn],
+    ) -> tuple[int, list[tuple[_StrType, _ScoreCastFuncReturn]]]: ...
+    @overload
+    def zscan(
+        self,
+        name: _Value,
+        cursor: int,
+        match: _Key | None,
+        count: int | None,
+        score_cast_func: Callable[[_StrType], _ScoreCastFuncReturn],
+    ) -> tuple[int, list[tuple[_StrType, _ScoreCastFuncReturn]]]: ...
+    @overload
+    def zscan_iter(
+        self, name: _Value, match: _Key | None = None, count: int | None = None
+    ) -> Iterator[tuple[_StrType, float]]: ...
+    @overload
+    def zscan_iter(
+        self,
+        name: _Value,
+        match: _Key | None = None,
+        count: int | None = None,
+        *,
+        score_cast_func: Callable[[_StrType], _ScoreCastFuncReturn],
+    ) -> Iterator[tuple[_StrType, _ScoreCastFuncReturn]]: ...
+    @overload
     def zscan_iter(
         self,
         name: KeyT,
-        match: PatternT | None = None,
-        count: int | None = None,
-        score_cast_func: type | Callable = ...,
-    ) -> Iterator[tuple[_StrType, float]]: ...
+        match: PatternT | None,
+        count: int | None,
+        score_cast_func: Callable[[_StrType], _ScoreCastFuncReturn],
+    ) -> Iterator[tuple[_StrType, _ScoreCastFuncReturn]]: ...
 
 class AsyncScanCommands(Generic[_StrType]):
-    # TODO: overloads for zscan!
-    def scan(
+    async def scan(
         self,
         cursor: int = 0,
-        match: PatternT | None = None,
+        match: _Key | None = None,
         count: int | None = None,
         _type: str | None = None,
-        **kwargs,
+        **kwargs: _CommandOptions,
     ) -> tuple[int, list[_StrType]]: ...
-    def scan_iter(
+    async def scan_iter(
         self,
-        match: PatternT | None = None,
+        match: _Key | None = None,
         count: int | None = None,
         _type: str | None = None,
-        **kwargs,
+        **kwargs: _CommandOptions,
     ) -> Iterator[_StrType]: ...
-    def sscan(
+    async def sscan(
         self,
-        name: KeyT,
+        name: _Value,
         cursor: int = 0,
-        match: PatternT | None = None,
+        match: _Key | None = None,
         count: int | None = None,
     ) -> tuple[int, list[_StrType]]: ...
-    def sscan_iter(
-        self, name: KeyT, match: PatternT | None = None, count: int | None = None
+    async def sscan_iter(
+        self, name: _Value, match: _Key | None = None, count: int | None = None
     ) -> Iterator[_StrType]: ...
-    def hscan(
+    async def hscan(
         self,
-        name: KeyT,
+        name: _Value,
         cursor: int = 0,
-        match: PatternT | None = None,
+        match: _Key | None = None,
         count: int | None = None,
         no_values: bool | None = None,
-    ) -> tuple[int, dict[_StrType, _StrType] | list]: ...
-    def hscan_iter(
+    ) -> tuple[int, dict[_StrType, _StrType]]: ...
+    async def hscan_iter(
         self,
-        name: str,
-        match: PatternT | None = None,
+        name: _Value,
+        match: _Key | None = None,
         count: int | None = None,
         no_values: bool | None = None,
     ) -> Iterator[tuple[_StrType, _StrType]]: ...
-    def zscan(
+    @overload
+    async def zscan(
         self,
-        name: KeyT,
+        name: _Value,
         cursor: int = 0,
-        match: PatternT | None = None,
+        match: _Key | None = None,
         count: int | None = None,
-        score_cast_func: type | Callable = ...,
     ) -> tuple[int, list[tuple[_StrType, float]]]: ...
-    def zscan_iter(
+    @overload
+    async def zscan(
+        self,
+        name: _Value,
+        cursor: int = 0,
+        match: _Key | None = None,
+        count: int | None = None,
+        *,
+        score_cast_func: Callable[[_StrType], _ScoreCastFuncReturn],
+    ) -> tuple[int, list[tuple[_StrType, _ScoreCastFuncReturn]]]: ...
+    @overload
+    async def zscan(
+        self,
+        name: _Value,
+        cursor: int,
+        match: _Key | None,
+        count: int | None,
+        score_cast_func: Callable[[_StrType], _ScoreCastFuncReturn],
+    ) -> tuple[int, list[tuple[_StrType, _ScoreCastFuncReturn]]]: ...
+    @overload
+    async def zscan_iter(
+        self, name: _Value, match: _Key | None = None, count: int | None = None
+    ) -> Iterator[tuple[_StrType, float]]: ...
+    @overload
+    async def zscan_iter(
+        self,
+        name: _Value,
+        match: _Key | None = None,
+        count: int | None = None,
+        *,
+        score_cast_func: Callable[[_StrType], _ScoreCastFuncReturn],
+    ) -> Iterator[tuple[_StrType, _ScoreCastFuncReturn]]: ...
+    @overload
+    async def zscan_iter(
         self,
         name: KeyT,
-        match: PatternT | None = None,
-        count: int | None = None,
-        score_cast_func: type | Callable = ...,
-    ) -> Iterator[tuple[_StrType, float]]: ...
+        match: PatternT | None,
+        count: int | None,
+        score_cast_func: Callable[[_StrType], _ScoreCastFuncReturn],
+    ) -> Iterator[tuple[_StrType, _ScoreCastFuncReturn]]: ...
 
 class SetCommands(CommandsProtocol):
     def sadd(self, name: str, *values: FieldT) -> Awaitable[int] | int: ...
