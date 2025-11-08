@@ -343,15 +343,32 @@ class TestPipeline:
             pipe.multi()
             await r.set("a", a_value + 1)  # force WatchError
 
+        # without max_tries (infinite loop)
         with pytest.raises(RuntimeError) as ex:
             await r.transaction(my_transaction, "a")
         assert str(ex.value).startswith("Run too many times")
         assert run_count == 11
+
         run_count = 0
+        # with max_tries
         with pytest.raises(valkey.ValkeyError) as ex:
             await r.transaction(my_transaction, "a", max_tries=3)
         assert str(ex.value).startswith("Bailing out of transaction after 3 tries")
         assert run_count == 3
+
+        run_count = 0
+        # with max_tries=0 (same as without; infinite loop)
+        with pytest.raises(RuntimeError) as ex:
+            await r.transaction(my_transaction, "a", max_tries=0)
+        assert str(ex.value).startswith("Run too many times")
+        assert run_count == 11
+
+        run_count = 0
+        # with negative max_tries (immediate error)
+        with pytest.raises(valkey.ValkeyError) as ex:
+            await r.transaction(my_transaction, "a", max_tries=-3)
+        assert str(ex.value).startswith("Bailing out of transaction after 0 tries")
+        assert run_count == 0
 
     @pytest.mark.onlynoncluster
     async def test_transaction_callable_returns_value_from_callable(self, r):
