@@ -5066,6 +5066,7 @@ class HashCommands(CommandsProtocol):
         px: Union[ExpiryT, None] = None,
         exat: Union[AbsExpiryT, None] = None,
         pxat: Union[AbsExpiryT, None] = None,
+        keepttl: bool = False,
         nx: bool = False,
         xx: bool = False,
         fnx: bool = False,
@@ -5082,6 +5083,15 @@ class HashCommands(CommandsProtocol):
 
         if key is None and not mapping and not items:
             raise DataError("'hsetex' with no key value pairs")
+
+        if int(keepttl) + sum(arg is not None for arg in [ex, px, exat, pxat]) > 1:
+            raise DataError(
+                "Only one of 'ex', 'px', 'exat', 'pxat', or 'keepttl' can be specified."
+            )
+        if nx and xx:
+            raise DataError("Only one of 'nx' or 'xx' can be specified.")
+        if fnx and fxx:
+            raise DataError("Only one of 'fnx' or 'fxx' can be specified.")
         pieces = []
         if ex is not None:
             pieces.extend(["EX", ex])
@@ -5107,6 +5117,8 @@ class HashCommands(CommandsProtocol):
         if mapping:
             pieces.append(len(mapping))
             for key, value in mapping.items():
+                if key is None or value is None:
+                    raise DataError("'hsetex' mapping contains None key or value")
                 pieces.append(key)
                 pieces.append(value)
         if items:

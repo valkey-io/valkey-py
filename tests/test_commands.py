@@ -3244,6 +3244,11 @@ class TestValkeyCommands:
         assert r.hget("a", "field1") == b"value2"
 
     @skip_if_server_version_lt("9.0.0")
+    def test_hset_ex_invalid_params(self, r):
+        with pytest.raises(exceptions.DataError):
+            r.hsetex("a", "field1", "value1", ex=5, px=5000)  # Both ex and px provided
+
+    @skip_if_server_version_lt("9.0.0")
     def test_hsetex_px(self, r):
         assert r.hsetex("a", "field1", "value1", px=5000) == 1
         assert r.hget("a", "field1") == b"value1"
