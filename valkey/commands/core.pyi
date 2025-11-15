@@ -20,7 +20,6 @@ from valkey.client import Valkey
 from valkey.typing import (
     AbsExpiryT,
     AnyEncodableT,
-    AnyFieldT,
     AnyKeyT,
     AnyStreamIdT,
     BitfieldOffsetT,
@@ -1373,32 +1372,33 @@ class AsyncSetCommands(Generic[_StrType]):
         self, dest: _Value, keys: _Value | Iterable[_Value], *args: _Value
     ) -> int: ...
 
-class StreamCommands(CommandsProtocol):
-    def xack(self, name: KeyT, groupname: GroupT, *ids: StreamIdT) -> ResponseT: ...
+# NOTE: The StreamCommands stubs might be incomplete or inaccurate.
+class StreamCommands(Generic[_StrType]):
+    def xack(self, name: _Value, groupname: GroupT, *ids: StreamIdT) -> int: ...
     def xadd(
         self,
-        name: KeyT,
-        fields: Mapping[AnyFieldT, AnyEncodableT],
+        name: _Value,
+        fields: dict[_Value, AnyEncodableT],
         id: StreamIdT = "*",
         maxlen: int | None = None,
         approximate: bool = True,
         nomkstream: bool = False,
         minid: StreamIdT | None = None,
         limit: int | None = None,
-    ) -> ResponseT: ...
+    ) -> _StrType: ...
     def xautoclaim(
         self,
-        name: KeyT,
+        name: _Key,
         groupname: GroupT,
         consumername: ConsumerT,
         min_idle_time: int,
         start_id: StreamIdT = "0-0",
         count: int | None = None,
         justid: bool = False,
-    ) -> ResponseT: ...
+    ): ...
     def xclaim(
         self,
-        name: KeyT,
+        name: _Key,
         groupname: GroupT,
         consumername: ConsumerT,
         min_idle_time: int,
@@ -1408,84 +1408,200 @@ class StreamCommands(CommandsProtocol):
         retrycount: int | None = None,
         force: bool = False,
         justid: bool = False,
-    ) -> ResponseT: ...
-    def xdel(self, name: KeyT, *ids: StreamIdT) -> ResponseT: ...
+    ): ...
+    def xdel(self, name: _Key, *ids: StreamIdT) -> int: ...
     def xgroup_create(
         self,
-        name: KeyT,
+        name: _Key,
         groupname: GroupT,
         id: StreamIdT = "$",
         mkstream: bool = False,
         entries_read: int | None = None,
-    ) -> ResponseT: ...
+    ) -> bool: ...
     def xgroup_delconsumer(
-        self, name: KeyT, groupname: GroupT, consumername: ConsumerT
-    ) -> ResponseT: ...
-    def xgroup_destroy(self, name: KeyT, groupname: GroupT) -> ResponseT: ...
+        self, name: _Key, groupname: GroupT, consumername: ConsumerT
+    ) -> int: ...
+    def xgroup_destroy(self, name: _Key, groupname: GroupT) -> bool: ...
     def xgroup_createconsumer(
-        self, name: KeyT, groupname: GroupT, consumername: ConsumerT
-    ) -> ResponseT: ...
+        self, name: _Key, groupname: GroupT, consumername: ConsumerT
+    ) -> Literal[1] | Literal[0]: ...
     def xgroup_setid(
         self,
-        name: KeyT,
+        name: _Key,
         groupname: GroupT,
         id: StreamIdT,
         entries_read: int | None = None,
-    ) -> ResponseT: ...
-    def xinfo_consumers(self, name: KeyT, groupname: GroupT) -> ResponseT: ...
-    def xinfo_groups(self, name: KeyT) -> ResponseT: ...
-    def xinfo_stream(self, name: KeyT, full: bool = False) -> ResponseT: ...
-    def xlen(self, name: KeyT) -> ResponseT: ...
-    def xpending(self, name: KeyT, groupname: GroupT) -> ResponseT: ...
+    ) -> bool: ...
+    def xinfo_consumers(
+        self, name: _Key, groupname: GroupT
+    ) -> list[dict[_StrType, Any]]: ...
+    def xinfo_groups(self, name: _Key) -> list[dict[_StrType, Any]]: ...
+    def xinfo_stream(self, name: _Key, full: bool = False) -> dict[_StrType, Any]: ...
+    def xlen(self, name: _Key) -> int: ...
+    def xpending(self, name: _Key, groupname: GroupT) -> dict[_StrType, Any]: ...
     def xpending_range(
         self,
-        name: KeyT,
+        name: _Key,
         groupname: GroupT,
         min: StreamIdT,
         max: StreamIdT,
         count: int,
         consumername: ConsumerT | None = None,
         idle: int | None = None,
-    ) -> ResponseT: ...
+    ): ...
     def xrange(
         self,
-        name: KeyT,
+        name: _Key,
         min: StreamIdT = "-",
         max: StreamIdT = "+",
         count: int | None = None,
-    ) -> ResponseT: ...
+    ) -> list[tuple[StreamIdT, dict[_StrType, _StrType]]]: ...
     def xread(
         self,
         streams: Mapping[AnyKeyT, AnyStreamIdT],
         count: int | None = None,
         block: int | None = None,
-    ) -> ResponseT: ...
+    ): ...
     def xreadgroup(
         self,
-        groupname: str,
-        consumername: str,
+        groupname: GroupT,
+        consumername: ConsumerT,
         streams: Mapping[AnyKeyT, AnyStreamIdT],
         count: int | None = None,
         block: int | None = None,
         noack: bool = False,
-    ) -> ResponseT: ...
+    ): ...
     def xrevrange(
         self,
-        name: KeyT,
+        name: _Key,
         max: StreamIdT = "+",
         min: StreamIdT = "-",
         count: int | None = None,
-    ) -> ResponseT: ...
+    ) -> list[tuple[StreamIdT, dict[_StrType, _StrType]]]: ...
     def xtrim(
         self,
-        name: KeyT,
+        name: _Key,
         maxlen: int | None = None,
         approximate: bool = True,
         minid: StreamIdT | None = None,
         limit: int | None = None,
-    ) -> ResponseT: ...
+    ) -> int: ...
 
-AsyncStreamCommands = StreamCommands
+class AsyncStreamCommands(Generic[_StrType]):
+    async def xack(self, name: _Value, groupname: GroupT, *ids: StreamIdT) -> int: ...
+    async def xadd(
+        self,
+        name: _Value,
+        fields: dict[_Value, AnyEncodableT],
+        id: StreamIdT = "*",
+        maxlen: int | None = None,
+        approximate: bool = True,
+        nomkstream: bool = False,
+        minid: StreamIdT | None = None,
+        limit: int | None = None,
+    ) -> _StrType: ...
+    async def xautoclaim(
+        self,
+        name: _Key,
+        groupname: GroupT,
+        consumername: ConsumerT,
+        min_idle_time: int,
+        start_id: StreamIdT = "0-0",
+        count: int | None = None,
+        justid: bool = False,
+    ): ...
+    async def xclaim(
+        self,
+        name: _Key,
+        groupname: GroupT,
+        consumername: ConsumerT,
+        min_idle_time: int,
+        message_ids: list[StreamIdT] | tuple[StreamIdT],
+        idle: int | None = None,
+        time: int | None = None,
+        retrycount: int | None = None,
+        force: bool = False,
+        justid: bool = False,
+    ): ...
+    async def xdel(self, name: _Key, *ids: StreamIdT) -> int: ...
+    async def xgroup_create(
+        self,
+        name: _Key,
+        groupname: GroupT,
+        id: StreamIdT = "$",
+        mkstream: bool = False,
+        entries_read: int | None = None,
+    ) -> bool: ...
+    async def xgroup_delconsumer(
+        self, name: _Key, groupname: GroupT, consumername: ConsumerT
+    ) -> int: ...
+    async def xgroup_destroy(self, name: _Key, groupname: GroupT) -> bool: ...
+    async def xgroup_createconsumer(
+        self, name: _Key, groupname: GroupT, consumername: ConsumerT
+    ) -> Literal[1] | Literal[0]: ...
+    async def xgroup_setid(
+        self,
+        name: _Key,
+        groupname: GroupT,
+        id: StreamIdT,
+        entries_read: int | None = None,
+    ) -> bool: ...
+    async def xinfo_consumers(
+        self, name: _Key, groupname: GroupT
+    ) -> list[dict[_StrType, Any]]: ...
+    async def xinfo_groups(self, name: _Key) -> list[dict[_StrType, Any]]: ...
+    async def xinfo_stream(
+        self, name: _Key, full: bool = False
+    ) -> dict[_StrType, Any]: ...
+    async def xlen(self, name: _Key) -> int: ...
+    async def xpending(self, name: _Key, groupname: GroupT) -> dict[_StrType, Any]: ...
+    async def xpending_range(
+        self,
+        name: _Key,
+        groupname: GroupT,
+        min: StreamIdT,
+        max: StreamIdT,
+        count: int,
+        consumername: ConsumerT | None = None,
+        idle: int | None = None,
+    ): ...
+    async def xrange(
+        self,
+        name: _Key,
+        min: StreamIdT = "-",
+        max: StreamIdT = "+",
+        count: int | None = None,
+    ) -> list[tuple[StreamIdT, dict[_StrType, _StrType]]]: ...
+    async def xread(
+        self,
+        streams: Mapping[AnyKeyT, AnyStreamIdT],
+        count: int | None = None,
+        block: int | None = None,
+    ): ...
+    async def xreadgroup(
+        self,
+        groupname: GroupT,
+        consumername: ConsumerT,
+        streams: Mapping[AnyKeyT, AnyStreamIdT],
+        count: int | None = None,
+        block: int | None = None,
+        noack: bool = False,
+    ): ...
+    async def xrevrange(
+        self,
+        name: _Key,
+        max: StreamIdT = "+",
+        min: StreamIdT = "-",
+        count: int | None = None,
+    ) -> list[tuple[StreamIdT, dict[_StrType, _StrType]]]: ...
+    async def xtrim(
+        self,
+        name: _Key,
+        maxlen: int | None = None,
+        approximate: bool = True,
+        minid: StreamIdT | None = None,
+        limit: int | None = None,
+    ) -> int: ...
 
 class SortedSetCommands(CommandsProtocol):
     def zadd(
