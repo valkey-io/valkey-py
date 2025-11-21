@@ -5055,6 +5055,82 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HSETNX", name, key, value)
 
+    def hsetex(
+        self,
+        name: str,
+        key: Optional[str] = None,
+        value: Optional[str] = None,
+        mapping: Optional[dict] = None,
+        items: Optional[list] = None,
+        ex: Union[ExpiryT, None] = None,
+        px: Union[ExpiryT, None] = None,
+        exat: Union[AbsExpiryT, None] = None,
+        pxat: Union[AbsExpiryT, None] = None,
+        keepttl: bool = False,
+        nx: bool = False,
+        xx: bool = False,
+        fnx: bool = False,
+        fxx: bool = False,
+    ) -> Union[Awaitable[bool], bool]:
+        """
+        Set key to value within hash ``name``,
+        ``mapping`` accepts a dict of key/value pairs to be added to hash ``name``.
+        ``items`` accepts a list of key/value pairs to be added to hash ``name``.
+        Set expiration options for the hash fields.
+
+        For more information see https://valkey.io/commands/hsetex
+        """
+
+        if key is None and not mapping and not items:
+            raise DataError("'hsetex' with no key value pairs")
+        if int(key is not None) + int(mapping is not None) + int(items is not None) > 1:
+            raise DataError(
+                "Only one of 'key/value', 'mapping', or 'items' can be specified."
+            )
+
+        if int(keepttl) + sum(arg is not None for arg in [ex, px, exat, pxat]) > 1:
+            raise DataError(
+                "Only one of 'ex', 'px', 'exat', 'pxat', or 'keepttl' can be specified."
+            )
+        if nx and xx:
+            raise DataError("Only one of 'nx' or 'xx' can be specified.")
+        if fnx and fxx:
+            raise DataError("Only one of 'fnx' or 'fxx' can be specified.")
+        pieces = []
+        if ex is not None:
+            pieces.extend(["EX", ex])
+        if px is not None:
+            pieces.extend(["PX", px])
+        if exat is not None:
+            pieces.extend(["EXAT", exat])
+        if pxat is not None:
+            pieces.extend(["PXAT", pxat])
+        if nx:
+            pieces.append("NX")
+        if xx:
+            pieces.append("XX")
+        if fnx:
+            pieces.append("FNX")
+        if fxx:
+            pieces.append("FXX")
+        pieces.append("FIELDS")
+        if key is not None and value is not None:
+            pieces.append(1)  # for one field
+            pieces.append(key)
+            pieces.append(value)
+        if mapping:
+            pieces.append(len(mapping))
+            for key, value in mapping.items():
+                if key is None or value is None:
+                    raise DataError("'hsetex' mapping contains None key or value")
+                pieces.append(key)
+                pieces.append(value)
+        if items:
+            pieces.append(len(items) // 2)
+            pieces.extend(items)
+
+        return self.execute_command("HSETEX", name, *pieces)
+
     def hmset(self, name: str, mapping: dict) -> Union[Awaitable[str], str]:
         """
         Set key to value within hash ``name`` for each corresponding

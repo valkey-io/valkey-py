@@ -2151,6 +2151,32 @@ class TestValkeyCommands:
         assert await r.hstrlen("a", "1") == 2
         assert await r.hstrlen("a", "2") == 3
 
+    @skip_if_server_version_lt("9.0.0")
+    async def test_hsetex(self, r):
+        assert await r.hsetex("a", "field1", "value1", ex=5) == 1
+        assert await r.hget("a", "field1") == b"value1"
+        assert await r.hsetex("a", "field1", "value2", ex=5) == 1
+        assert await r.hget("a", "field1") == b"value2"
+
+    @skip_if_server_version_lt("9.0.0")
+    async def test_hsetex_invalid_params(self, r):
+        with pytest.raises(exceptions.DataError):
+            await r.hsetex("a", "field1", "value1", ex=5, px=5000)
+
+    @skip_if_server_version_lt("9.0.0")
+    async def test_hsetex_px(self, r):
+        assert await r.hsetex("a", "field1", "value1", px=5000) == 1
+        assert await r.hget("a", "field1") == b"value1"
+        assert await r.hsetex("a", "field1", "value2", px=5000) == 1
+        assert await r.hget("a", "field1") == b"value2"
+
+    @skip_if_server_version_lt("9.0.0")
+    async def test_hsetex_mapping(self, r):
+        mapping = {"field1": "value1", "field2": "value2"}
+        assert await r.hsetex("a", mapping=mapping, ex=5) == 1
+        assert await r.hget("a", "field1") == b"value1"
+        assert await r.hget("a", "field2") == b"value2"
+
     # SORT
     async def test_sort_basic(self, r: valkey.Valkey):
         await r.rpush("a", "3", "2", "1", "4")
