@@ -5083,6 +5083,10 @@ class HashCommands(CommandsProtocol):
 
         if key is None and not mapping and not items:
             raise DataError("'hsetex' with no key value pairs")
+        if int(key is not None) + int(mapping is not None) + int(items is not None) > 1:
+            raise DataError(
+                "Only one of 'key/value', 'mapping', or 'items' can be specified."
+            )
 
         if int(keepttl) + sum(arg is not None for arg in [ex, px, exat, pxat]) > 1:
             raise DataError(
