@@ -404,12 +404,27 @@ class Valkey(ValkeyModuleCommands, CoreCommands, SentinelCommands):
         Convenience method for executing the callable `func` as a transaction
         while watching all keys specified in `watches`. The 'func' callable
         should expect a single argument which is a Pipeline object.
+
+        :param watch_delay: This keyword-only argument lets you specify a
+            delay time in seconds after a `WatchError` before the transaction
+            is retried. Default is no delay.
+        :param max_tries: This keyword-only argument lets you specify the
+            maximum number to times the transaction should be retried. If the
+            limit is reached, a `ValkeyError` is raised. Default is an
+            **infinite** number of retries!
         """
         shard_hint = kwargs.pop("shard_hint", None)
         value_from_callable = kwargs.pop("value_from_callable", False)
         watch_delay = kwargs.pop("watch_delay", None)
+        max_tries = kwargs.pop("max_tries", None)
         with self.pipeline(True, shard_hint) as pipe:
+            tries = 0
             while True:
+                tries += 1
+                if max_tries and max_tries > 0 and tries > max_tries:
+                    raise ValkeyError(
+                        f"Bailing out of transaction after {tries - 1} tries"
+                    )
                 try:
                     if watches:
                         pipe.watch(*watches)
