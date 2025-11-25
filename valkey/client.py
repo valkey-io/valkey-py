@@ -410,8 +410,8 @@ class Valkey(ValkeyModuleCommands, CoreCommands, SentinelCommands):
             is retried. Default is no delay.
         :param max_tries: This keyword-only argument lets you specify the
             maximum number to times the transaction should be retried. If the
-            limit is reached, a `ValkeyError` is raised. Default is an
-            **infinite** number of retries!
+            limit is reached, a `ValkeyError` is raised. Default is 0, meaning
+            an **infinite** number of retries!
         """
         shard_hint = kwargs.pop("shard_hint", None)
         value_from_callable = kwargs.pop("value_from_callable", False)
@@ -421,7 +421,7 @@ class Valkey(ValkeyModuleCommands, CoreCommands, SentinelCommands):
             tries = 0
             while True:
                 tries += 1
-                if max_tries and max_tries > 0 and tries > max_tries:
+                if max_tries and tries > max_tries:
                     raise ValkeyError(
                         f"Bailing out of transaction after {tries - 1} tries"
                     )
