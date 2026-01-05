@@ -25,7 +25,7 @@ jobs:
      name: Build docs
      runs-on: ubuntu-latest
      steps:
-       - uses: actions/checkout@v5
+       - uses: actions/checkout@v6
        - uses: actions/setup-python@v6
          with:
            # Set the python version to 3.12 to keep imghdr for sphinx.

@@ -29,7 +29,7 @@ jobs:
      name: Dependency audit
      runs-on: ubuntu-latest
      steps:
-       - uses: actions/checkout@v5
+       - uses: actions/checkout@v6
        - uses: pypa/gh-action-pip-audit@v1.1.0
          with:
            inputs: .
@@ -40,7 +40,7 @@ jobs:
      name: Code linters
      runs-on: ubuntu-latest
      steps:
-       - uses: actions/checkout@v5
+       - uses: actions/checkout@v6
        - uses: actions/setup-python@v6
          with:
            python-version: 3.13
@@ -66,7 +66,7 @@ jobs:
      timeout-minutes: 60
      name: Update docker cache
      steps:
-       - uses: actions/checkout@v5
+       - uses: actions/checkout@v6
        - name: Cache docker images
          id: custom-cache
          uses: actions/cache@v4
@@ -97,7 +97,7 @@ jobs:
        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
      name: Python ${{ matrix.python-version }} RESP${{ matrix.protocol-version }} ${{matrix.test-type}}-${{matrix.connection-type}} tests
      steps:
-       - uses: actions/checkout@v5
+       - uses: actions/checkout@v6
        - uses: actions/setup-python@v6
          with:
            python-version: ${{ matrix.python-version }}
@@ -155,7 +155,7 @@ jobs:
       matrix:
         extension: ['tar.gz', 'whl']
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: 3.13
@@ -182,7 +182,7 @@ jobs:
       matrix:
         python-version: ['3.10', '3.11', '3.11.1', '3.12', '3.13', '3.14-dev', 'pypy-3.10', 'pypy-3.11']
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
