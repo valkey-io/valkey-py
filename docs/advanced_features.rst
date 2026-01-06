@@ -151,6 +151,14 @@ like this, which is much easier to read:
 Be sure to call pipe.multi() in the callable passed to Valkey.transaction
 prior to any write commands.
 
+.. warning::
+
+   Transactions are retried an infinite amount of times by default, which
+   can lead to infinite loops - for example, if one were to accidentally
+   write ``r.set`` instead of ``pipe.set`` in the above example. You can
+   use the ``transaction`` arguments ``watch_delay`` and ``max_tries``
+   to mitigate this risk.
+
 Pipelines in clusters
 ~~~~~~~~~~~~~~~~~~~~~
 
