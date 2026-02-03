@@ -1,0 +1,3 @@
+include valkey/py.typed
+recursive-include valkey *.py
+recursive-include tests *.py
