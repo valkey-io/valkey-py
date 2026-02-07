@@ -895,13 +895,11 @@ class ManagementCommands(CommandsProtocol):
         return self.execute_command("DEBUG OBJECT", key, **kwargs)
 
     def debug_segfault(self, **kwargs) -> None:
-        raise NotImplementedError(
-            """
+        raise NotImplementedError("""
             DEBUG SEGFAULT is intentionally not implemented in the client.
 
             For more information see https://valkey.io/commands/debug-segfault
-            """
-        )
+            """)
 
     def echo(self, value: EncodableT, **kwargs) -> ResponseT:
         """
@@ -1013,13 +1011,11 @@ class ManagementCommands(CommandsProtocol):
 
         For more information see https://valkey.io/commands/latency-doctor
         """
-        raise NotImplementedError(
-            """
+        raise NotImplementedError("""
             LATENCY DOCTOR is intentionally not implemented in the client.
 
             For more information see https://valkey.io/commands/latency-doctor
-            """
-        )
+            """)
 
     def latency_graph(self):
         """Raise a NotImplementedError, as the client will not support LATENCY GRAPH.
@@ -1027,13 +1023,11 @@ class ManagementCommands(CommandsProtocol):
 
         For more information see https://valkey.io/commands/latency-graph.
         """
-        raise NotImplementedError(
-            """
+        raise NotImplementedError("""
             LATENCY GRAPH is intentionally not implemented in the client.
 
             For more information see https://valkey.io/commands/latency-graph
-            """
-        )
+            """)
 
     def lolwut(self, *version_numbers: Union[str, float], **kwargs) -> ResponseT:
         """
@@ -1110,22 +1104,18 @@ class ManagementCommands(CommandsProtocol):
         )
 
     def memory_doctor(self, **kwargs) -> None:
-        raise NotImplementedError(
-            """
+        raise NotImplementedError("""
             MEMORY DOCTOR is intentionally not implemented in the client.
 
             For more information see https://valkey.io/commands/memory-doctor
-            """
-        )
+            """)
 
     def memory_help(self, **kwargs) -> None:
-        raise NotImplementedError(
-            """
+        raise NotImplementedError("""
             MEMORY HELP is intentionally not implemented in the client.
 
             For more information see https://valkey.io/commands/memory-help
-            """
-        )
+            """)
 
     def memory_stats(self, **kwargs) -> ResponseT:
         """
@@ -3416,9 +3406,7 @@ class SetCommands(CommandsProtocol):
         """
         return self.execute_command("SMEMBERS", name, keys=[name])
 
-    def smismember(
-        self, name: str, values: List, *args: List
-    ) -> Union[
+    def smismember(self, name: str, values: List, *args: List) -> Union[
         Awaitable[List[Union[Literal[0], Literal[1]]]],
         List[Union[Literal[0], Literal[1]]],
     ]:

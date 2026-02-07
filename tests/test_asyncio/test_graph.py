@@ -454,10 +454,8 @@ Distinct
 
     assert result.structured_plan == expected
 
-    result = await valkey_graph.explain(
-        """MATCH (r:Rider), (t:Team)
-                                    RETURN r.name, t.name"""
-    )
+    result = await valkey_graph.explain("""MATCH (r:Rider), (t:Team)
+                                    RETURN r.name, t.name""")
     expected = """\
 Results
 Project

@@ -21,10 +21,8 @@ class Graph(GraphCommands):
         Create a new graph.
         """
         warnings.warn(
-            DeprecationWarning(
-                "RedisGraph support is deprecated as of Redis Stack 7.2 \
-                (https://redis.com/blog/redisgraph-eol/)"
-            )
+            DeprecationWarning("RedisGraph support is deprecated as of Redis Stack 7.2 \
+                (https://redis.com/blog/redisgraph-eol/)")
         )
         self.NAME = name  # Graph key
         self.client = client
