@@ -895,13 +895,11 @@ class ManagementCommands(CommandsProtocol):
         return self.execute_command("DEBUG OBJECT", key, **kwargs)
 
     def debug_segfault(self, **kwargs) -> None:
-        raise NotImplementedError(
-            """
+        raise NotImplementedError("""
             DEBUG SEGFAULT is intentionally not implemented in the client.
 
             For more information see https://valkey.io/commands/debug-segfault
-            """
-        )
+            """)
 
     def echo(self, value: EncodableT, **kwargs) -> ResponseT:
         """
@@ -1013,13 +1011,11 @@ class ManagementCommands(CommandsProtocol):
 
         For more information see https://valkey.io/commands/latency-doctor
         """
-        raise NotImplementedError(
-            """
+        raise NotImplementedError("""
             LATENCY DOCTOR is intentionally not implemented in the client.
 
             For more information see https://valkey.io/commands/latency-doctor
-            """
-        )
+            """)
 
     def latency_graph(self):
         """Raise a NotImplementedError, as the client will not support LATENCY GRAPH.
@@ -1027,13 +1023,11 @@ class ManagementCommands(CommandsProtocol):
 
         For more information see https://valkey.io/commands/latency-graph.
         """
-        raise NotImplementedError(
-            """
+        raise NotImplementedError("""
             LATENCY GRAPH is intentionally not implemented in the client.
 
             For more information see https://valkey.io/commands/latency-graph
-            """
-        )
+            """)
 
     def lolwut(self, *version_numbers: Union[str, float], **kwargs) -> ResponseT:
         """
@@ -1110,22 +1104,18 @@ class ManagementCommands(CommandsProtocol):
         )
 
     def memory_doctor(self, **kwargs) -> None:
-        raise NotImplementedError(
-            """
+        raise NotImplementedError("""
             MEMORY DOCTOR is intentionally not implemented in the client.
 
             For more information see https://valkey.io/commands/memory-doctor
-            """
-        )
+            """)
 
     def memory_help(self, **kwargs) -> None:
-        raise NotImplementedError(
-            """
+        raise NotImplementedError("""
             MEMORY HELP is intentionally not implemented in the client.
 
             For more information see https://valkey.io/commands/memory-help
-            """
-        )
+            """)
 
     def memory_stats(self, **kwargs) -> ResponseT:
         """
@@ -2289,7 +2279,7 @@ class BasicKeyCommands(CommandsProtocol):
         params = sum(op is not None for op in [ex, px, exat, pxat])
         if params > 1:
             raise DataError(
-                "``ex``, ``px``, ``exat`` and ``pxat`` " "are mutually exclusive."
+                "``ex``, ``px``, ``exat`` and ``pxat`` are mutually exclusive."
             )
         pieces: list[EncodableT] = [name, value]
         options = {}
@@ -4162,8 +4152,7 @@ class SortedSetCommands(CommandsProtocol):
             raise DataError("ZADD allows either 'gt' or 'lt', not both")
         if incr and len(mapping) != 1:
             raise DataError(
-                "ZADD option 'incr' only works when passing a "
-                "single element/score pair"
+                "ZADD option 'incr' only works when passing a single element/score pair"
             )
         if nx and (gt or lt):
             raise DataError("Only one of 'nx', 'lt', or 'gr' may be defined.")
@@ -5194,11 +5183,7 @@ class Script:
         if isinstance(script, str):
             # We need the encoding from the client in order to generate an
             # accurate byte representation of the script
-            try:
-                encoder = registered_client.connection_pool.get_encoder()
-            except AttributeError:
-                # Cluster
-                encoder = registered_client.get_encoder()
+            encoder = self.get_encoder()
             script = encoder.encode(script)
         self.sha = hashlib.sha1(script).hexdigest()
 
@@ -5228,6 +5213,24 @@ class Script:
             # Overwrite the sha just in case there was a discrepancy.
             self.sha = client.script_load(self.script)
             return client.evalsha(self.sha, len(keys), *args)
+
+    def get_encoder(self):
+        """Get the encoder to encode string scripts into bytes."""
+        try:
+            return self.registered_client.get_encoder()
+        except AttributeError:
+            # DEPRECATED
+            # In version <=4.1.2, this was the code we used to get the encoder.
+            # However, after 4.1.2 we added support for scripting in clustered
+            # valkey. ClusteredValkey doesn't have a `.connection_pool` attribute
+            # so we changed the Script class to use
+            # `self.registered_client.get_encoder` (see above).
+            # However, that is technically a breaking change, as consumers who
+            # use Scripts directly might inject a `registered_client` that
+            # doesn't have a `.get_encoder` field. This try/except prevents us
+            # from breaking backward-compatibility. Ideally, it would be
+            # removed in the next major release.
+            return self.registered_client.connection_pool.get_encoder()
 
 
 class AsyncScript:
@@ -6003,62 +6006,6 @@ class ModuleCommands(CommandsProtocol):
 
     def command(self) -> ResponseT:
         return self.execute_command("COMMAND")
-
-
-class Script:
-    """
-    An executable Lua script object returned by ``register_script``
-    """
-
-    def __init__(self, registered_client, script):
-        self.registered_client = registered_client
-        self.script = script
-        # Precalculate and store the SHA1 hex digest of the script.
-
-        if isinstance(script, str):
-            # We need the encoding from the client in order to generate an
-            # accurate byte representation of the script
-            encoder = self.get_encoder()
-            script = encoder.encode(script)
-        self.sha = hashlib.sha1(script).hexdigest()
-
-    def __call__(self, keys=[], args=[], client=None):
-        "Execute the script, passing any required ``args``"
-        if client is None:
-            client = self.registered_client
-        args = tuple(keys) + tuple(args)
-        # make sure the Valkey server knows about the script
-        from valkey.client import Pipeline
-
-        if isinstance(client, Pipeline):
-            # Make sure the pipeline can register the script before executing.
-            client.scripts.add(self)
-        try:
-            return client.evalsha(self.sha, len(keys), *args)
-        except NoScriptError:
-            # Maybe the client is pointed to a different server than the client
-            # that created this instance?
-            # Overwrite the sha just in case there was a discrepancy.
-            self.sha = client.script_load(self.script)
-            return client.evalsha(self.sha, len(keys), *args)
-
-    def get_encoder(self):
-        """Get the encoder to encode string scripts into bytes."""
-        try:
-            return self.registered_client.get_encoder()
-        except AttributeError:
-            # DEPRECATED
-            # In version <=4.1.2, this was the code we used to get the encoder.
-            # However, after 4.1.2 we added support for scripting in clustered
-            # valkey. ClusteredValkey doesn't have a `.connection_pool` attribute
-            # so we changed the Script class to use
-            # `self.registered_client.get_encoder` (see above).
-            # However, that is technically a breaking change, as consumers who
-            # use Scripts directly might inject a `registered_client` that
-            # doesn't have a `.get_encoder` field. This try/except prevents us
-            # from breaking backward-compatibility. Ideally, it would be
-            # removed in the next major release.
-            return self.registered_client.connection_pool.get_encoder()
 
 
 class AsyncModuleCommands(ModuleCommands):
