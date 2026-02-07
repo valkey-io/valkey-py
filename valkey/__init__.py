@@ -42,7 +42,7 @@ def int_or_str(value):
         return value
 
 
-__version__ = "6.1.1"
+__version__ = "6.2.0rc1"
 VERSION = tuple(map(int_or_str, __version__.split(".")))
 
 Redis = Valkey
