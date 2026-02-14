@@ -40,12 +40,13 @@ from valkey.typing import (
     ZScoreBoundT,
 )
 
-# Internal helper types used in command signatures
-# NOTE: these are intentionally imported from the implementation to keep parity.
-from ..client import _CommandOptions, _Key, _Value
-
 _ScoreCastFuncReturn = TypeVar("_ScoreCastFuncReturn")
 _StrType = TypeVar("_StrType", bound=str | bytes)
+
+# Internal helper aliases used by legacy signatures in this stub.
+_CommandOptions = Any
+_Key = KeyT
+_Value = EncodableT
 
 class ACLCommands(CommandsProtocol, Generic[_StrType]):
     def acl_cat(self, category: str | None = None, **kwargs) -> list[_StrType]: ...
@@ -882,32 +883,30 @@ class AsyncBasicKeyCommands(Generic[_StrType]):
 class ListCommands(Generic[_StrType]):
     @overload
     def blpop(
-        self, keys: _Value | Iterable[_Value], timeout: Literal[0]
+        self, keys: _Key | Iterable[_Key], timeout: Literal[0]
     ) -> tuple[_StrType, _StrType]: ...
     @overload
     def blpop(
-        self, keys: _Value | Iterable[_Value], timeout: float
+        self, keys: _Key | Iterable[_Key], timeout: float
     ) -> tuple[_StrType, _StrType] | None: ...
     @overload
     def brpop(
-        self, keys: _Value | Iterable[_Value], timeout: Literal[0]
+        self, keys: _Key | Iterable[_Key], timeout: Literal[0]
     ) -> tuple[_StrType, _StrType]: ...
     @overload
     def brpop(
-        self, keys: _Value | Iterable[_Value], timeout: float
+        self, keys: _Key | Iterable[_Key], timeout: float
     ) -> tuple[_StrType, _StrType] | None: ...
     @overload
-    def brpoplpush(self, src: _Value, dst: _Value, timeout: Literal[0]) -> _StrType: ...
+    def brpoplpush(self, src: _Key, dst: _Key, timeout: Literal[0]) -> _StrType: ...
     @overload
-    def brpoplpush(
-        self, src: _Value, dst: _Value, timeout: float
-    ) -> _StrType | None: ...
+    def brpoplpush(self, src: _Key, dst: _Key, timeout: float) -> _StrType | None: ...
     @overload
     def blmpop(
         self,
         timeout: Literal[0],
         numkeys: int,
-        *keys: _Value,
+        *keys: _Key,
         direction: Literal["LEFT"] | Literal["RIGHT"],
         count: int = 1,
     ) -> tuple[_StrType, list[_StrType]]: ...
@@ -916,77 +915,79 @@ class ListCommands(Generic[_StrType]):
         self,
         timeout: float,
         numkeys: int,
-        *keys: _Value,
+        *keys: _Key,
         direction: Literal["LEFT"] | Literal["RIGHT"],
         count: int = 1,
     ) -> tuple[_StrType, list[_StrType]] | None: ...
     def lmpop(
         self,
         numkeys: int,
-        *keys: _Value,
+        *keys: _Key,
         direction: Literal["LEFT"] | Literal["RIGHT"],
         count: int = 1,
     ) -> tuple[_StrType, list[_StrType]] | None: ...
-    def lindex(self, name: _Value, index: int) -> _StrType | None: ...
+    def lindex(self, name: _Key, index: int) -> _StrType | None: ...
     def linsert(
         self,
-        name: _Value,
+        name: _Key,
         where: Literal["BEFORE"] | Literal["AFTER"],
         refvalue: _Value,
         value: _Value,
     ) -> int: ...
-    def llen(self, name: _Value) -> int: ...
+    def llen(self, name: _Key) -> int: ...
     @overload
-    def lpop(self, name: _Value) -> _StrType | None: ...
+    def lpop(self, name: _Key) -> _StrType | None: ...
     @overload
-    def lpop(self, name: _Value, count: int) -> list[_StrType] | None: ...
-    def lpush(self, name: _Value, *values: _Value) -> int: ...
-    def lpushx(self, name: _Value, *values: _Value) -> int: ...
-    def lrange(self, name: _Value, start: int, end: int) -> list[_StrType]: ...
-    def lrem(self, name: _Value, count: int, value: _Value) -> int: ...
-    def lset(self, name: _Value, index: int, value: _Value) -> bool: ...
-    def ltrim(self, name: _Value, start: int, end: int) -> bool: ...
+    def lpop(self, name: _Key, count: int) -> list[_StrType] | None: ...
+    def lpush(self, name: _Key, *values: _Value) -> int: ...
+    def lpushx(self, name: _Key, *values: _Value) -> int: ...
+    def lrange(self, name: _Key, start: int, end: int) -> list[_StrType]: ...
+    def lrem(self, name: _Key, count: int, value: _Value) -> int: ...
+    def lset(self, name: _Key, index: int, value: _Value) -> Literal[True]: ...
+    def ltrim(self, name: _Key, start: int, end: int) -> Literal[True]: ...
     @overload
-    def rpop(self, name: _Value) -> _StrType | None: ...
+    def rpop(self, name: _Key) -> _StrType | None: ...
     @overload
-    def rpop(self, name: _Value, count: int) -> list[_StrType] | None: ...
-    def rpoplpush(self, src: _Value, dst: _Value) -> _StrType: ...
-    def rpush(self, name: _Value, *values: _Value) -> int: ...
-    def rpushx(self, name: _Value, *values: _Value) -> int: ...
+    def rpop(self, name: _Key, count: int) -> list[_StrType] | None: ...
+    def rpoplpush(self, src: _Key, dst: _Key) -> _StrType | None: ...
+    def rpush(self, name: _Key, *values: _Value) -> int: ...
+    def rpushx(self, name: _Key, *values: _Value) -> int: ...
     @overload
     def lpos(
         self,
-        name: _Value,
+        name: _Key,
+        value: _Value,
         rank: int | None = None,
         count: None = None,
         maxlen: int | None = None,
-    ) -> _StrType | None: ...
+    ) -> int | None: ...
     @overload
     def lpos(
         self,
-        name: _Value,
+        name: _Key,
+        value: _Value,
         rank: int | None = None,
         *,
         count: int,
         maxlen: int | None = None,
-    ) -> list[_StrType] | None: ...
+    ) -> list[int]: ...
     @overload
     def lpos(
         self,
-        name: _Value,
+        name: _Key,
         value: _Value,
         rank: int | None,
         count: int,
         maxlen: int | None = None,
-    ) -> list[_StrType] | None: ...
+    ) -> list[int]: ...
     @overload
     def sort(
         self,
-        name: _Value,
+        name: _Key,
         start: int | None = None,
         num: int | None = None,
-        by: _Value | None = None,
-        get: _Value | Sequence[_Value] | None = None,
+        by: _Key | None = None,
+        get: _Key | Sequence[_Key] | None = None,
         desc: bool = False,
         alpha: bool = False,
         store: None = None,
@@ -995,37 +996,37 @@ class ListCommands(Generic[_StrType]):
     @overload
     def sort(
         self,
-        name: _Value,
+        name: _Key,
         start: int | None = None,
         num: int | None = None,
-        by: _Value | None = None,
-        get: _Value | Sequence[_Value] | None = None,
+        by: _Key | None = None,
+        get: _Key | Sequence[_Key] | None = None,
         desc: bool = False,
         alpha: bool = False,
         *,
-        store: _Value,
+        store: _Key,
         groups: bool = False,
     ) -> int: ...
     @overload
     def sort(
         self,
-        name: _Value,
+        name: _Key,
         start: int | None,
         num: int | None,
-        by: _Value | None,
-        get: _Value | Sequence[_Value] | None,
+        by: _Key | None,
+        get: _Key | Sequence[_Key] | None,
         desc: bool,
         alpha: bool,
-        store: _Value,
+        store: _Key,
         groups: bool = False,
     ) -> int: ...
     def sort_ro(
         self,
-        key: _Value,
+        key: _Key,
         start: int | None = None,
         num: int | None = None,
-        by: str | None = None,
-        get: list[str] | None = None,
+        by: _Key | None = None,
+        get: _Key | Sequence[_Key] | None = None,
         desc: bool = False,
         alpha: bool = False,
     ) -> list[_StrType]: ...
@@ -1033,34 +1034,34 @@ class ListCommands(Generic[_StrType]):
 class AsyncListCommands(Generic[_StrType]):
     @overload
     async def blpop(
-        self, keys: _Value | Iterable[_Value], timeout: Literal[0]
+        self, keys: _Key | Iterable[_Key], timeout: Literal[0]
     ) -> tuple[_StrType, _StrType]: ...
     @overload
     async def blpop(
-        self, keys: _Value | Iterable[_Value], timeout: float
+        self, keys: _Key | Iterable[_Key], timeout: float
     ) -> tuple[_StrType, _StrType] | None: ...
     @overload
     async def brpop(
-        self, keys: _Value | Iterable[_Value], timeout: Literal[0]
+        self, keys: _Key | Iterable[_Key], timeout: Literal[0]
     ) -> tuple[_StrType, _StrType]: ...
     @overload
     async def brpop(
-        self, keys: _Value | Iterable[_Value], timeout: float
+        self, keys: _Key | Iterable[_Key], timeout: float
     ) -> tuple[_StrType, _StrType] | None: ...
     @overload
     async def brpoplpush(
-        self, src: _Value, dst: _Value, timeout: Literal[0]
+        self, src: _Key, dst: _Key, timeout: Literal[0]
     ) -> _StrType: ...
     @overload
     async def brpoplpush(
-        self, src: _Value, dst: _Value, timeout: float
+        self, src: _Key, dst: _Key, timeout: float
     ) -> _StrType | None: ...
     @overload
     async def blmpop(
         self,
         timeout: Literal[0],
         numkeys: int,
-        *keys: _Value,
+        *keys: _Key,
         direction: Literal["LEFT"] | Literal["RIGHT"],
         count: int = 1,
     ) -> tuple[_StrType, list[_StrType]]: ...
@@ -1069,77 +1070,79 @@ class AsyncListCommands(Generic[_StrType]):
         self,
         timeout: float,
         numkeys: int,
-        *keys: _Value,
+        *keys: _Key,
         direction: Literal["LEFT"] | Literal["RIGHT"],
         count: int = 1,
     ) -> tuple[_StrType, list[_StrType]] | None: ...
     async def lmpop(
         self,
         numkeys: int,
-        *keys: _Value,
+        *keys: _Key,
         direction: Literal["LEFT"] | Literal["RIGHT"],
         count: int = 1,
     ) -> tuple[_StrType, list[_StrType]] | None: ...
-    async def lindex(self, name: _Value, index: int) -> _StrType | None: ...
+    async def lindex(self, name: _Key, index: int) -> _StrType | None: ...
     async def linsert(
         self,
-        name: _Value,
+        name: _Key,
         where: Literal["BEFORE"] | Literal["AFTER"],
         refvalue: _Value,
         value: _Value,
     ) -> int: ...
-    async def llen(self, name: _Value) -> int: ...
+    async def llen(self, name: _Key) -> int: ...
     @overload
-    async def lpop(self, name: _Value) -> _StrType | None: ...
+    async def lpop(self, name: _Key) -> _StrType | None: ...
     @overload
-    async def lpop(self, name: _Value, count: int) -> list[_StrType] | None: ...
-    async def lpush(self, name: _Value, *values: _Value) -> int: ...
-    async def lpushx(self, name: _Value, *values: _Value) -> int: ...
-    async def lrange(self, name: _Value, start: int, end: int) -> list[_StrType]: ...
-    async def lrem(self, name: _Value, count: int, value: _Value) -> int: ...
-    async def lset(self, name: _Value, index: int, value: _Value) -> bool: ...
-    async def ltrim(self, name: _Value, start: int, end: int) -> bool: ...
+    async def lpop(self, name: _Key, count: int) -> list[_StrType] | None: ...
+    async def lpush(self, name: _Key, *values: _Value) -> int: ...
+    async def lpushx(self, name: _Key, *values: _Value) -> int: ...
+    async def lrange(self, name: _Key, start: int, end: int) -> list[_StrType]: ...
+    async def lrem(self, name: _Key, count: int, value: _Value) -> int: ...
+    async def lset(self, name: _Key, index: int, value: _Value) -> Literal[True]: ...
+    async def ltrim(self, name: _Key, start: int, end: int) -> Literal[True]: ...
     @overload
-    async def rpop(self, name: _Value) -> _StrType | None: ...
+    async def rpop(self, name: _Key) -> _StrType | None: ...
     @overload
-    async def rpop(self, name: _Value, count: int) -> list[_StrType] | None: ...
-    async def rpoplpush(self, src: _Value, dst: _Value) -> _StrType: ...
-    async def rpush(self, name: _Value, *values: _Value) -> int: ...
-    async def rpushx(self, name: _Value, *values: _Value) -> int: ...
+    async def rpop(self, name: _Key, count: int) -> list[_StrType] | None: ...
+    async def rpoplpush(self, src: _Key, dst: _Key) -> _StrType | None: ...
+    async def rpush(self, name: _Key, *values: _Value) -> int: ...
+    async def rpushx(self, name: _Key, *values: _Value) -> int: ...
     @overload
     async def lpos(
         self,
-        name: _Value,
+        name: _Key,
+        value: _Value,
         rank: int | None = None,
         count: None = None,
         maxlen: int | None = None,
-    ) -> _StrType | None: ...
+    ) -> int | None: ...
     @overload
     async def lpos(
         self,
-        name: _Value,
+        name: _Key,
+        value: _Value,
         rank: int | None = None,
         *,
         count: int,
         maxlen: int | None = None,
-    ) -> list[_StrType] | None: ...
+    ) -> list[int]: ...
     @overload
     async def lpos(
         self,
-        name: _Value,
+        name: _Key,
         value: _Value,
         rank: int | None,
         count: int,
         maxlen: int | None = None,
-    ) -> list[_StrType] | None: ...
+    ) -> list[int]: ...
     @overload
     async def sort(
         self,
-        name: _Value,
+        name: _Key,
         start: int | None = None,
         num: int | None = None,
-        by: _Value | None = None,
-        get: _Value | Sequence[_Value] | None = None,
+        by: _Key | None = None,
+        get: _Key | Sequence[_Key] | None = None,
         desc: bool = False,
         alpha: bool = False,
         store: None = None,
@@ -1148,37 +1151,37 @@ class AsyncListCommands(Generic[_StrType]):
     @overload
     async def sort(
         self,
-        name: _Value,
+        name: _Key,
         start: int | None = None,
         num: int | None = None,
-        by: _Value | None = None,
-        get: _Value | Sequence[_Value] | None = None,
+        by: _Key | None = None,
+        get: _Key | Sequence[_Key] | None = None,
         desc: bool = False,
         alpha: bool = False,
         *,
-        store: _Value,
+        store: _Key,
         groups: bool = False,
     ) -> int: ...
     @overload
     async def sort(
         self,
-        name: _Value,
+        name: _Key,
         start: int | None,
         num: int | None,
-        by: _Value | None,
-        get: _Value | Sequence[_Value] | None,
+        by: _Key | None,
+        get: _Key | Sequence[_Key] | None,
         desc: bool,
         alpha: bool,
-        store: _Value,
+        store: _Key,
         groups: bool = False,
     ) -> int: ...
     async def sort_ro(
         self,
-        key: _Value,
+        key: _Key,
         start: int | None = None,
         num: int | None = None,
-        by: str | None = None,
-        get: list[str] | None = None,
+        by: _Key | None = None,
+        get: _Key | Sequence[_Key] | None = None,
         desc: bool = False,
         alpha: bool = False,
     ) -> list[_StrType]: ...
