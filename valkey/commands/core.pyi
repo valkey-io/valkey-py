@@ -1,4 +1,6 @@
 from datetime import datetime
+from collections.abc import AsyncIterator
+
 from typing import (
     Any,
     Awaitable,
@@ -1204,33 +1206,71 @@ class ScanCommands(Generic[_StrType]):
     ) -> Iterator[_StrType]: ...
     def sscan(
         self,
-        name: _Value,
+        name: _Key,
         cursor: int = 0,
         match: _Key | None = None,
         count: int | None = None,
     ) -> tuple[int, list[_StrType]]: ...
     def sscan_iter(
-        self, name: _Value, match: _Key | None = None, count: int | None = None
+        self, name: _Key, match: _Key | None = None, count: int | None = None
     ) -> Iterator[_StrType]: ...
+    @overload
     def hscan(
         self,
-        name: _Value,
+        name: _Key,
+        cursor: int = 0,
+        match: _Key | None = None,
+        count: int | None = None,
+        no_values: Literal[False] | None = None,
+    ) -> tuple[int, dict[_StrType, _StrType]]: ...
+    @overload
+    def hscan(
+        self,
+        name: _Key,
+        cursor: int = 0,
+        match: _Key | None = None,
+        count: int | None = None,
+        *,
+        no_values: Literal[True],
+    ) -> tuple[int, list[_StrType]]: ...
+    @overload
+    def hscan(
+        self,
+        name: _Key,
         cursor: int = 0,
         match: _Key | None = None,
         count: int | None = None,
         no_values: bool | None = None,
-    ) -> tuple[int, dict[_StrType, _StrType]]: ...
+    ) -> tuple[int, dict[_StrType, _StrType] | list[_StrType]]: ...
+    @overload
     def hscan_iter(
         self,
-        name: _Value,
+        name: _Key,
+        match: _Key | None = None,
+        count: int | None = None,
+        no_values: Literal[False] | None = None,
+    ) -> Iterator[tuple[_StrType, _StrType]]: ...
+    @overload
+    def hscan_iter(
+        self,
+        name: _Key,
+        match: _Key | None = None,
+        count: int | None = None,
+        *,
+        no_values: Literal[True],
+    ) -> Iterator[_StrType]: ...
+    @overload
+    def hscan_iter(
+        self,
+        name: _Key,
         match: _Key | None = None,
         count: int | None = None,
         no_values: bool | None = None,
-    ) -> Iterator[tuple[_StrType, _StrType]]: ...
+    ) -> Iterator[_StrType] | Iterator[tuple[_StrType, _StrType]]: ...
     @overload
     def zscan(
         self,
-        name: _Value,
+        name: _Key,
         cursor: int = 0,
         match: _Key | None = None,
         count: int | None = None,
@@ -1238,7 +1278,7 @@ class ScanCommands(Generic[_StrType]):
     @overload
     def zscan(
         self,
-        name: _Value,
+        name: _Key,
         cursor: int = 0,
         match: _Key | None = None,
         count: int | None = None,
@@ -1248,7 +1288,7 @@ class ScanCommands(Generic[_StrType]):
     @overload
     def zscan(
         self,
-        name: _Value,
+        name: _Key,
         cursor: int,
         match: _Key | None,
         count: int | None,
@@ -1256,12 +1296,12 @@ class ScanCommands(Generic[_StrType]):
     ) -> tuple[int, list[tuple[_StrType, _ScoreCastFuncReturn]]]: ...
     @overload
     def zscan_iter(
-        self, name: _Value, match: _Key | None = None, count: int | None = None
+        self, name: _Key, match: _Key | None = None, count: int | None = None
     ) -> Iterator[tuple[_StrType, float]]: ...
     @overload
     def zscan_iter(
         self,
-        name: _Value,
+        name: _Key,
         match: _Key | None = None,
         count: int | None = None,
         *,
@@ -1291,36 +1331,74 @@ class AsyncScanCommands(Generic[_StrType]):
         count: int | None = None,
         _type: str | None = None,
         **kwargs: _CommandOptions,
-    ) -> Iterator[_StrType]: ...
+    ) -> AsyncIterator[_StrType]: ...
     async def sscan(
         self,
-        name: _Value,
+        name: _Key,
         cursor: int = 0,
         match: _Key | None = None,
         count: int | None = None,
     ) -> tuple[int, list[_StrType]]: ...
     async def sscan_iter(
-        self, name: _Value, match: _Key | None = None, count: int | None = None
-    ) -> Iterator[_StrType]: ...
+        self, name: _Key, match: _Key | None = None, count: int | None = None
+    ) -> AsyncIterator[_StrType]: ...
+    @overload
     async def hscan(
         self,
-        name: _Value,
+        name: _Key,
+        cursor: int = 0,
+        match: _Key | None = None,
+        count: int | None = None,
+        no_values: Literal[False] | None = None,
+    ) -> tuple[int, dict[_StrType, _StrType]]: ...
+    @overload
+    async def hscan(
+        self,
+        name: _Key,
+        cursor: int = 0,
+        match: _Key | None = None,
+        count: int | None = None,
+        *,
+        no_values: Literal[True],
+    ) -> tuple[int, list[_StrType]]: ...
+    @overload
+    async def hscan(
+        self,
+        name: _Key,
         cursor: int = 0,
         match: _Key | None = None,
         count: int | None = None,
         no_values: bool | None = None,
-    ) -> tuple[int, dict[_StrType, _StrType]]: ...
+    ) -> tuple[int, dict[_StrType, _StrType] | list[_StrType]]: ...
+    @overload
     async def hscan_iter(
         self,
-        name: _Value,
+        name: _Key,
+        match: _Key | None = None,
+        count: int | None = None,
+        no_values: Literal[False] | None = None,
+    ) -> AsyncIterator[tuple[_StrType, _StrType]]: ...
+    @overload
+    async def hscan_iter(
+        self,
+        name: _Key,
+        match: _Key | None = None,
+        count: int | None = None,
+        *,
+        no_values: Literal[True],
+    ) -> AsyncIterator[_StrType]: ...
+    @overload
+    async def hscan_iter(
+        self,
+        name: _Key,
         match: _Key | None = None,
         count: int | None = None,
         no_values: bool | None = None,
-    ) -> Iterator[tuple[_StrType, _StrType]]: ...
+    ) -> AsyncIterator[_StrType] | AsyncIterator[tuple[_StrType, _StrType]]: ...
     @overload
     async def zscan(
         self,
-        name: _Value,
+        name: _Key,
         cursor: int = 0,
         match: _Key | None = None,
         count: int | None = None,
@@ -1328,7 +1406,7 @@ class AsyncScanCommands(Generic[_StrType]):
     @overload
     async def zscan(
         self,
-        name: _Value,
+        name: _Key,
         cursor: int = 0,
         match: _Key | None = None,
         count: int | None = None,
@@ -1338,7 +1416,7 @@ class AsyncScanCommands(Generic[_StrType]):
     @overload
     async def zscan(
         self,
-        name: _Value,
+        name: _Key,
         cursor: int,
         match: _Key | None,
         count: int | None,
@@ -1346,17 +1424,17 @@ class AsyncScanCommands(Generic[_StrType]):
     ) -> tuple[int, list[tuple[_StrType, _ScoreCastFuncReturn]]]: ...
     @overload
     async def zscan_iter(
-        self, name: _Value, match: _Key | None = None, count: int | None = None
-    ) -> Iterator[tuple[_StrType, float]]: ...
+        self, name: _Key, match: _Key | None = None, count: int | None = None
+    ) -> AsyncIterator[tuple[_StrType, float]]: ...
     @overload
     async def zscan_iter(
         self,
-        name: _Value,
+        name: _Key,
         match: _Key | None = None,
         count: int | None = None,
         *,
         score_cast_func: Callable[[_StrType], _ScoreCastFuncReturn],
-    ) -> Iterator[tuple[_StrType, _ScoreCastFuncReturn]]: ...
+    ) -> AsyncIterator[tuple[_StrType, _ScoreCastFuncReturn]]: ...
     @overload
     async def zscan_iter(
         self,
@@ -1364,7 +1442,7 @@ class AsyncScanCommands(Generic[_StrType]):
         match: PatternT | None,
         count: int | None,
         score_cast_func: Callable[[_StrType], _ScoreCastFuncReturn],
-    ) -> Iterator[tuple[_StrType, _ScoreCastFuncReturn]]: ...
+    ) -> AsyncIterator[tuple[_StrType, _ScoreCastFuncReturn]]: ...
 
 class SetCommands(Generic[_StrType]):
     def sadd(self, name: _Value, *values: _Value) -> int: ...
