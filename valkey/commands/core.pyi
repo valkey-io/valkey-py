@@ -2057,7 +2057,7 @@ class AsyncDataAccessCommands(
     AsyncSortedSetCommands,
 ): ...
 class CoreCommands(
-    ACLCommands,
+    ACLCommands[_StrType],
     ClusterCommands,
     DataAccessCommands,
     ManagementCommands,
@@ -2066,9 +2066,10 @@ class CoreCommands(
     ScriptCommands,
     FunctionCommands,
     GearsCommands,
+    Generic[_StrType],
 ): ...
 class AsyncCoreCommands(
-    AsyncACLCommands,
+    AsyncACLCommands[_StrType],
     AsyncClusterCommands,
     AsyncDataAccessCommands,
     AsyncManagementCommands,
@@ -2077,4 +2078,5 @@ class AsyncCoreCommands(
     AsyncScriptCommands,
     AsyncFunctionCommands,
     AsyncGearsCommands,
+    Generic[_StrType],
 ): ...
