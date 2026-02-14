@@ -49,6 +49,7 @@ _StrType = TypeVar("_StrType", bound=str | bytes)
 _StreamEntryT = tuple[_StrType, dict[_StrType, _StrType]]
 _StreamReadResp2T = list[tuple[_StrType, list[_StreamEntryT]]]
 _StreamReadResp3T = dict[_StrType, list[list[_StreamEntryT]]]
+_ZSetScorePairT = tuple[_StrType, float] | list[_StrType | float]
 
 # Internal helper aliases used by legacy signatures in this stub.
 _CommandOptions = Any
@@ -1870,6 +1871,31 @@ class AsyncStreamCommands(Generic[_StrType]):
     ) -> int: ...
 
 class SortedSetCommands(Generic[_StrType]):
+    @overload
+    def zadd(
+        self,
+        name: _Key,
+        mapping: Mapping[AnyKeyT, EncodableT],
+        nx: bool = False,
+        xx: bool = False,
+        ch: bool = False,
+        incr: Literal[False] = False,
+        gt: bool = False,
+        lt: bool = False,
+    ) -> int: ...
+    @overload
+    def zadd(
+        self,
+        name: _Key,
+        mapping: Mapping[AnyKeyT, EncodableT],
+        nx: bool = False,
+        xx: bool = False,
+        ch: bool = False,
+        incr: Literal[True] = True,
+        gt: bool = False,
+        lt: bool = False,
+    ) -> float | None: ...
+    @overload
     def zadd(
         self,
         name: _Key,
@@ -1880,12 +1906,21 @@ class SortedSetCommands(Generic[_StrType]):
         incr: bool = False,
         gt: bool = False,
         lt: bool = False,
-    ) -> int: ...
+    ) -> int | float | None: ...
     def zcard(self, name: _Key) -> int: ...
     def zcount(self, name: _Key, min: ZScoreBoundT, max: ZScoreBoundT) -> int: ...
+    @overload
+    def zdiff(
+        self, keys: Sequence[_Key], withscores: Literal[False] = False
+    ) -> list[_StrType]: ...
+    @overload
+    def zdiff(
+        self, keys: Sequence[_Key], withscores: Literal[True]
+    ) -> list[_StrType] | list[_ZSetScorePairT]: ...
+    @overload
     def zdiff(
         self, keys: Sequence[_Key], withscores: bool = False
-    ) -> list[_StrType]: ...
+    ) -> list[_StrType] | list[_ZSetScorePairT]: ...
     def zdiffstore(self, dest: _Key, keys: Sequence[_Key]) -> int: ...
     def zincrby(self, name: _Key, amount: float, value: _Value) -> float: ...
     @overload
@@ -1902,14 +1937,14 @@ class SortedSetCommands(Generic[_StrType]):
     @overload
     def zinter(
         self, keys: Sequence[_Key], aggregate: str | None, withscores: Literal[True]
-    ) -> list[tuple[_StrType, float]]: ...
+    ) -> list[_ZSetScorePairT]: ...
     @overload
     def zinter(
         self,
         keys: Sequence[_Key],
         aggregate: str | None = None,
         withscores: bool = False,
-    ) -> list[_StrType] | list[tuple[_StrType, float]]: ...
+    ) -> list[_StrType] | list[_ZSetScorePairT]: ...
     def zinterstore(
         self,
         dest: _Key,
@@ -1920,39 +1955,53 @@ class SortedSetCommands(Generic[_StrType]):
     def zlexcount(self, name: _Key, min: _Value, max: _Value) -> int: ...
     def zpopmax(
         self, name: _Key, count: int | None = None
-    ) -> list[tuple[_StrType, float]]: ...
+    ) -> list[_ZSetScorePairT]: ...
     def zpopmin(
         self, name: _Key, count: int | None = None
-    ) -> list[tuple[_StrType, float]]: ...
+    ) -> list[_ZSetScorePairT]: ...
     @overload
-    def zrandmember(self, key: _Key) -> _StrType | None: ...
-    # TODO: Should zrandmember return list of tuples when withscores=True?
+    def zrandmember(self, key: _Key, count: None = None) -> _StrType | None: ...
+    @overload
+    def zrandmember(
+        self, key: _Key, count: int, withscores: Literal[False] = False
+    ) -> list[_StrType]: ...
+    # With RESP2, scores are always returned as strings, so withscores=True
+    # doesn't change the return type
+    @overload
+    def zrandmember(
+        self, key: _Key, count: int, withscores: Literal[True]
+    ) -> list[_StrType] | list[_ZSetScorePairT]: ...
     @overload
     def zrandmember(
         self, key: _Key, count: int, withscores: bool = False
-    ) -> list[_StrType]: ...
-    def bzpopmax(self, keys: KeysT, timeout: TimeoutSecT = 0) -> ResponseT: ...
-    def bzpopmin(self, keys: KeysT, timeout: TimeoutSecT = 0) -> ResponseT: ...
+    ) -> list[_StrType] | list[_ZSetScorePairT]: ...
+    # tuples are returned for RESP2, list for RESP3
+    def bzpopmax(
+        self, keys: KeysT, timeout: TimeoutSecT = 0
+    ) -> tuple[_StrType, _StrType, float] | list[_StrType | float] | None: ...
+    def bzpopmin(
+        self, keys: KeysT, timeout: TimeoutSecT = 0
+    ) -> tuple[_StrType, _StrType, float] | list[_StrType | float] | None: ...
     def zmpop(
         self,
         num_keys: int,
-        keys: list[str],
+        keys: Sequence[_Key],
         min: bool | None = False,
         max: bool | None = False,
         count: int | None = 1,
-    ) -> Awaitable[list] | list: ...
+    ) -> list[Any] | None: ...
     def bzmpop(
         self,
         timeout: float,
         numkeys: int,
-        keys: list[str],
+        keys: Sequence[_Key],
         min: bool | None = False,
         max: bool | None = False,
         count: int | None = 1,
-    ) -> list | None: ...
+    ) -> list[Any] | None: ...
     def zrange(
         self,
-        name: KeyT,
+        name: _Key,
         start: int,
         end: int,
         desc: bool = False,
@@ -1960,21 +2009,40 @@ class SortedSetCommands(Generic[_StrType]):
         score_cast_func: type | Callable = ...,
         byscore: bool = False,
         bylex: bool = False,
-        offset: int = None,
-        num: int = None,
-    ) -> ResponseT: ...
+        offset: int | None = None,
+        num: int | None = None,
+    ) -> list[_StrType] | list[_ZSetScorePairT]: ...
+    @overload
     def zrevrange(
         self,
-        name: KeyT,
+        name: _Key,
+        start: int,
+        end: int,
+        withscores: Literal[False] = False,
+        score_cast_func: type | Callable = ...,
+    ) -> list[_StrType]: ...
+    @overload
+    def zrevrange(
+        self,
+        name: _Key,
+        start: int,
+        end: int,
+        withscores: Literal[True],
+        score_cast_func: type | Callable = ...,
+    ) -> list[_ZSetScorePairT]: ...
+    @overload
+    def zrevrange(
+        self,
+        name: _Key,
         start: int,
         end: int,
         withscores: bool = False,
         score_cast_func: type | Callable = ...,
-    ) -> ResponseT: ...
+    ) -> list[_StrType] | list[_ZSetScorePairT]: ...
     def zrangestore(
         self,
-        dest: KeyT,
-        name: KeyT,
+        dest: _Key,
+        name: _Key,
         start: int,
         end: int,
         byscore: bool = False,
@@ -1982,71 +2050,108 @@ class SortedSetCommands(Generic[_StrType]):
         desc: bool = False,
         offset: int | None = None,
         num: int | None = None,
-    ) -> ResponseT: ...
+    ) -> int: ...
     def zrangebylex(
         self,
-        name: KeyT,
-        min: EncodableT,
-        max: EncodableT,
+        name: _Key,
+        min: _Value,
+        max: _Value,
         start: int | None = None,
         num: int | None = None,
-    ) -> ResponseT: ...
+    ) -> list[_StrType]: ...
     def zrevrangebylex(
         self,
-        name: KeyT,
-        max: EncodableT,
-        min: EncodableT,
+        name: _Key,
+        max: _Value,
+        min: _Value,
         start: int | None = None,
         num: int | None = None,
-    ) -> ResponseT: ...
+    ) -> list[_StrType]: ...
     def zrangebyscore(
         self,
-        name: KeyT,
+        name: _Key,
         min: ZScoreBoundT,
         max: ZScoreBoundT,
         start: int | None = None,
         num: int | None = None,
         withscores: bool = False,
         score_cast_func: type | Callable = ...,
-    ) -> ResponseT: ...
+    ) -> list[_StrType] | list[_ZSetScorePairT]: ...
     def zrevrangebyscore(
         self,
-        name: KeyT,
+        name: _Key,
         max: ZScoreBoundT,
         min: ZScoreBoundT,
         start: int | None = None,
         num: int | None = None,
         withscores: bool = False,
         score_cast_func: type | Callable = ...,
-    ): ...
+    ) -> list[_StrType] | list[_ZSetScorePairT]: ...
+    @overload
     def zrank(
-        self, name: KeyT, value: EncodableT, withscore: bool = False
-    ) -> ResponseT: ...
-    def zrem(self, name: KeyT, *values: FieldT) -> ResponseT: ...
-    def zremrangebylex(
-        self, name: KeyT, min: EncodableT, max: EncodableT
-    ) -> ResponseT: ...
-    def zremrangebyrank(self, name: KeyT, min: int, max: int) -> ResponseT: ...
+        self, name: _Key, value: _Value, withscore: Literal[False] = False
+    ) -> int | None: ...
+    @overload
+    def zrank(
+        self, name: _Key, value: _Value, withscore: Literal[True]
+    ) -> list[int | float | _StrType] | None: ...
+    @overload
+    def zrank(
+        self, name: _Key, value: _Value, withscore: bool = False
+    ) -> int | list[int | float | _StrType] | None: ...
+    def zrem(self, name: _Key, *values: FieldT) -> int: ...
+    def zremrangebylex(self, name: _Key, min: _Value, max: _Value) -> int: ...
+    def zremrangebyrank(self, name: _Key, min: int, max: int) -> int: ...
     def zremrangebyscore(
-        self, name: KeyT, min: ZScoreBoundT, max: ZScoreBoundT
-    ) -> ResponseT: ...
+        self, name: _Key, min: ZScoreBoundT, max: ZScoreBoundT
+    ) -> int: ...
+    @overload
     def zrevrank(
-        self, name: KeyT, value: EncodableT, withscore: bool = False
-    ) -> ResponseT: ...
-    def zscore(self, name: KeyT, value: EncodableT) -> ResponseT: ...
+        self, name: _Key, value: _Value, withscore: Literal[False] = False
+    ) -> int | None: ...
+    @overload
+    def zrevrank(
+        self, name: _Key, value: _Value, withscore: Literal[True]
+    ) -> list[int | float | _StrType] | None: ...
+    @overload
+    def zrevrank(
+        self, name: _Key, value: _Value, withscore: bool = False
+    ) -> int | list[int | float | _StrType] | None: ...
+    def zscore(self, name: _Key, value: _Value) -> float | None: ...
+    @overload
     def zunion(
         self,
-        keys: Sequence[KeyT] | Mapping[AnyKeyT, float],
+        keys: Sequence[_Key] | Mapping[AnyKeyT, float],
+        aggregate: str | None = None,
+    ) -> list[_StrType]: ...
+    @overload
+    def zunion(
+        self,
+        keys: Sequence[_Key] | Mapping[AnyKeyT, float],
+        aggregate: str | None = None,
+        withscores: Literal[False] = False,
+    ) -> list[_StrType]: ...
+    @overload
+    def zunion(
+        self,
+        keys: Sequence[_Key] | Mapping[AnyKeyT, float],
+        aggregate: str | None,
+        withscores: Literal[True],
+    ) -> list[_ZSetScorePairT]: ...
+    @overload
+    def zunion(
+        self,
+        keys: Sequence[_Key] | Mapping[AnyKeyT, float],
         aggregate: str | None = None,
         withscores: bool = False,
-    ) -> ResponseT: ...
+    ) -> list[_StrType] | list[_ZSetScorePairT]: ...
     def zunionstore(
         self,
-        dest: KeyT,
-        keys: Sequence[KeyT] | Mapping[AnyKeyT, float],
+        dest: _Key,
+        keys: Sequence[_Key] | Mapping[AnyKeyT, float],
         aggregate: str | None = None,
-    ) -> ResponseT: ...
-    def zmscore(self, key: KeyT, members: list[str]) -> ResponseT: ...
+    ) -> int: ...
+    def zmscore(self, key: _Key, members: Sequence[_Value]) -> list[float | None]: ...
 
 AsyncSortedSetCommands = SortedSetCommands
 
