@@ -13,6 +13,7 @@ from typing import (
     List,
     Literal,
     Mapping,
+    NoReturn,
     Optional,
     Sequence,
     Set,
@@ -29,7 +30,7 @@ from valkey.typing import (
     AnyStreamIdT,
     BitfieldOffsetT,
     ChannelT,
-    CommandsProtocol,
+    CommandsMixin,
     ConsumerT,
     EncodableT,
     ExpiryT,
@@ -52,7 +53,7 @@ if TYPE_CHECKING:
     from valkey.client import Valkey
 
 
-class ACLCommands(CommandsProtocol):
+class ACLCommands(CommandsMixin):
     """
     Valkey Access Control List (ACL) commands.
     see: https://valkey.io/topics/acl
@@ -389,7 +390,7 @@ class ACLCommands(CommandsProtocol):
 AsyncACLCommands = ACLCommands
 
 
-class ManagementCommands(CommandsProtocol):
+class ManagementCommands(CommandsMixin):
     """
     Valkey management commands
     """
@@ -1536,7 +1537,7 @@ class BitFieldOperation:
         return self.client.execute_command(*command)
 
 
-class BasicKeyCommands(CommandsProtocol):
+class BasicKeyCommands(CommandsMixin):
     """
     Valkey basic key-based commands
     """
@@ -2551,7 +2552,7 @@ class AsyncBasicKeyCommands(BasicKeyCommands):
         return super().unwatch()
 
 
-class ListCommands(CommandsProtocol):
+class ListCommands(CommandsMixin):
     """
     Valkey commands for List data type.
     see: https://valkey.io/topics/data-types#lists
@@ -2971,7 +2972,7 @@ class ListCommands(CommandsProtocol):
 AsyncListCommands = ListCommands
 
 
-class ScanCommands(CommandsProtocol):
+class ScanCommands(CommandsMixin):
     """
     Valkey SCAN commands.
     see: https://valkey.io/commands/scan
@@ -3307,7 +3308,7 @@ class AsyncScanCommands(ScanCommands):
                 yield d
 
 
-class SetCommands(CommandsProtocol):
+class SetCommands(CommandsMixin):
     """
     Valkey commands for Set data type.
     see: https://valkey.io/topics/data-types#sets
@@ -3406,7 +3407,9 @@ class SetCommands(CommandsProtocol):
         """
         return self.execute_command("SMEMBERS", name, keys=[name])
 
-    def smismember(self, name: str, values: List, *args: List) -> Union[
+    def smismember(
+        self, name: str, values: List, *args: List
+    ) -> Union[
         Awaitable[List[Union[Literal[0], Literal[1]]]],
         List[Union[Literal[0], Literal[1]]],
     ]:
@@ -3485,7 +3488,7 @@ class SetCommands(CommandsProtocol):
 AsyncSetCommands = SetCommands
 
 
-class StreamCommands(CommandsProtocol):
+class StreamCommands(CommandsMixin):
     """
     Valkey commands for Stream data type.
     see: https://valkey.io/topics/streams-intro
@@ -4094,7 +4097,7 @@ class StreamCommands(CommandsProtocol):
 AsyncStreamCommands = StreamCommands
 
 
-class SortedSetCommands(CommandsProtocol):
+class SortedSetCommands(CommandsMixin):
     """
     Valkey commands for Sorted Sets data type.
     see: https://valkey.io/topics/data-types-intro#valkey-sorted-sets
@@ -4893,7 +4896,7 @@ class SortedSetCommands(CommandsProtocol):
 AsyncSortedSetCommands = SortedSetCommands
 
 
-class HyperlogCommands(CommandsProtocol):
+class HyperlogCommands(CommandsMixin):
     """
     Valkey commands of HyperLogLogs data type.
     see: https://valkey.io/topics/data-types-intro#hyperloglogs
@@ -4928,7 +4931,7 @@ class HyperlogCommands(CommandsProtocol):
 AsyncHyperlogCommands = HyperlogCommands
 
 
-class HashCommands(CommandsProtocol):
+class HashCommands(CommandsMixin):
     """
     Valkey commands for Hash data type.
     see: https://valkey.io/topics/data-types-intro#valkey-hashes
@@ -5282,7 +5285,7 @@ class AsyncScript:
             return await client.evalsha(self.sha, len(keys), *args)
 
 
-class PubSubCommands(CommandsProtocol):
+class PubSubCommands(CommandsMixin):
     """
     Valkey PubSub commands.
     see https://valkey.io/topics/pubsub
@@ -5352,7 +5355,7 @@ class PubSubCommands(CommandsProtocol):
 AsyncPubSubCommands = PubSubCommands
 
 
-class ScriptCommands(CommandsProtocol):
+class ScriptCommands(CommandsMixin):
     """
     Valkey Lua script commands. see:
     https://redis.com/ebook/part-3-next-steps/chapter-11-scripting-redis-with-lua/
@@ -5507,7 +5510,7 @@ class AsyncScriptCommands(ScriptCommands):
         return AsyncScript(self, script)
 
 
-class GeoCommands(CommandsProtocol):
+class GeoCommands(CommandsMixin):
     """
     Valkey Geospatial commands.
     see: https://valkey.com/valkey-best-practices/indexing-patterns/geospatial/
@@ -5938,7 +5941,7 @@ class GeoCommands(CommandsProtocol):
 AsyncGeoCommands = GeoCommands
 
 
-class ModuleCommands(CommandsProtocol):
+class ModuleCommands(CommandsMixin):
     """
     Valkey Module commands.
     see: https://valkey.io/topics/modules-intro
@@ -5993,7 +5996,7 @@ class ModuleCommands(CommandsProtocol):
         """
         return self.execute_command("MODULE LIST")
 
-    def command_info(self) -> None:
+    def command_info(self) -> NoReturn:
         raise NotImplementedError(
             "COMMAND INFO is intentionally not implemented in the client."
         )
@@ -6008,12 +6011,10 @@ class ModuleCommands(CommandsProtocol):
         return self.execute_command("COMMAND")
 
 
-class AsyncModuleCommands(ModuleCommands):
-    async def command_info(self) -> None:
-        return super().command_info()
+AsyncModuleCommands = ModuleCommands
 
 
-class ClusterCommands(CommandsProtocol):
+class ClusterCommands(CommandsMixin):
     """
     Class for Valkey Cluster commands
     """
@@ -6041,7 +6042,7 @@ class ClusterCommands(CommandsProtocol):
 AsyncClusterCommands = ClusterCommands
 
 
-class FunctionCommands:
+class FunctionCommands(CommandsMixin):
     """
     Valkey Function commands
     """
@@ -6165,7 +6166,7 @@ class FunctionCommands:
 AsyncFunctionCommands = FunctionCommands
 
 
-class GearsCommands:
+class GearsCommands(CommandsMixin):
     def tfunction_load(
         self, lib_code: str, replace: bool = False, config: Union[str, None] = None
     ) -> ResponseT:
