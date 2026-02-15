@@ -3,7 +3,6 @@ from collections.abc import AsyncIterator
 
 from typing import (
     Any,
-    Awaitable,
     Callable,
     Generic,
     Iterable,
@@ -28,7 +27,7 @@ from valkey.typing import (
     AnyStreamIdT,
     BitfieldOffsetT,
     ChannelT,
-    CommandsProtocol,
+    CommandsMixin,
     ConsumerT,
     EncodableT,
     ExpiryT,
@@ -37,7 +36,6 @@ from valkey.typing import (
     KeysT,
     KeyT,
     PatternT,
-    ResponseT,
     ScriptTextT,
     StreamIdT,
     TimeoutSecT,
@@ -59,7 +57,7 @@ _CommandOptions = Any
 _Key = KeyT
 _Value = EncodableT
 
-class ACLCommands(CommandsProtocol, Generic[_StrType]):
+class ACLCommands(CommandsMixin, Generic[_StrType]):
     def acl_cat(self, category: str | None = None, **kwargs) -> list[_StrType]: ...
     def acl_deluser(self, *username: str, **kwargs) -> int: ...
     def acl_dryrun(self, username, *args, **kwargs) -> _StrType: ...
@@ -94,7 +92,7 @@ class ACLCommands(CommandsProtocol, Generic[_StrType]):
     def acl_users(self, **kwargs) -> list[_StrType]: ...
     def acl_whoami(self, **kwargs) -> _StrType: ...
 
-class AsyncACLCommands(CommandsProtocol, Generic[_StrType]):
+class AsyncACLCommands(CommandsMixin, Generic[_StrType]):
     async def acl_cat(
         self, category: str | None = None, **kwargs
     ) -> list[_StrType]: ...
@@ -131,7 +129,7 @@ class AsyncACLCommands(CommandsProtocol, Generic[_StrType]):
     async def acl_users(self, **kwargs) -> list[_StrType]: ...
     async def acl_whoami(self, **kwargs) -> _StrType: ...
 
-class ManagementCommands(CommandsProtocol, Generic[_StrType]):
+class ManagementCommands(CommandsMixin, Generic[_StrType]):
     def auth(self, password: str, username: str | None = None, **kwargs) -> bool: ...
     def bgrewriteaof(self, **kwargs) -> Literal[True]: ...
     def bgsave(self, schedule: bool = True, **kwargs) -> Literal[True]: ...
@@ -283,7 +281,7 @@ class ManagementCommands(CommandsProtocol, Generic[_StrType]):
     def hello(self) -> None: ...
     def failover(self) -> None: ...
 
-class AsyncManagementCommands(CommandsProtocol, Generic[_StrType]):
+class AsyncManagementCommands(CommandsMixin, Generic[_StrType]):
     async def auth(
         self, password: str, username: str | None = None, **kwargs
     ) -> bool: ...
@@ -505,7 +503,7 @@ class AsyncBitFieldOperation:
     def command(self) -> list[EncodableT]: ...
     async def execute(self) -> list[int | None]: ...
 
-class BasicKeyCommands(CommandsProtocol, Generic[_StrType]):
+class BasicKeyCommands(CommandsMixin, Generic[_StrType]):
     def append(self, key: KeyT, value: EncodableT) -> int: ...
     def bitcount(
         self,
@@ -697,7 +695,7 @@ class BasicKeyCommands(CommandsProtocol, Generic[_StrType]):
         withmatchlen: bool | None = False,
     ) -> str | int | list: ...
 
-class AsyncBasicKeyCommands(CommandsProtocol, Generic[_StrType]):
+class AsyncBasicKeyCommands(CommandsMixin, Generic[_StrType]):
     async def append(self, key: KeyT, value: EncodableT) -> int: ...
     async def bitcount(
         self,
@@ -891,7 +889,7 @@ class AsyncBasicKeyCommands(CommandsProtocol, Generic[_StrType]):
         withmatchlen: bool | None = False,
     ) -> str | int | list: ...
 
-class ListCommands(CommandsProtocol, Generic[_StrType]):
+class ListCommands(CommandsMixin, Generic[_StrType]):
     @overload
     def blpop(
         self, keys: _Key | Iterable[_Key], timeout: Literal[0]
@@ -1042,7 +1040,7 @@ class ListCommands(CommandsProtocol, Generic[_StrType]):
         alpha: bool = False,
     ) -> list[_StrType]: ...
 
-class AsyncListCommands(CommandsProtocol, Generic[_StrType]):
+class AsyncListCommands(CommandsMixin, Generic[_StrType]):
     @overload
     async def blpop(
         self, keys: _Key | Iterable[_Key], timeout: Literal[0]
@@ -1197,7 +1195,7 @@ class AsyncListCommands(CommandsProtocol, Generic[_StrType]):
         alpha: bool = False,
     ) -> list[_StrType]: ...
 
-class ScanCommands(CommandsProtocol, Generic[_StrType]):
+class ScanCommands(CommandsMixin, Generic[_StrType]):
     def scan(
         self,
         cursor: int = 0,
@@ -1325,7 +1323,7 @@ class ScanCommands(CommandsProtocol, Generic[_StrType]):
         score_cast_func: Callable[[_StrType], _ScoreCastFuncReturn],
     ) -> Iterator[tuple[_StrType, _ScoreCastFuncReturn]]: ...
 
-class AsyncScanCommands(CommandsProtocol, Generic[_StrType]):
+class AsyncScanCommands(CommandsMixin, Generic[_StrType]):
     async def scan(
         self,
         cursor: int = 0,
@@ -1453,7 +1451,7 @@ class AsyncScanCommands(CommandsProtocol, Generic[_StrType]):
         score_cast_func: Callable[[_StrType], _ScoreCastFuncReturn],
     ) -> AsyncIterator[tuple[_StrType, _ScoreCastFuncReturn]]: ...
 
-class SetCommands(CommandsProtocol, Generic[_StrType]):
+class SetCommands(CommandsMixin, Generic[_StrType]):
     def sadd(self, name: _Key, *values: _Value) -> int: ...
     def scard(self, name: _Key) -> int: ...
     def sdiff(self, keys: _Key | Iterable[_Key], *args: _Key) -> list[_StrType]: ...
@@ -1485,7 +1483,7 @@ class SetCommands(CommandsProtocol, Generic[_StrType]):
         self, dest: _Key, keys: _Key | Iterable[_Key], *args: _Key
     ) -> int: ...
 
-class AsyncSetCommands(CommandsProtocol, Generic[_StrType]):
+class AsyncSetCommands(CommandsMixin, Generic[_StrType]):
     async def sadd(self, name: _Key, *values: _Value) -> int: ...
     async def scard(self, name: _Key) -> int: ...
     async def sdiff(
@@ -1525,7 +1523,7 @@ class AsyncSetCommands(CommandsProtocol, Generic[_StrType]):
         self, dest: _Key, keys: _Key | Iterable[_Key], *args: _Key
     ) -> int: ...
 
-class StreamCommands(CommandsProtocol, Generic[_StrType]):
+class StreamCommands(CommandsMixin, Generic[_StrType]):
     def xack(self, name: _Key, groupname: GroupT, *ids: StreamIdT) -> int: ...
     def xadd(
         self,
@@ -1693,7 +1691,7 @@ class StreamCommands(CommandsProtocol, Generic[_StrType]):
         limit: int | None = None,
     ) -> int: ...
 
-class AsyncStreamCommands(CommandsProtocol, Generic[_StrType]):
+class AsyncStreamCommands(CommandsMixin, Generic[_StrType]):
     async def xack(self, name: _Key, groupname: GroupT, *ids: StreamIdT) -> int: ...
     async def xadd(
         self,
@@ -1861,7 +1859,7 @@ class AsyncStreamCommands(CommandsProtocol, Generic[_StrType]):
         limit: int | None = None,
     ) -> int: ...
 
-class SortedSetCommands(CommandsProtocol, Generic[_StrType]):
+class SortedSetCommands(CommandsMixin, Generic[_StrType]):
     @overload
     def zadd(
         self,
@@ -2144,7 +2142,7 @@ class SortedSetCommands(CommandsProtocol, Generic[_StrType]):
     ) -> int: ...
     def zmscore(self, key: _Key, members: Sequence[_Value]) -> list[float | None]: ...
 
-class AsyncSortedSetCommands(CommandsProtocol, Generic[_StrType]):
+class AsyncSortedSetCommands(CommandsMixin, Generic[_StrType]):
     @overload
     async def zadd(
         self,
@@ -2431,17 +2429,17 @@ class AsyncSortedSetCommands(CommandsProtocol, Generic[_StrType]):
         self, key: _Key, members: Sequence[_Value]
     ) -> list[float | None]: ...
 
-class HyperlogCommands(CommandsProtocol):
+class HyperlogCommands(CommandsMixin):
     def pfadd(self, name: _Key, *values: _Value) -> int: ...
     def pfcount(self, *sources: _Key) -> int: ...
     def pfmerge(self, dest: _Key, *sources: _Key) -> Literal[True]: ...
 
-class AsyncHyperlogCommands(CommandsProtocol):
+class AsyncHyperlogCommands(CommandsMixin):
     async def pfadd(self, name: _Key, *values: _Value) -> int: ...
     async def pfcount(self, *sources: _Key) -> int: ...
     async def pfmerge(self, dest: _Key, *sources: _Key) -> Literal[True]: ...
 
-class HashCommands(CommandsProtocol, Generic[_StrType]):
+class HashCommands(CommandsMixin, Generic[_StrType]):
     def hdel(self, name: _Key, *keys: _Value) -> int: ...
     def hexists(self, name: _Key, key: _Value) -> bool: ...
     def hget(self, name: _Key, key: _Value) -> _StrType | None: ...
@@ -2483,7 +2481,7 @@ class HashCommands(CommandsProtocol, Generic[_StrType]):
     def hvals(self, name: _Key) -> list[_StrType]: ...
     def hstrlen(self, name: _Key, key: _Value) -> int: ...
 
-class AsyncHashCommands(CommandsProtocol, Generic[_StrType]):
+class AsyncHashCommands(CommandsMixin, Generic[_StrType]):
     async def hdel(self, name: _Key, *keys: _Value) -> int: ...
     async def hexists(self, name: _Key, key: _Value) -> bool: ...
     async def hget(self, name: _Key, key: _Value) -> _StrType | None: ...
@@ -2555,7 +2553,7 @@ class AsyncScript:
     ) -> Any: ...
     # NOTE: AsyncScript doesn't have get_encoder. Add it if someone asks for it.
 
-class PubSubCommands(CommandsProtocol, Generic[_StrType]):
+class PubSubCommands(CommandsMixin, Generic[_StrType]):
     def publish(self, channel: ChannelT, message: EncodableT, **kwargs) -> int: ...
     def spublish(self, shard_channel: ChannelT, message: EncodableT) -> int: ...
     def pubsub_channels(self, pattern: PatternT = "*", **kwargs) -> list[_StrType]: ...
@@ -2570,7 +2568,7 @@ class PubSubCommands(CommandsProtocol, Generic[_StrType]):
         self, *args: ChannelT, **kwargs
     ) -> list[tuple[_StrType, int]]: ...
 
-class AsyncPubSubCommands(CommandsProtocol, Generic[_StrType]):
+class AsyncPubSubCommands(CommandsMixin, Generic[_StrType]):
     async def publish(
         self, channel: ChannelT, message: EncodableT, **kwargs
     ) -> int: ...
@@ -2589,7 +2587,7 @@ class AsyncPubSubCommands(CommandsProtocol, Generic[_StrType]):
         self, *args: ChannelT, **kwargs
     ) -> list[tuple[_StrType, int]]: ...
 
-class ScriptCommands(CommandsProtocol):
+class ScriptCommands(CommandsMixin):
     def eval(
         self, script: ScriptTextT, numkeys: int, *keys_and_args: _Value
     ) -> Any: ...
@@ -2607,7 +2605,7 @@ class ScriptCommands(CommandsProtocol):
     def script_load(self, script: ScriptTextT) -> str: ...
     def register_script(self, script: ScriptTextT) -> Script: ...
 
-class AsyncScriptCommands(CommandsProtocol):
+class AsyncScriptCommands(CommandsMixin):
     async def eval(
         self, script: ScriptTextT, numkeys: int, *keys_and_args: _Value
     ) -> Any: ...
@@ -2628,7 +2626,7 @@ class AsyncScriptCommands(CommandsProtocol):
     # register_script is not async because it doesn't actually do any IO
     def register_script(self, script: ScriptTextT) -> AsyncScript: ...
 
-class GeoCommands(CommandsProtocol, Generic[_StrType]):
+class GeoCommands(CommandsMixin, Generic[_StrType]):
     def geoadd(
         self,
         name: _Key,
@@ -2678,6 +2676,7 @@ class GeoCommands(CommandsProtocol, Generic[_StrType]):
         store_dist: _Key = ...,
         any: bool = False,
     ) -> int: ...
+    @overload
     def georadius(
         self,
         name: _Key,
@@ -2726,6 +2725,7 @@ class GeoCommands(CommandsProtocol, Generic[_StrType]):
         store_dist: _Key = ...,
         any: bool = False,
     ) -> int: ...
+    @overload
     def georadiusbymember(
         self,
         name: _Key,
@@ -2775,7 +2775,7 @@ class GeoCommands(CommandsProtocol, Generic[_StrType]):
         storedist: bool = False,
     ) -> int: ...
 
-class AsyncGeoCommands(CommandsProtocol, Generic[_StrType]):
+class AsyncGeoCommands(CommandsMixin, Generic[_StrType]):
     async def geoadd(
         self,
         name: _Key,
@@ -2827,6 +2827,7 @@ class AsyncGeoCommands(CommandsProtocol, Generic[_StrType]):
         store_dist: _Key = ...,
         any: bool = False,
     ) -> int: ...
+    @overload
     async def georadius(
         self,
         name: _Key,
@@ -2875,6 +2876,7 @@ class AsyncGeoCommands(CommandsProtocol, Generic[_StrType]):
         store_dist: _Key = ...,
         any: bool = False,
     ) -> int: ...
+    @overload
     async def georadiusbymember(
         self,
         name: _Key,
@@ -2924,7 +2926,7 @@ class AsyncGeoCommands(CommandsProtocol, Generic[_StrType]):
         storedist: bool = False,
     ) -> int: ...
 
-class ModuleCommands(CommandsProtocol, Generic[_StrType]):
+class ModuleCommands(CommandsMixin, Generic[_StrType]):
     def module_load(self, path: str, *args: str) -> Literal[True]: ...
     # NOTE: module_loadex misses the parsing callback in the implementation,
     # so the return type is a string. This seems to be an oversight in the
@@ -2939,7 +2941,7 @@ class ModuleCommands(CommandsProtocol, Generic[_StrType]):
     def command_getkeys(self, *args: str) -> list[str | _StrType]: ...
     def command(self) -> dict[str, dict[str, Any]]: ...
 
-class AsyncModuleCommands(CommandsProtocol, Generic[_StrType]):
+class AsyncModuleCommands(CommandsMixin, Generic[_StrType]):
     async def module_load(self, path: str, *args: str) -> Literal[True]: ...
     # NOTE: module_loadex misses the parsing callback in the implementation,
     # so the return type is a string. This seems to be an oversight in the
@@ -2954,17 +2956,17 @@ class AsyncModuleCommands(CommandsProtocol, Generic[_StrType]):
     async def command_getkeys(self, *args: str) -> list[str | _StrType]: ...
     async def command(self) -> dict[str, dict[str, Any]]: ...
 
-class ClusterCommands(CommandsProtocol):
+class ClusterCommands(CommandsMixin):
     def cluster(self, cluster_arg: str, *args: _Value, **kwargs: Any) -> Any: ...
     def readwrite(self, **kwargs: Any) -> Literal[True]: ...
     def readonly(self, **kwargs: Any) -> Literal[True]: ...
 
-class AsyncClusterCommands(CommandsProtocol):
+class AsyncClusterCommands(CommandsMixin):
     async def cluster(self, cluster_arg: str, *args: _Value, **kwargs: Any) -> Any: ...
     async def readwrite(self, **kwargs: Any) -> Literal[True]: ...
     async def readonly(self, **kwargs: Any) -> Literal[True]: ...
 
-class FunctionCommands(CommandsProtocol, Generic[_StrType]):
+class FunctionCommands(CommandsMixin, Generic[_StrType]):
     def function_load(self, code: str, replace: bool | None = False) -> _StrType: ...
     def function_delete(self, library: str) -> Literal[True]: ...
     def function_flush(self, mode: str = "SYNC") -> Literal[True]: ...
@@ -2980,7 +2982,7 @@ class FunctionCommands(CommandsProtocol, Generic[_StrType]):
     def function_kill(self) -> _StrType: ...
     def function_stats(self) -> list[Any] | dict[_StrType, Any]: ...
 
-class AsyncFunctionCommands(CommandsProtocol, Generic[_StrType]):
+class AsyncFunctionCommands(CommandsMixin, Generic[_StrType]):
     async def function_load(
         self, code: str, replace: bool | None = False
     ) -> _StrType: ...
@@ -3002,7 +3004,7 @@ class AsyncFunctionCommands(CommandsProtocol, Generic[_StrType]):
     async def function_kill(self) -> _StrType: ...
     async def function_stats(self) -> list[Any] | dict[_StrType, Any]: ...
 
-class GearsCommands(CommandsProtocol, Generic[_StrType]):
+class GearsCommands(CommandsMixin, Generic[_StrType]):
     def tfunction_load(
         self, lib_code: str, replace: bool = False, config: str | None = None
     ) -> _StrType: ...
@@ -3025,7 +3027,7 @@ class GearsCommands(CommandsProtocol, Generic[_StrType]):
         *args: _Value,
     ) -> Any: ...
 
-class AsyncGearsCommands(CommandsProtocol, Generic[_StrType]):
+class AsyncGearsCommands(CommandsMixin, Generic[_StrType]):
     async def tfunction_load(
         self, lib_code: str, replace: bool = False, config: str | None = None
     ) -> _StrType: ...

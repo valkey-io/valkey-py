@@ -1,7 +1,9 @@
 import warnings
 
+from valkey.typing import CommandsMixin
 
-class SentinelCommands:
+
+class SentinelCommands(CommandsMixin):
     """
     A class containing the commands specific to valkey sentinel. This class is
     to be used as a mixin.

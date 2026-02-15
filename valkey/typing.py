@@ -53,13 +53,24 @@ AnyEncodableT = TypeVar("AnyEncodableT", int, float, bytes, str, memoryview)
 ExceptionMappingT = Mapping[str, Union[Type[Exception], Mapping[str, Type[Exception]]]]
 
 
-class CommandsProtocol(Protocol):
+class SupportsExecuteCommand(Protocol):
+    def execute_command(self, *args, **options) -> Any: ...
+
+
+class CommandsProtocol(SupportsExecuteCommand, Protocol):
+    pass
+
+
+class CommandsMixin:
+    def execute_command(self, *args, **options) -> Any:
+        raise NotImplementedError
+
+
+class ConnectionPoolProtocol(Protocol):
     connection_pool: Union["AsyncConnectionPool", "ConnectionPool"]
 
-    def execute_command(self, *args, **options): ...
 
-
-class ClusterCommandsProtocol(CommandsProtocol, Protocol):
+class ClusterCommandsProtocol(SupportsExecuteCommand, Protocol):
     encoder: "Encoder"
 
-    def execute_command(self, *args, **options) -> Union[Any, Awaitable]: ...
+    def execute_command(self, *args, **options) -> Any: ...
