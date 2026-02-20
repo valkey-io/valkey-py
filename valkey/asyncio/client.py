@@ -226,6 +226,7 @@ class Valkey(
         ssl_min_version: Optional[ssl.TLSVersion] = None,
         ssl_ciphers: Optional[str] = None,
         max_connections: Optional[int] = None,
+        min_connections: int = 0,
         single_connection_client: bool = False,
         health_check_interval: int = 0,
         client_name: Optional[str] = None,
@@ -251,6 +252,13 @@ class Valkey(
         `retry_on_error` to a list of the error/s to retry on, then set
         `retry` to a valid `Retry` object.
         To retry on TimeoutError, `retry_on_timeout` can also be set to `True`.
+
+        Args:
+            max_connections: The maximum number of connections for the pool.
+            min_connections: The minimum number of connections to pre-create
+                when the pool is initialized. These connections are eagerly
+                connected when the client is first awaited or used.
+                Defaults to 0.
         """
         kwargs: Dict[str, Any]
         # auto_close_connection_pool only has an effect if connection_pool is
@@ -287,6 +295,7 @@ class Valkey(
                 "retry_on_error": retry_on_error,
                 "retry": copy.deepcopy(retry),
                 "max_connections": max_connections,
+                "min_connections": min_connections,
                 "health_check_interval": health_check_interval,
                 "client_name": client_name,
                 "lib_name": lib_name,
@@ -368,6 +377,8 @@ class Valkey(
         return self.initialize().__await__()
 
     async def initialize(self: _ValkeyT) -> _ValkeyT:
+        if hasattr(self.connection_pool, "initialize"):
+            await self.connection_pool.initialize()
         if self.single_connection_client:
             async with self._single_conn_lock:
                 if self.connection is None:

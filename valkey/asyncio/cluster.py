@@ -174,6 +174,11 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
           maximum number of connections are already created, a
           :class:`~.MaxConnectionsError` is raised. This error may be retried as defined
           by :attr:`connection_error_retry_attempts`
+    :param min_connections:
+        | Minimum number of connections per node to pre-create when the cluster is
+          initialized. These connections are eagerly connected during cluster setup,
+          reducing latency on the first requests. Must be less than or equal to
+          ``max_connections``. Defaults to 0.
     :param address_remap:
         | An optional callable which, when provided with an internal network
           address of a node, e.g. a `(host, port)` tuple, will return the address
@@ -255,6 +260,7 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
         cluster_error_retry_attempts: int = 3,
         connection_error_retry_attempts: int = 3,
         max_connections: int = 2**31,
+        min_connections: int = 0,
         # Client related kwargs
         db: Union[str, int] = 0,
         path: Optional[str] = None,
@@ -317,6 +323,7 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
 
         kwargs: Dict[str, Any] = {
             "max_connections": max_connections,
+            "min_connections": min_connections,
             "connection_class": Connection,
             "parser_class": ClusterParser,
             # Client related kwargs
@@ -979,6 +986,7 @@ class ClusterNode:
         "connection_kwargs",
         "host",
         "max_connections",
+        "min_connections",
         "name",
         "port",
         "response_callbacks",
@@ -992,11 +1000,17 @@ class ClusterNode:
         server_type: Optional[str] = None,
         *,
         max_connections: int = 2**31,
+        min_connections: int = 0,
         connection_class: Type[Connection] = Connection,
         **connection_kwargs: Any,
     ) -> None:
         if host == "localhost":
             host = socket.gethostbyname(host)
+
+        if min_connections > max_connections:
+            raise ValkeyClusterException(
+                '"min_connections" must be less than or equal to "max_connections"'
+            )
 
         connection_kwargs["host"] = host
         connection_kwargs["port"] = port
@@ -1006,12 +1020,27 @@ class ClusterNode:
         self.server_type = server_type
 
         self.max_connections = max_connections
+        self.min_connections = min_connections
         self.connection_class = connection_class
         self.connection_kwargs = connection_kwargs
         self.response_callbacks = connection_kwargs.pop("response_callbacks", {})
 
         self._connections: List[Connection] = []
         self._free: Deque[Connection] = collections.deque(maxlen=self.max_connections)
+
+        # Pre-create min_connections connection objects
+        for _ in range(self.min_connections):
+            connection = self.connection_class(**self.connection_kwargs)
+            self._connections.append(connection)
+            self._free.append(connection)
+
+    async def initialize(self) -> None:
+        """Connect all pre-created connections from min_connections."""
+        if not self._connections:
+            return
+        await asyncio.gather(
+            *(connection.connect() for connection in self._connections)
+        )
 
     def __repr__(self) -> str:
         return (
@@ -1414,6 +1443,9 @@ class NodesManager:
         self.default_node = self.get_nodes_by_server_type(PRIMARY)[0]
         # If initialize was called after a MovedError, clear it
         self._moved_exception = None
+
+        # Eagerly connect min_connections for each node
+        await asyncio.gather(*(node.initialize() for node in self.nodes_cache.values()))
 
     async def aclose(self, attr: str = "nodes_cache") -> None:
         self.default_node = None

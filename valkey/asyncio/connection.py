@@ -984,6 +984,16 @@ class ConnectionPool:
 
     Any additional keyword arguments are passed to the constructor of
     ``connection_class``.
+
+    Args:
+        connection_class: The class to use for creating connections.
+            Defaults to :py:class:`~valkey.asyncio.connection.Connection`.
+        max_connections: The maximum number of connections to create.
+            If not set, there is no limit.
+        min_connections: The minimum number of connections to pre-create
+            when the pool is initialized. Call :meth:`initialize` to eagerly
+            connect them, or they will be connected lazily on first use.
+            Must be less than or equal to ``max_connections``. Defaults to 0.
     """
 
     @classmethod
@@ -1036,19 +1046,42 @@ class ConnectionPool:
         self,
         connection_class: Type[AbstractConnection] = Connection,
         max_connections: Optional[int] = None,
+        min_connections: int = 0,
         **connection_kwargs,
     ):
         max_connections = max_connections or 2**31
         if not isinstance(max_connections, int) or max_connections < 0:
             raise ValueError('"max_connections" must be a positive integer')
+        if not isinstance(min_connections, int) or min_connections < 0:
+            raise ValueError('"min_connections" must be a non-negative integer')
+        if min_connections > max_connections:
+            raise ValueError(
+                '"min_connections" must be less than or equal to "max_connections"'
+            )
 
         self.connection_class = connection_class
         self.connection_kwargs = connection_kwargs
         self.max_connections = max_connections
+        self.min_connections = min_connections
 
         self._available_connections: List[AbstractConnection] = []
         self._in_use_connections: Set[AbstractConnection] = set()
         self.encoder_class = self.connection_kwargs.get("encoder_class", Encoder)
+
+        self._initialized = False
+
+        # Pre-create min_connections connection objects (connected lazily,
+        # or call initialize() to connect them eagerly)
+        for _ in range(self.min_connections):
+            self._available_connections.append(self.make_connection())
+
+    async def initialize(self):
+        """Connect all pre-created connections from min_connections."""
+        if self._initialized:
+            return
+        for connection in self._available_connections:
+            await connection.connect()
+        self._initialized = True
 
     def __repr__(self):
         return (
@@ -1059,6 +1092,11 @@ class ConnectionPool:
     def reset(self):
         self._available_connections = []
         self._in_use_connections = weakref.WeakSet()
+        self._initialized = False
+
+        # Pre-create min_connections connection objects
+        for _ in range(self.min_connections):
+            self._available_connections.append(self.make_connection())
 
     def can_get_connection(self) -> bool:
         """Return True if a connection can be retrieved from the pool."""
