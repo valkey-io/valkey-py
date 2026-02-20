@@ -468,6 +468,24 @@ class TestValkeyClusterObj:
 
         await rc.aclose()
 
+    async def test_min_connections(
+        self, create_valkey: Callable[..., ValkeyCluster]
+    ) -> None:
+        rc = await create_valkey(cls=ValkeyCluster, min_connections=5)
+        for node in rc.get_nodes():
+            assert node.min_connections == 5
+            assert len(node._connections) == 5
+            assert len(node._free) == 5
+        await rc.aclose()
+
+    async def test_min_connections_greater_than_max(
+        self, create_valkey: Callable[..., ValkeyCluster]
+    ) -> None:
+        with pytest.raises(ValkeyClusterException):
+            await create_valkey(
+                cls=ValkeyCluster, min_connections=20, max_connections=10
+            )
+
     async def test_execute_command_errors(self, r: ValkeyCluster) -> None:
         """
         Test that if no key is provided then exception should be raised.

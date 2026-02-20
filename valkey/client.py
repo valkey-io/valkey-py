@@ -204,6 +204,7 @@ class Valkey(ValkeyModuleCommands, CoreCommands, SentinelCommands):
         ssl_min_version=None,
         ssl_ciphers=None,
         max_connections=None,
+        min_connections=0,
         single_connection_client=False,
         health_check_interval=0,
         client_name=None,
@@ -231,6 +232,11 @@ class Valkey(ValkeyModuleCommands, CoreCommands, SentinelCommands):
 
         Args:
 
+        max_connections:
+            The maximum number of connections for the pool.
+        min_connections:
+            The minimum number of connections to pre-create and connect
+            when the pool is initialized. Defaults to 0.
         single_connection_client:
             if `True`, connection pool is not used. In that case `Valkey`
             instance use is not thread safe.
@@ -265,6 +271,7 @@ class Valkey(ValkeyModuleCommands, CoreCommands, SentinelCommands):
                 "retry_on_error": retry_on_error,
                 "retry": copy.deepcopy(retry),
                 "max_connections": max_connections,
+                "min_connections": min_connections,
                 "health_check_interval": health_check_interval,
                 "client_name": client_name,
                 "lib_name": lib_name,
