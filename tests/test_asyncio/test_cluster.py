@@ -319,6 +319,20 @@ class TestValkeyClusterObj:
             assert called == 1
         await cluster.aclose()
 
+    async def test_commands_fail_after_aclose(self) -> None:
+        cluster = await get_mocked_valkey_client(host=default_host, port=default_port)
+        await cluster.aclose()
+
+        with pytest.raises(ValkeyClusterException, match="ValkeyCluster is closed"):
+            await cluster.get("a")
+
+    async def test_initialize_fails_after_aclose(self) -> None:
+        cluster = await get_mocked_valkey_client(host=default_host, port=default_port)
+        await cluster.aclose()
+
+        with pytest.raises(ValkeyClusterException, match="ValkeyCluster is closed"):
+            await cluster.initialize()
+
     async def test_startup_nodes(self) -> None:
         """
         Test that it is possible to use startup_nodes
