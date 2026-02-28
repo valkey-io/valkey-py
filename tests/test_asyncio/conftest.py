@@ -78,7 +78,7 @@ async def create_valkey(request):
                 await client.aclose()
                 await client.connection_pool.disconnect()
             else:
-                if flushdb:
+                if flushdb and not getattr(client, "_closed", False):
                     try:
                         await client.flushdb(target_nodes="primaries")
                     except valkey.ConnectionError:
