@@ -39,12 +39,12 @@ $ pip install "valkey[libvalkey]"
 ### Basic Example
 
 ``` python
->>> import valkey
->>> r = valkey.Valkey(host='localhost', port=6379, db=0)
->>> r.set('foo', 'bar')
-True
->>> r.get('foo')
-b'bar'
+import valkey
+r = valkey.Valkey(host='localhost', port=6379, db=0)
+r.set('foo', 'bar')
+# True
+r.get('foo')
+# b'bar'
 ```
 
 The above code connects to localhost on port 6379, sets a value in Redis, and retrieves it. All responses are returned as bytes in Python, to receive decoded strings, set *decode_responses=True*.  For this, and more connection options, see [these examples](https://valkey-py.readthedocs.io/en/latest/examples.html).
@@ -54,20 +54,20 @@ The above code connects to localhost on port 6379, sets a value in Redis, and re
 You are encouraged to use the new class names, but to allow for a smooth transition alias are available:
 
 ``` python
->>> import valkey as redis
->>> r = redis.Redis(host='localhost', port=6379, db=0)
->>> r.set('foo', 'bar')
-True
->>> r.get('foo')
-b'bar'
+import valkey as redis
+r = redis.Redis(host='localhost', port=6379, db=0)
+r.set('foo', 'bar')
+# True
+r.get('foo')
+# b'bar'
 ```
 
 #### RESP3 Support
 To enable support for RESP3 change your connection object to include *protocol=3*
 
 ``` python
->>> import valkey
->>> r = valkey.Valkey(host='localhost', port=6379, db=0, protocol=3)
+import valkey
+r = valkey.Valkey(host='localhost', port=6379, db=0, protocol=3)
 ```
 
 ### Connection Pools
@@ -75,8 +75,8 @@ To enable support for RESP3 change your connection object to include *protocol=3
 By default, valkey-py uses a connection pool to manage connections. Each instance of a Valkey class receives its own connection pool. You can however define your own [valkey.ConnectionPool](https://valkey-py.readthedocs.io/en/latest/connections.html#connection-pools).
 
 ``` python
->>> pool = valkey.ConnectionPool(host='localhost', port=6379, db=0)
->>> r = valkey.Valkey(connection_pool=pool)
+pool = valkey.ConnectionPool(host='localhost', port=6379, db=0)
+r = valkey.Valkey(connection_pool=pool)
 ```
 
 Alternatively, you might want to look at [Async connections](https://valkey-py.readthedocs.io/en/latest/examples/asyncio_examples.html), or [Cluster connections](https://valkey-py.readthedocs.io/en/latest/connections.html#cluster-client), or even [Async Cluster connections](https://valkey-py.readthedocs.io/en/latest/connections.html#async-cluster-client).
@@ -117,12 +117,12 @@ The following is a basic example of a [Valkey pipeline](https://valkey.io/topics
 
 
 ``` python
->>> pipe = r.pipeline()
->>> pipe.set('foo', 5)
->>> pipe.set('bar', 18.5)
->>> pipe.set('blee', "hello world!")
->>> pipe.execute()
-[True, True, True]
+pipe = r.pipeline()
+pipe.set('foo', 5)
+pipe.set('bar', 18.5)
+pipe.set('blee', "hello world!")
+pipe.execute()
+# [True, True, True]
 ```
 
 ### PubSub
@@ -130,11 +130,11 @@ The following is a basic example of a [Valkey pipeline](https://valkey.io/topics
 The following example shows how to utilize [Valkey Pub/Sub](https://valkey.io/topics/pubsub/) to subscribe to specific channels.
 
 ``` python
->>> r = valkey.Valkey(...)
->>> p = r.pubsub()
->>> p.subscribe('my-first-channel', 'my-second-channel', ...)
->>> p.get_message()
-{'pattern': None, 'type': 'subscribe', 'channel': b'my-second-channel', 'data': 1}
+r = valkey.Valkey(...)
+p = r.pubsub()
+p.subscribe('my-first-channel', 'my-second-channel', ...)
+p.get_message()
+# {'pattern': None, 'type': 'subscribe', 'channel': b'my-second-channel', 'data': 1}
 ```
 
 
