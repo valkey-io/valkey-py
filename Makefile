@@ -52,7 +52,7 @@ build-docs docs: .check-virtualenv
 
 linters: .check-virtualenv
 	flake8 tests valkey
-	black --target-version py37 --check --diff tests valkey
+	black --target-version py310 --check --diff docs tests valkey
 	isort --check-only --diff tests valkey
 	vulture valkey whitelist.py --min-confidence 80
 	flynt --fail-on-change --dry-run tests valkey
