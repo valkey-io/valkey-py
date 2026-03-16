@@ -225,6 +225,7 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
         return cls(**kwargs)
 
     __slots__ = (
+        "_closed",
         "_initialize",
         "_lock",
         "cluster_error_retry_attempts",
@@ -417,21 +418,24 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
         self.command_flags = self.__class__.COMMAND_FLAGS.copy()
         self.response_callbacks = kwargs["response_callbacks"]
         self.result_callbacks = self.__class__.RESULT_CALLBACKS.copy()
-        self.result_callbacks["CLUSTER SLOTS"] = (
-            lambda cmd, res, **kwargs: parse_cluster_slots(
-                list(res.values())[0], **kwargs
-            )
+        self.result_callbacks["CLUSTER SLOTS"] = lambda cmd, res, **kwargs: (
+            parse_cluster_slots(list(res.values())[0], **kwargs)
         )
 
+        self._closed = False
         self._initialize = True
         self._lock: Optional[asyncio.Lock] = None
 
     async def initialize(self) -> "ValkeyCluster":
         """Get all nodes from startup nodes & creates connections if not initialized."""
+        if self._closed:
+            raise ValkeyClusterException("ValkeyCluster is closed")
         if self._initialize:
             if not self._lock:
                 self._lock = asyncio.Lock()
             async with self._lock:
+                if self._closed:
+                    raise ValkeyClusterException("ValkeyCluster is closed")
                 if self._initialize:
                     try:
                         await self.nodes_manager.initialize()
@@ -445,8 +449,19 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
                         raise
         return self
 
+    async def _reset_for_reinitialize(self) -> None:
+        if not self._initialize:
+            if not self._lock:
+                self._lock = asyncio.Lock()
+            async with self._lock:
+                if not self._initialize:
+                    self._initialize = True
+                    await self.nodes_manager.aclose()
+                    await self.nodes_manager.aclose("startup_nodes")
+
     async def aclose(self) -> None:
         """Close all connections & client if initialized."""
+        self._closed = True
         if not self._initialize:
             if not self._lock:
                 self._lock = asyncio.Lock()
@@ -821,13 +836,13 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
                 self.nodes_manager.startup_nodes.pop(target_node.name, None)
                 # Hard force of reinitialize of the node/slots setup
                 # and try again with the new setup
-                await self.aclose()
+                await self._reset_for_reinitialize()
                 raise
             except ClusterDownError:
                 # ClusterDownError can occur during a failover and to get
                 # self-healed, we will try to reinitialize the cluster layout
                 # and retry executing the command
-                await self.aclose()
+                await self._reset_for_reinitialize()
                 await asyncio.sleep(0.25)
                 raise
             except MovedError as e:
@@ -844,7 +859,7 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
                     self.reinitialize_steps
                     and self.reinitialize_counter % self.reinitialize_steps == 0
                 ):
-                    await self.aclose()
+                    await self._reset_for_reinitialize()
                     # Reset the counter
                     self.reinitialize_counter = 0
                 else:
@@ -1196,9 +1211,7 @@ class NodesManager:
             return self.nodes_cache.get(node_name)
         else:
             raise DataError(
-                "get_node requires one of the following: "
-                "1. node name "
-                "2. host and port"
+                "get_node requires one of the following: 1. node name 2. host and port"
             )
 
     def set_nodes(
@@ -1374,7 +1387,7 @@ class NodesManager:
                             if len(disagreements) > 5:
                                 raise ValkeyClusterException(
                                     f"startup_nodes could not agree on a valid "
-                                    f'slots cache: {", ".join(disagreements)}'
+                                    f"slots cache: {', '.join(disagreements)}"
                                 )
 
             # Validate if all slots are covered or if we should try next startup node
@@ -1579,7 +1592,7 @@ class ClusterPipeline(
                     if type(e) in self.__class__.ERRORS_ALLOW_RETRY:
                         # Try again with the new cluster setup.
                         exception = e
-                        await self._client.aclose()
+                        await self._client._reset_for_reinitialize()
                         await asyncio.sleep(0.25)
                     else:
                         # All other errors should be raised.
