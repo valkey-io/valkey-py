@@ -188,5 +188,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
       - name: install from pip
+        env:
+          PIP_DISABLE_PIP_VERSION_CHECK: "1"
         run: |
           pip install --quiet git+${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git@${GITHUB_SHA}
