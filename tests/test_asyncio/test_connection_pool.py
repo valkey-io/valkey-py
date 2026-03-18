@@ -6,7 +6,7 @@ import pytest_asyncio
 import valkey.asyncio as valkey
 from tests.conftest import skip_if_server_version_lt
 from valkey._parsers.url_parser import to_bool
-from valkey.asyncio.connection import Connection
+from valkey.asyncio.connection import Connection, DefaultParser
 from valkey.utils import SSL_AVAILABLE
 
 from .compat import aclosing, mock
@@ -639,6 +639,14 @@ class TestConnection:
         """READONLY errors get turned into ReadOnlyError exceptions"""
         with pytest.raises(valkey.ReadOnlyError):
             await r.execute_command("DEBUG", "ERROR", "READONLY blah blah")
+
+    @skip_if_server_version_lt("2.8.8")
+    async def test_redirect_error(self, r):
+        """REDIRECT errors get turned into RedirectError exceptions"""
+        err = DefaultParser.parse_error("REDIRECT 2001:db8::10:6380")
+        assert isinstance(err, valkey.RedirectError)
+        assert err.host == "2001:db8::10"
+        assert err.port == 6380
 
     async def test_oom_error(self, r):
         """OOM errors get turned into OutOfMemoryError exceptions"""

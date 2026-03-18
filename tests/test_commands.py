@@ -765,6 +765,11 @@ class TestValkeyCommands:
         assert isinstance(r.client_getredir(), int)
         assert r.client_getredir() == -1
 
+    def test_client_capa(self, r):
+        r.execute_command = mock.MagicMock(return_value=True)
+        assert r.client_capa("redirect")
+        r.execute_command.assert_called_once_with("CLIENT CAPA", "redirect")
+
     @skip_if_server_version_lt("6.0.0")
     def test_hello_notI_implemented(self, r):
         with pytest.raises(NotImplementedError):
@@ -5130,6 +5135,48 @@ class TestValkeyCommands:
         r2 = valkey.Valkey(port=6380, decode_responses=False)
         res = r2.psync(r2.client_id(), 1)
         assert b"FULLRESYNC" in res
+
+    @pytest.mark.onlynoncluster
+    @pytest.mark.replica
+    @skip_if_server_version_lt("8.0.0")
+    def test_client_capa_redirect_on_replica(self, r):
+        key = "capa:redirect:sync"
+        value = "v1"
+        r.set(key, value)
+
+        replica = valkey.Valkey(
+            port=6380,
+            decode_responses=True,
+            client_capa_redirect=True,
+        )
+
+        info = replica.info("replication")
+        assert info["role"] in ("slave", "replica")
+        expected_host = info["master_host"]
+        expected_port = int(info["master_port"])
+
+        with pytest.raises(valkey.RedirectError) as exc_get:
+            replica.get(key)
+        assert exc_get.value.host == expected_host
+        assert exc_get.value.port == expected_port
+        assert exc_get.value.node_addr == (expected_host, expected_port)
+
+        with pytest.raises(valkey.RedirectError) as exc_set:
+            replica.set(key, "v2")
+        assert exc_set.value.host == expected_host
+        assert exc_set.value.port == expected_port
+        assert exc_set.value.node_addr == (expected_host, expected_port)
+
+        assert replica.readonly() is True
+        assert replica.get(key) == value
+
+    @pytest.mark.onlynoncluster
+    @pytest.mark.replica
+    @skip_if_server_version_lt("8.0.0")
+    def test_client_capa_redirect_opt_in_on_replica(self):
+        replica = valkey.Valkey(port=6380, decode_responses=True)
+        with pytest.raises(valkey.ReadOnlyError):
+            replica.set("capa:redirect:sync:default", "v")
 
     @pytest.mark.onlynoncluster
     def test_interrupted_command(self, r: valkey.Valkey):

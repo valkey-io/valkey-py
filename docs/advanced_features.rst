@@ -23,6 +23,55 @@ a separate connection pool) for each database.
 
 It is not safe to pass PubSub or Pipeline objects between threads.
 
+Replica redirect capability
+---------------------------
+
+Valkey 8.0 adds ``CLIENT CAPA redirect`` for standalone replica connections.
+When enabled, commands sent to a replica return a redirect response that points
+to the primary. valkey-py exposes this as the opt-in
+``client_capa_redirect`` argument and raises ``RedirectError`` when the server
+responds with ``-REDIRECT``.
+
+This is useful when an application wants explicit redirect information instead
+of relying on the replica's default behavior.
+
+.. code:: python
+
+   >>> import valkey
+   >>> primary = valkey.Valkey(host='localhost', port=6379, decode_responses=True)
+   >>> replica = valkey.Valkey(
+   ...     host='localhost',
+   ...     port=6380,
+   ...     decode_responses=True,
+   ...     client_capa_redirect=True,
+   ... )
+   >>> primary.set('example:key', 'value')
+   True
+   >>> try:
+   ...     replica.get('example:key')
+   ... except valkey.RedirectError as exc:
+   ...     print(exc.host, exc.port)
+   ...     print(exc.node_addr)
+   127.0.0.1 6379
+   ('127.0.0.1', 6379)
+
+On the same connection, ``READONLY`` restores the ability to run read commands
+against the replica:
+
+.. code:: python
+
+   >>> replica.readonly()
+   True
+   >>> replica.get('example:key')
+   'value'
+
+Write commands still redirect after ``READONLY`` because the connection remains
+attached to a replica.
+
+The redirect target can be a hostname, IPv4 address, or IPv6 address. Catching
+``RedirectError`` and using its ``host``, ``port``, or ``node_addr`` attributes
+is more robust than parsing the error message manually.
+
 Pipelines
 ---------
 

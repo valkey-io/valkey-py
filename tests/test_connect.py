@@ -18,7 +18,10 @@ _CLIENT_NAME = "test-suite-client"
 _CMD_SEP = b"\r\n"
 _SUCCESS_RESP = b"+OK" + _CMD_SEP
 _ERROR_RESP = b"-ERR" + _CMD_SEP
-_SUPPORTED_CMDS = {f"CLIENT SETNAME {_CLIENT_NAME}": _SUCCESS_RESP}
+_SUPPORTED_CMDS = {
+    f"CLIENT SETNAME {_CLIENT_NAME}": _SUCCESS_RESP,
+    "CLIENT CAPA redirect": _SUCCESS_RESP,
+}
 
 
 @pytest.fixture
@@ -36,6 +39,18 @@ def uds_address(tmpdir):
 def test_tcp_connect(tcp_address):
     host, port = tcp_address
     conn = Connection(host=host, port=port, client_name=_CLIENT_NAME, socket_timeout=10)
+    _assert_connect(conn, tcp_address)
+
+
+def test_tcp_connect_with_client_capa_redirect(tcp_address):
+    host, port = tcp_address
+    conn = Connection(
+        host=host,
+        port=port,
+        client_name=_CLIENT_NAME,
+        client_capa_redirect=True,
+        socket_timeout=10,
+    )
     _assert_connect(conn, tcp_address)
 
 
