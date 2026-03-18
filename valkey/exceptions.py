@@ -69,6 +69,14 @@ class ReadOnlyError(ResponseError):
     pass
 
 
+class RedirectError(ResponseError):
+    def __init__(self, resp):
+        self.args = (resp,)
+        self.message = resp
+        host, port = resp.rsplit(":", 1)
+        self.node_addr = self.host, self.port = host, int(port)
+
+
 class NoPermissionError(ResponseError):
     pass
 

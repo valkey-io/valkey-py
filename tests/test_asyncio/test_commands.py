@@ -10,6 +10,7 @@ import re
 import sys
 from string import ascii_letters
 from typing import Any, Dict, List
+from unittest import mock
 
 import pytest
 import pytest_asyncio
@@ -480,6 +481,58 @@ class TestValkeyCommands:
         clients = await r.client_list()
         # we don't know which client ours will be
         assert "valkey_py_test" in [c["name"] for c in clients]
+
+    async def test_client_capa(self, r: valkey.Valkey):
+        r.execute_command = mock.AsyncMock(return_value=True)
+        assert await r.client_capa("redirect")
+        r.execute_command.assert_awaited_once_with("CLIENT CAPA", "redirect")
+
+    @pytest.mark.onlynoncluster
+    @pytest.mark.replica
+    @skip_if_server_version_lt("8.0.0")
+    async def test_client_capa_redirect_on_replica(self, r: valkey.Valkey):
+        key = "capa:redirect:async"
+        value = "v1"
+        await r.set(key, value)
+
+        replica = valkey.asyncio.Valkey(
+            port=6380,
+            decode_responses=True,
+            client_capa_redirect=True,
+        )
+        try:
+            info = await replica.info("replication")
+            assert info["role"] in ("slave", "replica")
+            expected_host = info["master_host"]
+            expected_port = int(info["master_port"])
+
+            with pytest.raises(valkey.RedirectError) as exc_get:
+                await replica.get(key)
+            assert exc_get.value.host == expected_host
+            assert exc_get.value.port == expected_port
+            assert exc_get.value.node_addr == (expected_host, expected_port)
+
+            with pytest.raises(valkey.RedirectError) as exc_set:
+                await replica.set(key, "v2")
+            assert exc_set.value.host == expected_host
+            assert exc_set.value.port == expected_port
+            assert exc_set.value.node_addr == (expected_host, expected_port)
+
+            assert await replica.readonly() is True
+            assert await replica.get(key) == value
+        finally:
+            await replica.aclose()
+
+    @pytest.mark.onlynoncluster
+    @pytest.mark.replica
+    @skip_if_server_version_lt("8.0.0")
+    async def test_client_capa_redirect_opt_in_on_replica(self):
+        replica = valkey.asyncio.Valkey(port=6380, decode_responses=True)
+        try:
+            with pytest.raises(valkey.ReadOnlyError):
+                await replica.set("capa:redirect:async:default", "v")
+        finally:
+            await replica.aclose()
 
     @skip_if_server_version_lt("2.9.50")
     @pytest.mark.onlynoncluster
