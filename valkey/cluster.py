@@ -146,6 +146,7 @@ VALKEY_ALLOWED_KEYS = (
     "lib_name",
     "lib_version",
     "max_connections",
+    "min_connections",
     "nodes_flag",
     "valkey_connect_func",
     "password",
@@ -562,7 +563,8 @@ class ValkeyCluster(AbstractValkeyCluster, ValkeyClusterCommands):
 
          :**kwargs:
              Extra arguments that will be sent into Valkey instance when created
-             (See Official valkey-py doc for supported kwargs)
+             (See Official valkey-py doc for supported kwargs
+             e.g. ``max_connections``, ``min_connections``)
              Some kwargs are not supported and will raise a
              ValkeyClusterException:
                  - db (Valkey do not support database SELECT in cluster mode)

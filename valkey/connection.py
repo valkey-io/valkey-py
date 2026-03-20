@@ -966,6 +966,16 @@ class ConnectionPool:
 
     Any additional keyword arguments are passed to the constructor of
     ``connection_class``.
+
+    Args:
+        connection_class: The class to use for creating connections.
+            Defaults to :py:class:`~valkey.Connection`.
+        max_connections: The maximum number of connections to create.
+            If not set, there is no limit.
+        min_connections: The minimum number of connections to pre-create
+            and connect when the pool is initialized. These connections are
+            immediately available, reducing latency on the first requests.
+            Must be less than or equal to ``max_connections``. Defaults to 0.
     """
 
     @classmethod
@@ -1019,15 +1029,23 @@ class ConnectionPool:
         self,
         connection_class=Connection,
         max_connections: Optional[int] = None,
+        min_connections: int = 0,
         **connection_kwargs,
     ):
         max_connections = max_connections or 2**31
         if not isinstance(max_connections, int) or max_connections < 0:
             raise ValueError('"max_connections" must be a positive integer')
+        if not isinstance(min_connections, int) or min_connections < 0:
+            raise ValueError('"min_connections" must be a non-negative integer')
+        if min_connections > max_connections:
+            raise ValueError(
+                '"min_connections" must be less than or equal to "max_connections"'
+            )
 
         self.connection_class = connection_class
         self.connection_kwargs = connection_kwargs
         self.max_connections = max_connections
+        self.min_connections = min_connections
 
         # a lock to protect the critical section in _checkpid().
         # this lock is acquired when the process id changes, such as
@@ -1051,6 +1069,12 @@ class ConnectionPool:
         self._created_connections = 0
         self._available_connections: list[Connection] = []
         self._in_use_connections: set[Connection] = set()
+
+        # Pre-create and connect min_connections connections
+        for _ in range(self.min_connections):
+            connection = self.make_connection()
+            connection.connect()
+            self._available_connections.append(connection)
 
         # this must be the last operation in this method. while reset() is
         # called when holding _fork_lock, other threads in this process
@@ -1292,15 +1316,22 @@ class BlockingConnectionPool(ConnectionPool):
     def reset(self):
         # Create and fill up a thread safe queue with ``None`` values.
         self.pool = self.queue_class(self.max_connections)
-        while True:
-            try:
-                self.pool.put_nowait(None)
-            except Full:
-                break
 
         # Keep a list of actual connection instances so that we can
         # disconnect them later.
         self._connections = []
+
+        # Fill slots beyond min_connections with None placeholders first,
+        # so that pre-created connections end up on top of the LIFO queue
+        # and are used first.
+        for _ in range(self.max_connections - self.min_connections):
+            self.pool.put_nowait(None)
+
+        # Pre-create and connect min_connections connections
+        for _ in range(self.min_connections):
+            connection = self.make_connection()
+            connection.connect()
+            self.pool.put_nowait(connection)
 
         # this must be the last operation in this method. while reset() is
         # called when holding _fork_lock, other threads in this process
