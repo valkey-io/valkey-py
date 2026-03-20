@@ -735,8 +735,9 @@ class ManagementCommands(CommandsProtocol):
 
         :param timeout: milliseconds to pause clients
         :param all: If true (default) all client commands are blocked.
-        otherwise, clients are only blocked if they attempt to execute
-        a write command.
+            otherwise, clients are only blocked if they attempt to execute
+            a write command.
+
         For the WRITE mode, some commands have special behavior:
         EVAL/EVALSHA: Will block client for all scripts.
         PUBLISH: Will block client.
@@ -6084,9 +6085,10 @@ class FunctionCommands:
     ) -> Union[Awaitable[List], List]:
         """
         Return information about the functions and libraries.
-        :param library: pecify a pattern for matching library names
+
+        :param library: specify a pattern for matching library names
         :param withcode: cause the server to include the libraries source
-         implementation in the reply
+            implementation in the reply
         """
         args = ["LIBRARYNAME", library]
         if withcode:
