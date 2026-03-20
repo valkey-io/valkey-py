@@ -65,6 +65,8 @@ docs = [
     'sphinx-autodoc-typehints',
     'furo',
     'pandoc',
+    # standard-imghdr is needed while sphinx is pinned to ancient versions.
+    'standard-imghdr',
 ]
 
 [project.optional-dependencies]
