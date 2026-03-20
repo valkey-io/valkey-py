@@ -1,5 +1,5 @@
 Valkey Commands
-##############
+###############
 
 Core Commands
 *************
@@ -22,7 +22,7 @@ Sentinel Commands
    :inherited-members:
 
 Valkey Cluster Commands
-**********************
+***********************
 
 The following `Valkey commands <https://valkey.io/commands>`_ are available within a `Valkey Cluster <https://valkey.io/topics/cluster-tutorial>`_.  Generally they can be used as functions on your valkey connection.
 

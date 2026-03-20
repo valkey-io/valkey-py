@@ -1,5 +1,5 @@
 Connecting to Valkey
-###################
+####################
 
 
 Generic Client
@@ -42,7 +42,7 @@ Cluster Client
 This client is used for connecting to a Valkey Cluster.
 
 ValkeyCluster
-============
+=============
 .. autoclass:: valkey.cluster.ValkeyCluster
     :members:
 
@@ -67,7 +67,7 @@ Async Cluster Client
 ********************
 
 ValkeyCluster (Async)
-====================
+=====================
 .. autoclass:: valkey.asyncio.cluster.ValkeyCluster
     :members:
     :member-order: bysource
