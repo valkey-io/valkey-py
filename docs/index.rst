@@ -58,7 +58,6 @@ Valkey Command Functions
    :maxdepth: 2
 
    commands
-   valkeymodules
 
 Module Documentation
 ********************
