@@ -17,9 +17,13 @@ class Lock:
     multiple clients play nicely together.
     """
 
-    lua_release = None
-    lua_extend = None
-    lua_reacquire = None
+    # This function is used to flag that the class `lua_*` functions are not set yet.
+    # Using a function, rather than `None`, prevents type annotation issues.
+    def __undefined(*_, **__) -> None: ...
+
+    lua_release = __undefined
+    lua_extend = __undefined
+    lua_reacquire = __undefined
 
     # KEYS[1] - lock name
     # ARGV[1] - token
@@ -147,11 +151,11 @@ class Lock:
     def register_scripts(self) -> None:
         cls = self.__class__
         client = self.valkey
-        if cls.lua_release is None:
+        if cls.lua_release is cls.__undefined:
             cls.lua_release = client.register_script(cls.LUA_RELEASE_SCRIPT)
-        if cls.lua_extend is None:
+        if cls.lua_extend is cls.__undefined:
             cls.lua_extend = client.register_script(cls.LUA_EXTEND_SCRIPT)
-        if cls.lua_reacquire is None:
+        if cls.lua_reacquire is cls.__undefined:
             cls.lua_reacquire = client.register_script(cls.LUA_REACQUIRE_SCRIPT)
 
     def __enter__(self) -> "Lock":
@@ -175,7 +179,7 @@ class Lock:
         sleep: Optional[Number] = None,
         blocking: Optional[bool] = None,
         blocking_timeout: Optional[Number] = None,
-        token: Optional[str] = None,
+        token: str | bytes | None = None,
     ):
         """
         Use Valkey to hold a shared, distributed lock named ``name``.
@@ -195,10 +199,10 @@ class Lock:
         if sleep is None:
             sleep = self.sleep
         if token is None:
-            token = uuid.uuid1().hex.encode()
+            encoded_token = uuid.uuid1().hex.encode()
         else:
             encoder = self.valkey.get_encoder()
-            token = encoder.encode(token)
+            encoded_token = encoder.encode(token)
         if blocking is None:
             blocking = self.blocking
         if blocking_timeout is None:
@@ -207,8 +211,8 @@ class Lock:
         if blocking_timeout is not None:
             stop_trying_at = mod_time.monotonic() + blocking_timeout
         while True:
-            if self.do_acquire(token):
-                self.local.token = token
+            if self.do_acquire(encoded_token):
+                self.local.token = encoded_token
                 return True
             if not blocking:
                 return False
@@ -217,7 +221,7 @@ class Lock:
                 return False
             mod_time.sleep(sleep)
 
-    def do_acquire(self, token: str) -> bool:
+    def do_acquire(self, token: bytes) -> bool:
         if self.timeout:
             # convert to milliseconds
             timeout = int(self.timeout * 1000)
@@ -312,6 +316,10 @@ class Lock:
         return self.do_reacquire()
 
     def do_reacquire(self) -> bool:
+        # `do_reacquire()` will only be called if `self.timeout` is not `None`.
+        # However, this `assert` is needed so that mypy understands the type.
+        assert self.timeout is not None
+
         timeout = int(self.timeout * 1000)
         if not bool(
             self.lua_reacquire(
