@@ -3213,6 +3213,37 @@ class TestClusterPipeline:
             with pytest.raises(ConnectionError):
                 pipe.get(key).get(key).execute(raise_on_error=True)
 
+    def test_timeout_error_get_connection_retried(self, r):
+        key = "foo"
+        r.set(key, "value")
+        orig_get_connection = valkey.cluster.get_connection
+        attempts = {"count": 0}
+
+        def raise_timeout_once(*args, **kwargs):
+            attempts["count"] += 1
+            if attempts["count"] == 1:
+                raise TimeoutError("error")
+            return orig_get_connection(*args, **kwargs)
+
+        with patch("valkey.cluster.get_connection", side_effect=raise_timeout_once):
+            with patch.object(
+                r.nodes_manager, "initialize", wraps=r.nodes_manager.initialize
+            ) as initialize:
+                assert r.pipeline().get(key).execute() == [b"value"]
+                assert attempts["count"] == 2
+                assert initialize.call_count == 1
+
+    def test_timeout_error_get_connection_raised(self, r):
+        key = "foo"
+
+        with patch("valkey.cluster.get_connection", side_effect=TimeoutError("error")):
+            with patch.object(
+                r.nodes_manager, "initialize", wraps=r.nodes_manager.initialize
+            ) as initialize:
+                with pytest.raises(TimeoutError):
+                    r.pipeline().get(key).execute()
+                assert initialize.call_count == r.cluster_error_retry_attempts + 1
+
     def test_asking_error(self, r):
         """
         Test redirection on ASK error

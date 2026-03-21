@@ -422,7 +422,8 @@ class AbstractValkeyCluster:
         list_keys_to_dict(["SCRIPT FLUSH"], lambda command, res: all(res.values())),
     )
 
-    ERRORS_ALLOW_RETRY = (ConnectionError, TimeoutError, ClusterDownError)
+    REINITIALIZE_ERRORS = (ConnectionError, TimeoutError, ClusterDownError)
+    ERRORS_ALLOW_RETRY = REINITIALIZE_ERRORS
 
     def replace_default_node(self, target_node: "ClusterNode" = None) -> None:
         """Replace the default cluster node.
@@ -1933,9 +1934,8 @@ class ClusterPipeline(ValkeyCluster):
     in cluster mode
     """
 
-    ERRORS_ALLOW_RETRY = (
-        ConnectionError,
-        TimeoutError,
+    REINITIALIZE_ERRORS = AbstractValkeyCluster.REINITIALIZE_ERRORS
+    ERRORS_ALLOW_RETRY = REINITIALIZE_ERRORS + (
         MovedError,
         AskError,
         TryAgainError,
@@ -2111,8 +2111,8 @@ class ClusterPipeline(ValkeyCluster):
                     raise_on_error=raise_on_error,
                     allow_redirections=allow_redirections,
                 )
-            except (ClusterDownError, ConnectionError) as e:
-                if retry_attempts > 0:
+            except Exception as e:
+                if retry_attempts > 0 and type(e) in self.__class__.REINITIALIZE_ERRORS:
                     # Try again with the new cluster setup. All other errors
                     # should be raised.
                     retry_attempts -= 1
@@ -2176,7 +2176,9 @@ class ClusterPipeline(ValkeyCluster):
                     valkey_node = self.get_valkey_connection(node)
                     try:
                         connection = get_connection(valkey_node, c.args)
-                    except ConnectionError:
+                    except Exception as e:
+                        if type(e) not in self.__class__.REINITIALIZE_ERRORS:
+                            raise
                         for n in nodes.values():
                             n.connection_pool.release(n.connection)
                         # Connection retries are being handled in the node's
@@ -2184,7 +2186,7 @@ class ClusterPipeline(ValkeyCluster):
                         self.nodes_manager.initialize()
                         if is_default_node:
                             self.replace_default_node()
-                        raise
+                        raise e
                     nodes[node_name] = NodeCommands(
                         valkey_node.parse_response,
                         valkey_node.connection_pool,
