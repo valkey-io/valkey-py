@@ -640,7 +640,6 @@ class TestConnection:
         with pytest.raises(valkey.ReadOnlyError):
             await r.execute_command("DEBUG", "ERROR", "READONLY blah blah")
 
-    @skip_if_server_version_lt("2.8.8")
     async def test_redirect_error(self, r):
         """REDIRECT errors get turned into RedirectError exceptions"""
         err = DefaultParser.parse_error("REDIRECT 2001:db8::10:6380")
