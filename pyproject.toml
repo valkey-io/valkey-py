@@ -56,6 +56,12 @@ dev = [
     'uvloop; implementation_name != "pypy"',
     'vulture>=2.3.0',
 ]
+type-check = [
+    'mypy',
+    'types-requests',
+    'cryptography',
+    'libvalkey',
+]
 docs = [
     'sphinx>=9.0,<10.0',
     'docutils',
@@ -101,3 +107,21 @@ markers = [
 ]
 asyncio_mode = "auto"
 timeout = 30
+
+[tool.mypy]
+packages = ["valkey"]
+sqlite_cache = true
+
+[[tool.mypy.overrides]]
+# The goal is to eliminate the `tool.mypy.overrides` section.
+# This will be accomplished by resolving type annotation issues
+# in the modules listed below.
+ignore_errors = true
+module = [
+    "valkey.client",
+    "valkey.cluster",
+    "valkey.connection",
+    "valkey.commands.*",
+    "valkey.asyncio.*",
+    "valkey._parsers.*",
+]

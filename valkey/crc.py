@@ -1,7 +1,5 @@
 from binascii import crc_hqx
 
-from valkey.typing import EncodedT
-
 # Valkey Cluster's key space is divided into 16384 slots.
 # For more information see: https://github.com/redis/redis/issues/2576
 VALKEY_CLUSTER_HASH_SLOTS = 16384
@@ -9,7 +7,7 @@ VALKEY_CLUSTER_HASH_SLOTS = 16384
 __all__ = ["key_slot", "VALKEY_CLUSTER_HASH_SLOTS"]
 
 
-def key_slot(key: EncodedT, bucket: int = VALKEY_CLUSTER_HASH_SLOTS) -> int:
+def key_slot(key: bytes, bucket: int = VALKEY_CLUSTER_HASH_SLOTS) -> int:
     """Calculate key slot for a given key.
     See Keys distribution model in https://redis.io/topics/cluster-spec
     :param key - bytes
