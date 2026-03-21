@@ -40,7 +40,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    'black',
+    'black[jupyter]',
     'cachetools',
     'flake8-isort',
     'flake8',
