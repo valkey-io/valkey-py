@@ -25,7 +25,7 @@ deployments. In valkey-py, this is exposed as the opt-in
 
 When enabled, commands sent to a standalone replica raise
 ``valkey.exceptions.RedirectError`` until ``READONLY`` is enabled for that
-connection. For a full walkthrough, see :doc:`advanced_features`.
+connection. For more details, see :doc:`advanced_features`.
 
 .. autoclass:: valkey.Valkey
    :members:
