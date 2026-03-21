@@ -7,7 +7,7 @@ valkey-py - Python Client for Valkey
 ====================================
 
 Getting Started
-****************
+***************
 
 `valkey-py <https://pypi.org/project/valkey>`_ requires a running Valkey server, and Python 3.10+. See the `Valkey
 quickstart <https://valkey.io/topics/quickstart>`_ for Valkey installation instructions.
@@ -16,7 +16,7 @@ valkey-py can be installed using pip via ``pip install valkey``.
 
 
 Quickly connecting to valkey
-***************************
+****************************
 
 There are two quick ways to connect to Valkey.
 
@@ -52,15 +52,16 @@ After that, you probably want to `run valkey commands <commands.html>`_.
    genindex
 
 Valkey Command Functions
-***********************
+************************
+
 .. toctree::
    :maxdepth: 2
 
    commands
-   valkeymodules
 
 Module Documentation
 ********************
+
 .. toctree::
    :maxdepth: 1
 
@@ -77,7 +78,7 @@ Module Documentation
    examples
 
 Contributing
-*************
+************
 
 - `How to contribute <https://github.com/valkey-io/valkey-py/blob/master/CONTRIBUTING.md>`_
 - `Issue Tracker <https://github.com/valkey-io/valkey-py/issues>`_
