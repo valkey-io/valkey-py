@@ -2697,6 +2697,8 @@ class TestNodesManager:
         else:
             assert startup_nodes == ["my@DNS.com:7000"]
 
+        await rc.aclose()
+
 
 class TestClusterPipeline:
     """Tests for the ClusterPipeline class."""
