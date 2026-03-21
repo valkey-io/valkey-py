@@ -107,7 +107,7 @@ You can use Uptrace to monitor valkey-py using this `GitHub example <https://git
 You can `install Uptrace <https://uptrace.dev/get/install.html>`_ by downloading a DEB/RPM package or a pre-compiled binary.
 
 Monitoring Valkey Server performance
------------------------------------
+------------------------------------
 
 In addition to monitoring valkey-py client, you can also monitor Valkey Server performance using OpenTelemetry Collector Agent.
 
