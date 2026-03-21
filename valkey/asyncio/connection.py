@@ -432,6 +432,14 @@ class AbstractConnection:
             await self.send_command("CLIENT", "SETINFO", "LIB-NAME", self.lib_name)
         if self.lib_version:
             await self.send_command("CLIENT", "SETINFO", "LIB-VER", self.lib_version)
+
+        if self.client_capa_redirect:
+            try:
+                await self.send_command("CLIENT", "CAPA", "redirect")
+                await self.read_response()
+            except ResponseError:
+                pass
+
         # if a database is specified, switch to it. Also pipeline this
         if self.db:
             await self.send_command("SELECT", self.db)
@@ -444,13 +452,6 @@ class AbstractConnection:
         # read responses from pipeline
         for _ in (sent for sent in (self.lib_name, self.lib_version) if sent):
             try:
-                await self.read_response()
-            except ResponseError:
-                pass
-
-        if self.client_capa_redirect:
-            try:
-                await self.send_command("CLIENT", "CAPA", "redirect")
                 await self.read_response()
             except ResponseError:
                 pass
