@@ -31,10 +31,18 @@ extensions = [
     "nbsphinx",
     "sphinx_gallery.load_style",
     "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.napoleon",
 ]
+
+# Allow cross-linking of types from the Valkey docs to the Python docs.
+# For example, functions with type annotations for `datetime.datetime`
+# will link to the Python docs.
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+}
 
 # Napoleon settings. We only accept Google-style docstrings.
 napoleon_google_docstring = True
