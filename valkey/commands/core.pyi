@@ -1986,11 +1986,86 @@ class SortedSetCommands(CommandsMixin, Generic[_StrType]):
         max: bool | None = False,
         count: int = 1,
     ) -> list[Any] | None: ...
+    @overload
     def zrange(
         self,
         name: _Key,
         start: int,
         end: int,
+        desc: bool = False,
+        withscores: Literal[False] = False,
+        score_cast_func: type | Callable = ...,
+        byscore: Literal[False] = False,
+        bylex: Literal[False] = False,
+        offset: int | None = None,
+        num: int | None = None,
+    ) -> list[_StrType]: ...
+    @overload
+    def zrange(
+        self,
+        name: _Key,
+        start: int,
+        end: int,
+        desc: bool = False,
+        *,
+        withscores: Literal[True],
+        score_cast_func: type | Callable = ...,
+        byscore: Literal[False] = False,
+        bylex: Literal[False] = False,
+        offset: int | None = None,
+        num: int | None = None,
+    ) -> list[_ZSetScorePairT]: ...
+    @overload
+    def zrange(
+        self,
+        name: _Key,
+        start: ZScoreBoundT,
+        end: ZScoreBoundT,
+        desc: bool = False,
+        withscores: Literal[False] = False,
+        score_cast_func: type | Callable = ...,
+        *,
+        byscore: Literal[True],
+        bylex: Literal[False] = False,
+        offset: int | None = None,
+        num: int | None = None,
+    ) -> list[_StrType]: ...
+    @overload
+    def zrange(
+        self,
+        name: _Key,
+        start: ZScoreBoundT,
+        end: ZScoreBoundT,
+        desc: bool = False,
+        *,
+        withscores: Literal[True],
+        score_cast_func: type | Callable = ...,
+        byscore: Literal[True],
+        bylex: Literal[False] = False,
+        offset: int | None = None,
+        num: int | None = None,
+    ) -> list[_ZSetScorePairT]: ...
+    @overload
+    def zrange(
+        self,
+        name: _Key,
+        start: _Value,
+        end: _Value,
+        desc: bool = False,
+        withscores: Literal[False] = False,
+        score_cast_func: type | Callable = ...,
+        byscore: Literal[False] = False,
+        *,
+        bylex: Literal[True],
+        offset: int | None = None,
+        num: int | None = None,
+    ) -> list[_StrType]: ...
+    @overload
+    def zrange(
+        self,
+        name: _Key,
+        start: _Value,
+        end: _Value,
         desc: bool = False,
         withscores: bool = False,
         score_cast_func: type | Callable = ...,
@@ -2030,8 +2105,8 @@ class SortedSetCommands(CommandsMixin, Generic[_StrType]):
         self,
         dest: _Key,
         name: _Key,
-        start: int,
-        end: int,
+        start: _Value,
+        end: _Value,
         byscore: bool = False,
         bylex: bool = False,
         desc: bool = False,
@@ -2271,11 +2346,86 @@ class AsyncSortedSetCommands(CommandsMixin, Generic[_StrType]):
         max: bool | None = False,
         count: int = 1,
     ) -> list[Any] | None: ...
+    @overload
     async def zrange(
         self,
         name: _Key,
         start: int,
         end: int,
+        desc: bool = False,
+        withscores: Literal[False] = False,
+        score_cast_func: type | Callable = ...,
+        byscore: Literal[False] = False,
+        bylex: Literal[False] = False,
+        offset: int | None = None,
+        num: int | None = None,
+    ) -> list[_StrType]: ...
+    @overload
+    async def zrange(
+        self,
+        name: _Key,
+        start: int,
+        end: int,
+        desc: bool = False,
+        *,
+        withscores: Literal[True],
+        score_cast_func: type | Callable = ...,
+        byscore: Literal[False] = False,
+        bylex: Literal[False] = False,
+        offset: int | None = None,
+        num: int | None = None,
+    ) -> list[_ZSetScorePairT]: ...
+    @overload
+    async def zrange(
+        self,
+        name: _Key,
+        start: ZScoreBoundT,
+        end: ZScoreBoundT,
+        desc: bool = False,
+        withscores: Literal[False] = False,
+        score_cast_func: type | Callable = ...,
+        *,
+        byscore: Literal[True],
+        bylex: Literal[False] = False,
+        offset: int | None = None,
+        num: int | None = None,
+    ) -> list[_StrType]: ...
+    @overload
+    async def zrange(
+        self,
+        name: _Key,
+        start: ZScoreBoundT,
+        end: ZScoreBoundT,
+        desc: bool = False,
+        *,
+        withscores: Literal[True],
+        score_cast_func: type | Callable = ...,
+        byscore: Literal[True],
+        bylex: Literal[False] = False,
+        offset: int | None = None,
+        num: int | None = None,
+    ) -> list[_ZSetScorePairT]: ...
+    @overload
+    async def zrange(
+        self,
+        name: _Key,
+        start: _Value,
+        end: _Value,
+        desc: bool = False,
+        withscores: Literal[False] = False,
+        score_cast_func: type | Callable = ...,
+        byscore: Literal[False] = False,
+        *,
+        bylex: Literal[True],
+        offset: int | None = None,
+        num: int | None = None,
+    ) -> list[_StrType]: ...
+    @overload
+    async def zrange(
+        self,
+        name: _Key,
+        start: _Value,
+        end: _Value,
         desc: bool = False,
         withscores: bool = False,
         score_cast_func: type | Callable = ...,
@@ -2315,8 +2465,8 @@ class AsyncSortedSetCommands(CommandsMixin, Generic[_StrType]):
         self,
         dest: _Key,
         name: _Key,
-        start: int,
-        end: int,
+        start: _Value,
+        end: _Value,
         byscore: bool = False,
         bylex: bool = False,
         desc: bool = False,

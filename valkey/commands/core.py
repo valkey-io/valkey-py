@@ -4432,8 +4432,8 @@ class SortedSetCommands(CommandsMixin):
         command,
         dest: Union[KeyT, None],
         name: KeyT,
-        start: int,
-        end: int,
+        start: EncodableT,
+        end: EncodableT,
         desc: bool = False,
         byscore: bool = False,
         bylex: bool = False,
@@ -4471,8 +4471,8 @@ class SortedSetCommands(CommandsMixin):
     def zrange(
         self,
         name: KeyT,
-        start: int,
-        end: int,
+        start: EncodableT,
+        end: EncodableT,
         desc: bool = False,
         withscores: bool = False,
         score_cast_func: Union[type, Callable] = float,
@@ -4504,8 +4504,7 @@ class SortedSetCommands(CommandsMixin):
         Valid ``start`` and ``end`` must start with ( or [, in order to specify
         whether the range interval is exclusive or inclusive, respectively.
 
-        ``offset`` and ``num`` are specified, then return a slice of the range.
-        Can't be provided when using ``bylex``.
+        If ``offset`` and ``num`` are specified, return a slice of the range.
 
         For more information see https://valkey.io/commands/zrange
         """
@@ -4561,8 +4560,8 @@ class SortedSetCommands(CommandsMixin):
         self,
         dest: KeyT,
         name: KeyT,
-        start: int,
-        end: int,
+        start: EncodableT,
+        end: EncodableT,
         byscore: bool = False,
         bylex: bool = False,
         desc: bool = False,
@@ -4587,8 +4586,7 @@ class SortedSetCommands(CommandsMixin):
         ``desc`` a boolean indicating whether to sort the results in reversed
         order.
 
-        ``offset`` and ``num`` are specified, then return a slice of the range.
-        Can't be provided when using ``bylex``.
+        If ``offset`` and ``num`` are specified, return a slice of the range.
 
         For more information see https://valkey.io/commands/zrangestore
         """
