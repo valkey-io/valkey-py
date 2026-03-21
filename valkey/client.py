@@ -214,6 +214,7 @@ class Valkey(ValkeyModuleCommands, CoreCommands, SentinelCommands):
         valkey_connect_func=None,
         credential_provider: Optional[CredentialProvider] = None,
         protocol: Optional[int] = 2,
+        client_capa_redirect: bool = False,
         cache_enabled: bool = False,
         client_cache: Optional[AbstractCache] = None,
         cache_max_size: int = 10000,
@@ -272,6 +273,7 @@ class Valkey(ValkeyModuleCommands, CoreCommands, SentinelCommands):
                 "valkey_connect_func": valkey_connect_func,
                 "credential_provider": credential_provider,
                 "protocol": protocol,
+                "client_capa_redirect": client_capa_redirect,
                 "cache_enabled": cache_enabled,
                 "client_cache": client_cache,
                 "cache_max_size": cache_max_size,
@@ -1485,8 +1487,7 @@ class Pipeline(Valkey):
     def annotate_exception(self, exception, number, command):
         cmd = " ".join(map(safe_str, command))
         msg = (
-            f"Command # {number} ({cmd}) of pipeline "
-            f"caused error: {exception.args[0]}"
+            f"Command # {number} ({cmd}) of pipeline caused error: {exception.args[0]}"
         )
         exception.args = (msg,) + exception.args[1:]
 
@@ -1535,7 +1536,6 @@ class Pipeline(Valkey):
             conn.retry_on_error is None
             or isinstance(error, tuple(conn.retry_on_error)) is False
         ):
-
             self.reset()
             raise error
 

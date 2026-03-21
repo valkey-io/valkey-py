@@ -7,6 +7,26 @@ Generic Client
 
 This is the client used to connect directly to a standard Valkey node.
 
+Standalone replica redirect capability
+=====================================
+
+Valkey 8.0 adds ``CLIENT CAPA redirect`` for standalone primary/replica
+deployments. In valkey-py, this is exposed as the opt-in
+``client_capa_redirect`` connection argument.
+
+.. code-block:: python
+
+   >>> import valkey
+   >>> replica = valkey.Valkey(host="localhost", port=6380,
+   ...                         client_capa_redirect=True)
+   >>> replica = valkey.from_url(
+   ...     "valkey://localhost:6380?client_capa_redirect=true"
+   ... )
+
+When enabled, commands sent to a standalone replica raise
+``valkey.exceptions.RedirectError`` until ``READONLY`` is enabled for that
+connection. For more details, see :doc:`advanced_features`.
+
 .. autoclass:: valkey.Valkey
    :members:
 
