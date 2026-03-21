@@ -112,6 +112,16 @@ class NodeProxy:
             await writer.drain()
 
 
+class BlockingDisconnectConnection:
+    def __init__(self, event: asyncio.Event) -> None:
+        self._event = event
+        self.is_connected = True
+
+    async def disconnect(self) -> None:
+        await self._event.wait()
+        self.is_connected = False
+
+
 @pytest_asyncio.fixture()
 async def slowlog(r: ValkeyCluster) -> None:
     """
@@ -2458,6 +2468,55 @@ class TestNodesManager:
 
         await rc.aclose()
 
+    async def test_initialize_waits_for_removed_node_disconnect(self) -> None:
+        disconnect_event = asyncio.Event()
+        old_node = ClusterNode("127.0.0.1", 7009, PRIMARY)
+        old_node._connections.append(BlockingDisconnectConnection(disconnect_event))
+        startup_node = ClusterNode(default_host, default_port)
+        manager = NodesManager([startup_node], False, {})
+        manager.nodes_cache = {old_node.name: old_node}
+
+        captured_contexts = []
+        loop = asyncio.get_running_loop()
+        previous_handler = loop.get_exception_handler()
+        loop.set_exception_handler(
+            lambda _loop, context: captured_contexts.append(context)
+        )
+
+        async def mocked_execute_command(self, *args, **kwargs):
+            assert args[0] == "CLUSTER SLOTS"
+            return [[0, 16383, [default_host, default_port, "node_0"]]]
+
+        try:
+            with mock.patch.object(
+                ClusterNode,
+                "execute_command",
+                autospec=True,
+                side_effect=mocked_execute_command,
+            ):
+                initialize_task = asyncio.create_task(manager.initialize())
+                await asyncio.sleep(0)
+
+                assert not initialize_task.done()
+
+                disconnect_event.set()
+                await initialize_task
+
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("always", ResourceWarning)
+                    old_node.__del__()
+
+                resource_warnings = [
+                    warning
+                    for warning in caught
+                    if issubclass(warning.category, ResourceWarning)
+                ]
+                assert resource_warnings == []
+                assert captured_contexts == []
+        finally:
+            disconnect_event.set()
+            loop.set_exception_handler(previous_handler)
+
     async def test_init_slots_cache_cluster_mode_disabled(self) -> None:
         """
         Test that creating a ValkeyCluster fails if one of the startup nodes
@@ -2637,6 +2696,8 @@ class TestNodesManager:
             assert sorted(startup_nodes) == sorted(discovered_nodes)
         else:
             assert startup_nodes == ["my@DNS.com:7000"]
+
+        await rc.aclose()
 
 
 class TestClusterPipeline:
