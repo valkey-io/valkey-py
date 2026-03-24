@@ -1,5 +1,5 @@
 Lua Scripting
-===
+=============
 
 `Lua Scripting <#lua-scripting-in-default-connections>`__ \|
 `Pipelines <#pipelines>`__ \| `Cluster mode <#cluster-mode>`__
