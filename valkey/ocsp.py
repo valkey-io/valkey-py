@@ -64,13 +64,11 @@ def _check_certificate(issuer_cert, ocsp_bytes, validate=True):
             "failed to retrieve a successful response from the ocsp responder"
         )
 
-    if ocsp_response.this_update >= datetime.datetime.now():
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    if ocsp_response.this_update_utc >= now:
         raise ConnectionError("ocsp certificate was issued in the future")
 
-    if (
-        ocsp_response.next_update
-        and ocsp_response.next_update < datetime.datetime.now()
-    ):
+    if ocsp_response.next_update_utc and ocsp_response.next_update_utc < now:
         raise ConnectionError("ocsp certificate has invalid update - in the past")
 
     responder_name = ocsp_response.responder_name
