@@ -263,6 +263,8 @@ class TestSSL:
         ctx.use_certificate_file(self.CLIENT_CERT)
         ctx.use_privatekey_file(self.CLIENT_KEY)
 
+        with open(self.SERVER_CERT, "rb") as file:
+            server_cert = file.read()
         r = valkey.Valkey(
             host=p[0],
             port=p[1],
@@ -272,7 +274,7 @@ class TestSSL:
             ssl_cert_reqs="required",
             ssl_ca_certs=self.CA_CERT,
             ssl_ocsp_context=ctx,
-            ssl_ocsp_expected_cert=open(self.SERVER_CERT, "rb").read(),
+            ssl_ocsp_expected_cert=server_cert,
             ssl_validate_ocsp_stapled=True,
         )
 
