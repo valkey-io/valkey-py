@@ -1700,7 +1700,7 @@ class ClusterPubSub(PubSub):
 
     IMPORTANT: before using ClusterPubSub, read about the known limitations
     with pubsub in Cluster mode and learn how to workaround them:
-    https://valkey-py-cluster.readthedocs.io/en/stable/pubsub.html
+    https://valkey-py.readthedocs.io/en/latest/clustering.html#known-pubsub-limitations
     """
 
     def __init__(
