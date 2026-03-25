@@ -44,6 +44,9 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
 }
 
+# Reflow parameters if they exceed a certain line length.
+maximum_signature_line_length = 88
+
 # Napoleon settings. We only accept Google-style docstrings.
 napoleon_google_docstring = True
 napoleon_numpy_docstring = False
