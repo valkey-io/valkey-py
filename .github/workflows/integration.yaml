@@ -129,11 +129,6 @@ jobs:
             pip install "libvalkey>=4.0.1"
            fi
            make devenv
-           if [[ "${{matrix.test-type}}" == "standalone" ]]; then
-            ./util/wait-for-it.sh localhost:6379
-           else
-            ./util/wait-for-it.sh localhost:16379
-           fi
            make ${{matrix.test-type}}-tests PROTOCOL=${{ matrix.protocol-version }}
            if [[ "${{matrix.python-version}}" != pypy-* ]]; then
             make ${{matrix.test-type}}-tests USE_UVLOOP=1 PROTOCOL=${{ matrix.protocol-version }}
