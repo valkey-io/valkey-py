@@ -2035,9 +2035,10 @@ class ClusterPipeline(ValkeyCluster):
         Provides extra context to the exception prior to it being handled
         """
         cmd = " ".join(map(safe_str, command))
-        msg = (
-            f"Command # {number} ({cmd}) of pipeline caused error: {exception.args[0]}"
-        )
+        error_message = exception.args[0] if exception.args else str(exception)
+        if not error_message:
+            error_message = exception.__class__.__name__
+        msg = f"Command # {number} ({cmd}) of pipeline caused error: {error_message}"
         exception.args = (msg,) + exception.args[1:]
 
     def execute(self, raise_on_error=True):
@@ -2176,10 +2177,10 @@ class ClusterPipeline(ValkeyCluster):
                     try:
                         connection = get_connection(valkey_node, c.args)
                     except Exception as e:
-                        if type(e) not in self.__class__.REINITIALIZE_ERRORS:
-                            raise
                         for n in nodes.values():
                             n.connection_pool.release(n.connection)
+                        if type(e) not in self.__class__.REINITIALIZE_ERRORS:
+                            raise
                         # Connection retries are being handled in the node's
                         # Retry object. Reinitialize the node -> slot table.
                         self.nodes_manager.initialize()
