@@ -6,7 +6,12 @@ services:
     image: valkey/valkey:latest
     container_name: valkey-standalone
     ports:
-      - 6379:6379
+      - "6379:6379"
+    healthcheck:
+      test: valkey-cli -p 6379 ping
+      interval: 60s
+      start_interval: 1s
+      start_period: 10s
     entrypoint: "/usr/local/bin/docker-entrypoint.sh --enable-debug-command yes --enable-module-command yes"
     profiles:
       - standalone
@@ -21,7 +26,12 @@ services:
       - valkey
     entrypoint: "/usr/local/bin/docker-entrypoint.sh --replicaof valkey 6379"
     ports:
-      - 6380:6379
+      - "6380:6379"
+    healthcheck:
+      test: valkey-cli -p 6379 ping
+      interval: 60s
+      start_interval: 1s
+      start_period: 10s
     profiles:
       - replica
       - all
@@ -32,14 +42,19 @@ services:
       context: .
       dockerfile: dockers/Dockerfile.cluster
     ports:
-      - 16379:16379
-      - 16380:16380
-      - 16381:16381
-      - 16382:16382
-      - 16383:16383
-      - 16384:16384
+      - "16379:16379"
+      - "16380:16380"
+      - "16381:16381"
+      - "16382:16382"
+      - "16383:16383"
+      - "16384:16384"
     volumes:
       - "./dockers/cluster.valkey.conf:/valkey.conf:ro"
+    healthcheck:
+      test: valkey-cli -p 16379 ping
+      interval: 60s
+      start_interval: 1s
+      start_period: 10s
     profiles:
       - cluster
       - all
@@ -66,9 +81,14 @@ services:
       - valkey
     entrypoint: "/usr/local/bin/valkey-sentinel /valkey.conf --port 26379"
     ports:
-      - 26379:26379
+      - "26379:26379"
     volumes:
       - "./dockers/sentinel.conf:/valkey.conf"
+    healthcheck:
+      test: valkey-cli -p 26379 ping
+      interval: 60s
+      start_interval: 1s
+      start_period: 10s
     profiles:
       - sentinel
       - all
@@ -80,9 +100,14 @@ services:
       - valkey
     entrypoint: "/usr/local/bin/valkey-sentinel /valkey.conf --port 26380"
     ports:
-      - 26380:26380
+      - "26380:26380"
     volumes:
       - "./dockers/sentinel.conf:/valkey.conf"
+    healthcheck:
+      test: valkey-cli -p 26380 ping
+      interval: 60s
+      start_interval: 1s
+      start_period: 10s
     profiles:
       - sentinel
       - all
@@ -94,9 +119,14 @@ services:
       - valkey
     entrypoint: "/usr/local/bin/valkey-sentinel /valkey.conf --port 26381"
     ports:
-      - 26381:26381
+      - "26381:26381"
     volumes:
       - "./dockers/sentinel.conf:/valkey.conf"
+    healthcheck:
+      test: valkey-cli -p 26381 ping
+      interval: 60s
+      start_interval: 1s
+      start_period: 10s
     profiles:
       - sentinel
       - all

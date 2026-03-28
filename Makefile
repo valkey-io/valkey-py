@@ -41,7 +41,7 @@ clean: stop-devenv
 	docker compose --profile all rm -s -f
 
 devenv: clean
-	docker compose --profile all up -d
+	docker compose --profile all up --wait
 
 stop-devenv:
 	docker compose --profile all down
