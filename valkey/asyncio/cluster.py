@@ -1233,14 +1233,27 @@ class NodesManager:
         if not self._pending_node_disconnects:
             return
 
-        nodes = tuple(self._pending_node_disconnects.values())
-        self._pending_node_disconnects.clear()
+        pending_items = tuple(self._pending_node_disconnects.items())
         ret = await asyncio.gather(
-            *(node.disconnect() for node in nodes), return_exceptions=True
+            *(node.disconnect() for _, node in pending_items), return_exceptions=True
         )
-        exc = next((res for res in ret if isinstance(res, Exception)), None)
-        if exc:
-            raise exc
+        errors = []
+        for (name, node), res in zip(pending_items, ret):
+            if self._pending_node_disconnects.get(name) is not node:
+                continue
+            if isinstance(res, Exception):
+                errors.append(res)
+                continue
+            self._pending_node_disconnects.pop(name, None)
+
+        if errors:
+            msg = ", ".join(f"{type(err).__name__}: {err}" for err in errors)
+            warnings.warn(
+                "Error(s) while disconnecting stale cluster nodes during "
+                f"topology refresh: {msg}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
     def _update_moved_slots(self) -> None:
         e = self._moved_exception

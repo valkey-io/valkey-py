@@ -113,12 +113,31 @@ class NodeProxy:
 
 
 class BlockingDisconnectConnection:
-    def __init__(self, event: asyncio.Event) -> None:
+    def __init__(
+        self,
+        event: asyncio.Event,
+        started_event: Optional[asyncio.Event] = None,
+    ) -> None:
         self._event = event
+        self._started_event = started_event
         self.is_connected = True
 
     async def disconnect(self) -> None:
+        if self._started_event is not None:
+            self._started_event.set()
         await self._event.wait()
+        self.is_connected = False
+
+
+class FlakyDisconnectConnection:
+    def __init__(self) -> None:
+        self.is_connected = True
+        self.calls = 0
+
+    async def disconnect(self) -> None:
+        self.calls += 1
+        if self.calls == 1:
+            raise RuntimeError("disconnect failed")
         self.is_connected = False
 
 
@@ -2470,10 +2489,13 @@ class TestNodesManager:
 
     async def test_initialize_waits_for_removed_node_disconnect(self) -> None:
         disconnect_event = asyncio.Event()
+        disconnect_started_event = asyncio.Event()
         old_node = ClusterNode("127.0.0.1", 7009, PRIMARY)
-        old_node._connections.append(BlockingDisconnectConnection(disconnect_event))
+        old_node._connections.append(
+            BlockingDisconnectConnection(disconnect_event, disconnect_started_event)
+        )
         startup_node = ClusterNode(default_host, default_port)
-        manager = NodesManager([startup_node], False, {})
+        manager = NodesManager([startup_node], False, {}, dynamic_startup_nodes=False)
         manager.nodes_cache = {old_node.name: old_node}
 
         captured_contexts = []
@@ -2495,7 +2517,7 @@ class TestNodesManager:
                 side_effect=mocked_execute_command,
             ):
                 initialize_task = asyncio.create_task(manager.initialize())
-                await asyncio.sleep(0)
+                await disconnect_started_event.wait()
 
                 assert not initialize_task.done()
 
@@ -2516,6 +2538,48 @@ class TestNodesManager:
         finally:
             disconnect_event.set()
             loop.set_exception_handler(previous_handler)
+
+    async def test_initialize_warns_and_retries_stale_disconnect_errors(self) -> None:
+        flaky_connection = FlakyDisconnectConnection()
+        old_node = ClusterNode("127.0.0.1", 7009, PRIMARY)
+        old_node._connections.append(flaky_connection)
+        startup_node = ClusterNode(default_host, default_port)
+        manager = NodesManager([startup_node], False, {}, dynamic_startup_nodes=False)
+        manager.nodes_cache = {old_node.name: old_node}
+
+        async def mocked_execute_command(self, *args, **kwargs):
+            assert args[0] == "CLUSTER SLOTS"
+            return [[0, 16383, [default_host, default_port, "node_0"]]]
+
+        with mock.patch.object(
+            ClusterNode,
+            "execute_command",
+            autospec=True,
+            side_effect=mocked_execute_command,
+        ):
+            with pytest.warns(
+                RuntimeWarning, match="disconnecting stale cluster nodes"
+            ):
+                await manager.initialize()
+
+            assert manager._pending_node_disconnects == {old_node.name: old_node}
+            assert flaky_connection.calls == 1
+
+            await manager.aclose()
+
+            assert manager._pending_node_disconnects == {}
+            assert flaky_connection.calls == 2
+
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always", ResourceWarning)
+                old_node.__del__()
+
+            resource_warnings = [
+                warning
+                for warning in caught
+                if issubclass(warning.category, ResourceWarning)
+            ]
+            assert resource_warnings == []
 
     async def test_init_slots_cache_cluster_mode_disabled(self) -> None:
         """
