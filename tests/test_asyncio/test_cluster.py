@@ -2807,17 +2807,18 @@ class TestClusterPipeline:
         key = "foo"
         await r.set(key, "value")
         execute_pipeline = ClusterNode.execute_pipeline
-        attempts = {"count": 0}
+        attempts = 0
 
         async def raise_timeout_once(self, commands):
-            attempts["count"] += 1
-            if attempts["count"] == 1:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
                 raise TimeoutError("error")
             return await execute_pipeline(self, commands)
 
         with mock.patch.object(ClusterNode, "execute_pipeline", new=raise_timeout_once):
             assert await r.pipeline().get(key).execute() == [b"value"]
-            assert attempts["count"] == 2
+            assert attempts == 2
 
     async def test_asking_error(self, r: ValkeyCluster) -> None:
         """Test AskError handling."""

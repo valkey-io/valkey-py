@@ -1617,7 +1617,7 @@ class NodesManager:
                             if len(disagreements) > 5:
                                 raise ValkeyClusterException(
                                     f"startup_nodes could not agree on a valid "
-                                    f'slots cache: {", ".join(disagreements)}'
+                                    f"slots cache: {', '.join(disagreements)}"
                                 )
 
             fully_covered = self.check_slots_coverage(tmp_slots)
@@ -2036,8 +2036,7 @@ class ClusterPipeline(ValkeyCluster):
         """
         cmd = " ".join(map(safe_str, command))
         msg = (
-            f"Command # {number} ({cmd}) of pipeline "
-            f"caused error: {exception.args[0]}"
+            f"Command # {number} ({cmd}) of pipeline caused error: {exception.args[0]}"
         )
         exception.args = (msg,) + exception.args[1:]
 
@@ -2118,7 +2117,7 @@ class ClusterPipeline(ValkeyCluster):
                     retry_attempts -= 1
                     pass
                 else:
-                    raise e
+                    raise
 
     def _send_cluster_commands(
         self, stack, raise_on_error=True, allow_redirections=True
@@ -2186,7 +2185,7 @@ class ClusterPipeline(ValkeyCluster):
                         self.nodes_manager.initialize()
                         if is_default_node:
                             self.replace_default_node()
-                        raise e
+                        raise
                     nodes[node_name] = NodeCommands(
                         valkey_node.parse_response,
                         valkey_node.connection_pool,

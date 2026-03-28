@@ -3217,11 +3217,12 @@ class TestClusterPipeline:
         key = "foo"
         r.set(key, "value")
         orig_get_connection = valkey.cluster.get_connection
-        attempts = {"count": 0}
+        attempts = 0
 
         def raise_timeout_once(*args, **kwargs):
-            attempts["count"] += 1
-            if attempts["count"] == 1:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
                 raise TimeoutError("error")
             return orig_get_connection(*args, **kwargs)
 
@@ -3230,19 +3231,21 @@ class TestClusterPipeline:
                 r.nodes_manager, "initialize", wraps=r.nodes_manager.initialize
             ) as initialize:
                 assert r.pipeline().get(key).execute() == [b"value"]
-                assert attempts["count"] == 2
+                assert attempts == 2
                 assert initialize.call_count == 1
 
     def test_timeout_error_get_connection_raised(self, r):
         key = "foo"
 
-        with patch("valkey.cluster.get_connection", side_effect=TimeoutError("error")):
-            with patch.object(
+        with (
+            patch("valkey.cluster.get_connection", side_effect=TimeoutError("error")),
+            patch.object(
                 r.nodes_manager, "initialize", wraps=r.nodes_manager.initialize
-            ) as initialize:
-                with pytest.raises(TimeoutError):
-                    r.pipeline().get(key).execute()
-                assert initialize.call_count == r.cluster_error_retry_attempts + 1
+            ) as initialize,
+            pytest.raises(TimeoutError),
+        ):
+            r.pipeline().get(key).execute()
+        assert initialize.call_count == r.cluster_error_retry_attempts + 1
 
     def test_asking_error(self, r):
         """
