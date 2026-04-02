@@ -422,7 +422,8 @@ class AbstractValkeyCluster:
         list_keys_to_dict(["SCRIPT FLUSH"], lambda command, res: all(res.values())),
     )
 
-    ERRORS_ALLOW_RETRY = (ConnectionError, TimeoutError, ClusterDownError)
+    REINITIALIZE_ERRORS = (ConnectionError, TimeoutError, ClusterDownError)
+    ERRORS_ALLOW_RETRY = REINITIALIZE_ERRORS
 
     def replace_default_node(self, target_node: "ClusterNode" = None) -> None:
         """Replace the default cluster node.
@@ -1616,7 +1617,7 @@ class NodesManager:
                             if len(disagreements) > 5:
                                 raise ValkeyClusterException(
                                     f"startup_nodes could not agree on a valid "
-                                    f'slots cache: {", ".join(disagreements)}'
+                                    f"slots cache: {', '.join(disagreements)}"
                                 )
 
             fully_covered = self.check_slots_coverage(tmp_slots)
@@ -1933,9 +1934,8 @@ class ClusterPipeline(ValkeyCluster):
     in cluster mode
     """
 
-    ERRORS_ALLOW_RETRY = (
-        ConnectionError,
-        TimeoutError,
+    REINITIALIZE_ERRORS = AbstractValkeyCluster.REINITIALIZE_ERRORS
+    ERRORS_ALLOW_RETRY = REINITIALIZE_ERRORS + (
         MovedError,
         AskError,
         TryAgainError,
@@ -2035,10 +2035,10 @@ class ClusterPipeline(ValkeyCluster):
         Provides extra context to the exception prior to it being handled
         """
         cmd = " ".join(map(safe_str, command))
-        msg = (
-            f"Command # {number} ({cmd}) of pipeline "
-            f"caused error: {exception.args[0]}"
-        )
+        error_message = exception.args[0] if exception.args else str(exception)
+        if not error_message:
+            error_message = exception.__class__.__name__
+        msg = f"Command # {number} ({cmd}) of pipeline caused error: {error_message}"
         exception.args = (msg,) + exception.args[1:]
 
     def execute(self, raise_on_error=True):
@@ -2111,14 +2111,14 @@ class ClusterPipeline(ValkeyCluster):
                     raise_on_error=raise_on_error,
                     allow_redirections=allow_redirections,
                 )
-            except (ClusterDownError, ConnectionError) as e:
-                if retry_attempts > 0:
+            except Exception as e:
+                if retry_attempts > 0 and type(e) in self.__class__.REINITIALIZE_ERRORS:
                     # Try again with the new cluster setup. All other errors
                     # should be raised.
                     retry_attempts -= 1
                     pass
                 else:
-                    raise e
+                    raise
 
     def _send_cluster_commands(
         self, stack, raise_on_error=True, allow_redirections=True
@@ -2176,9 +2176,11 @@ class ClusterPipeline(ValkeyCluster):
                     valkey_node = self.get_valkey_connection(node)
                     try:
                         connection = get_connection(valkey_node, c.args)
-                    except ConnectionError:
+                    except Exception as e:
                         for n in nodes.values():
                             n.connection_pool.release(n.connection)
+                        if type(e) not in self.__class__.REINITIALIZE_ERRORS:
+                            raise
                         # Connection retries are being handled in the node's
                         # Retry object. Reinitialize the node -> slot table.
                         self.nodes_manager.initialize()

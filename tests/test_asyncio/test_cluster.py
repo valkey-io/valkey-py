@@ -33,6 +33,7 @@ from valkey.exceptions import (
     MovedError,
     NoPermissionError,
     ResponseError,
+    TimeoutError,
     ValkeyClusterException,
     ValkeyError,
 )
@@ -2801,6 +2802,23 @@ class TestClusterPipeline:
             async with r.pipeline() as pipe:
                 with pytest.raises(ConnectionError):
                     await pipe.get(key).get(key).execute(raise_on_error=True)
+
+    async def test_timeout_error_retried(self, r: ValkeyCluster) -> None:
+        key = "foo"
+        await r.set(key, "value")
+        execute_pipeline = ClusterNode.execute_pipeline
+        attempts = 0
+
+        async def raise_timeout_once(self, commands):
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise TimeoutError("error")
+            return await execute_pipeline(self, commands)
+
+        with mock.patch.object(ClusterNode, "execute_pipeline", new=raise_timeout_once):
+            assert await r.pipeline().get(key).execute() == [b"value"]
+            assert attempts == 2
 
     async def test_asking_error(self, r: ValkeyCluster) -> None:
         """Test AskError handling."""

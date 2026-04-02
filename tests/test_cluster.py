@@ -29,6 +29,7 @@ from valkey.connection import BlockingConnectionPool, Connection, ConnectionPool
 from valkey.crc import key_slot
 from valkey.exceptions import (
     AskError,
+    AuthenticationError,
     ClusterDownError,
     ConnectionError,
     DataError,
@@ -36,6 +37,7 @@ from valkey.exceptions import (
     NoPermissionError,
     ResponseError,
     TimeoutError,
+    TryAgainError,
     ValkeyClusterException,
     ValkeyError,
 )
@@ -3212,6 +3214,74 @@ class TestClusterPipeline:
             mock_node_resp_func(node, raise_connection_error)
             with pytest.raises(ConnectionError):
                 pipe.get(key).get(key).execute(raise_on_error=True)
+
+    def test_timeout_error_get_connection_retried(self, r):
+        key = "foo"
+        r.set(key, "value")
+        orig_get_connection = valkey.cluster.get_connection
+        attempts = 0
+
+        def raise_timeout_once(*args, **kwargs):
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise TimeoutError("error")
+            return orig_get_connection(*args, **kwargs)
+
+        with patch("valkey.cluster.get_connection", side_effect=raise_timeout_once):
+            with patch.object(
+                r.nodes_manager, "initialize", wraps=r.nodes_manager.initialize
+            ) as initialize:
+                assert r.pipeline().get(key).execute() == [b"value"]
+                assert attempts == 2
+                assert initialize.call_count == 1
+
+    def test_timeout_error_get_connection_raised(self, r):
+        key = "foo"
+
+        with (
+            patch("valkey.cluster.get_connection", side_effect=TimeoutError("error")),
+            patch.object(
+                r.nodes_manager, "initialize", wraps=r.nodes_manager.initialize
+            ) as initialize,
+            pytest.raises(TimeoutError),
+        ):
+            r.pipeline().get(key).execute()
+        assert initialize.call_count == r.cluster_error_retry_attempts + 1
+
+    def test_annotate_exception_handles_empty_args(self, r):
+        pipe = r.pipeline()
+        exception = TryAgainError()
+
+        pipe.annotate_exception(exception, 1, ("GET", "foo"))
+
+        assert exception.args == (
+            "Command # 1 (GET foo) of pipeline caused error: TryAgainError",
+        )
+
+    def test_non_retryable_get_connection_error_releases_connections(self, r):
+        # in order to ensure that a pipeline will make use of connections
+        # from different nodes
+        assert r.keyslot("a") != r.keyslot("b")
+
+        orig_get_connection = valkey.cluster.get_connection
+
+        with patch("valkey.cluster.get_connection") as get_connection:
+
+            def raise_non_retryable(target_node, *args, **kwargs):
+                if get_connection.call_count == 2:
+                    raise AuthenticationError("mocked auth error")
+                return orig_get_connection(target_node, *args, **kwargs)
+
+            get_connection.side_effect = raise_non_retryable
+
+            with pytest.raises(AuthenticationError):
+                r.pipeline().get("a").get("b").execute()
+
+        for cluster_node in r.nodes_manager.nodes_cache.values():
+            connection_pool = cluster_node.valkey_connection.connection_pool
+            num_of_conns = len(connection_pool._available_connections)
+            assert num_of_conns == connection_pool._created_connections
 
     def test_asking_error(self, r):
         """
