@@ -1,6 +1,5 @@
 FROM ubuntu:latest
-MAINTAINER ahmedsobeh <ahmedszakaria@gmail.com>
-
+LABEL org.opencontainers.image.authors="ahmedsobeh <ahmedszakaria@gmail.com>"
 
 RUN apt-get update && apt-get install -y stunnel
 

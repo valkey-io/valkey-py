@@ -51,6 +51,7 @@ build-docs docs: .check-virtualenv
 	make -C docs html
 
 linters: .check-virtualenv
+	docker compose --profile all build --check
 	flake8 tests valkey
 	black --target-version py37 --check --diff docs tests valkey
 	isort --check-only --diff tests valkey
