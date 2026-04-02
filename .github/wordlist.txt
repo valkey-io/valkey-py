@@ -17,6 +17,7 @@ GraphCommands
 Grokzen's
 INCR
 IOError
+IPv
 Instrumentations
 JSONCommands
 Jaeger
@@ -91,6 +92,7 @@ fo
 genindex
 gmail
 hatchling
+hostname
 html
 http
 https

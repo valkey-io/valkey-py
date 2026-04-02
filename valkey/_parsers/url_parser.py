@@ -32,6 +32,7 @@ URL_QUERY_ARGUMENT_PARSERS: Mapping[str, Callable[..., object]] = MappingProxyTy
         "retry_on_timeout": to_bool,
         "max_connections": int,
         "health_check_interval": int,
+        "client_capa_redirect": to_bool,
         "ssl_check_hostname": to_bool,
         "timeout": float,
     }

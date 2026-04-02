@@ -550,6 +550,14 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT GETREDIR", **kwargs)
 
+    def client_capa(self, *capabilities: str, **kwargs) -> ResponseT:
+        """
+        Declare client capabilities for the current connection.
+
+        See https://valkey.io/commands/client-capa
+        """
+        return self.execute_command("CLIENT CAPA", *capabilities, **kwargs)
+
     def client_reply(
         self, reply: Union[Literal["ON"], Literal["OFF"], Literal["SKIP"]], **kwargs
     ) -> ResponseT:

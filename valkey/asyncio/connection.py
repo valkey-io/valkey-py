@@ -124,6 +124,7 @@ class AbstractConnection:
         "encoder",
         "ssl_context",
         "protocol",
+        "client_capa_redirect",
         "client_cache",
         "cache_deny_list",
         "cache_allow_list",
@@ -161,6 +162,7 @@ class AbstractConnection:
         encoder_class: Type[Encoder] = Encoder,
         credential_provider: Optional[CredentialProvider] = None,
         protocol: Optional[int] = 2,
+        client_capa_redirect: bool = False,
         cache_enabled: bool = False,
         client_cache: Optional[AbstractCache] = None,
         cache_max_size: int = 10000,
@@ -225,6 +227,7 @@ class AbstractConnection:
             if p < 2 or p > 3:
                 raise ConnectionError("protocol must be either 2 or 3")
             self.protocol = protocol
+        self.client_capa_redirect = client_capa_redirect
         if cache_enabled:
             _cache = _LocalCache(cache_max_size, cache_ttl, cache_policy)
         else:
@@ -429,6 +432,14 @@ class AbstractConnection:
             await self.send_command("CLIENT", "SETINFO", "LIB-NAME", self.lib_name)
         if self.lib_version:
             await self.send_command("CLIENT", "SETINFO", "LIB-VER", self.lib_version)
+
+        if self.client_capa_redirect:
+            try:
+                await self.send_command("CLIENT", "CAPA", "redirect")
+                await self.read_response()
+            except ResponseError:
+                pass
+
         # if a database is specified, switch to it. Also pipeline this
         if self.db:
             await self.send_command("SELECT", self.db)
@@ -967,6 +978,7 @@ class ConnectKwargs(TypedDict, total=False):
     port: int
     db: int
     path: str
+    client_capa_redirect: bool
 
 
 _CP = TypeVar("_CP", bound="ConnectionPool")

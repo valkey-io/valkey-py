@@ -174,6 +174,7 @@ class AbstractConnection:
         valkey_connect_func: Optional[Callable[["AbstractConnection"], None]] = None,
         credential_provider: Optional[CredentialProvider] = None,
         protocol: Optional[Union[int, str]] = 2,
+        client_capa_redirect: bool = False,
         command_packer: Optional[Callable[[], None]] = None,
         cache_enabled: bool = False,
         client_cache: Optional[AbstractCache] = None,
@@ -245,6 +246,7 @@ class AbstractConnection:
                 # p = DEFAULT_RESP_VERSION
             self.protocol = p
         self._command_packer = self._construct_command_packer(command_packer)
+        self.client_capa_redirect = client_capa_redirect
         if cache_enabled:
             _cache = _LocalCache(cache_max_size, cache_ttl, cache_policy)
         else:
@@ -441,6 +443,13 @@ class AbstractConnection:
         except ResponseError:
             pass
 
+        if self.client_capa_redirect:
+            try:
+                self.send_command("CLIENT", "CAPA", "redirect")
+                self.read_response()
+            except ResponseError:
+                pass
+
         # if a database is specified, switch to it
         if self.db:
             self.send_command("SELECT", self.db)
@@ -569,9 +578,7 @@ class AbstractConnection:
         except OSError as e:
             if disconnect_on_error:
                 self.disconnect()
-            raise ConnectionError(
-                f"Error while reading from {host_error}" f" : {e.args}"
-            )
+            raise ConnectionError(f"Error while reading from {host_error} : {e.args}")
         except BaseException:
             # Also by default close in case of BaseException.  A lot of code
             # relies on this behaviour when doing Command/Response pairs.

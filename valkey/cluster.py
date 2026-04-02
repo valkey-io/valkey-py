@@ -237,6 +237,7 @@ class AbstractValkeyCluster:
                 "CLIENT SETINFO",
                 "CLIENT SETNAME",
                 "CLIENT GETNAME",
+                "CLIENT CAPA",
                 "CONFIG SET",
                 "CONFIG REWRITE",
                 "CONFIG RESETSTAT",
@@ -1616,7 +1617,7 @@ class NodesManager:
                             if len(disagreements) > 5:
                                 raise ValkeyClusterException(
                                     f"startup_nodes could not agree on a valid "
-                                    f'slots cache: {", ".join(disagreements)}'
+                                    f"slots cache: {', '.join(disagreements)}"
                                 )
 
             fully_covered = self.check_slots_coverage(tmp_slots)
@@ -2036,8 +2037,7 @@ class ClusterPipeline(ValkeyCluster):
         """
         cmd = " ".join(map(safe_str, command))
         msg = (
-            f"Command # {number} ({cmd}) of pipeline "
-            f"caused error: {exception.args[0]}"
+            f"Command # {number} ({cmd}) of pipeline caused error: {exception.args[0]}"
         )
         exception.args = (msg,) + exception.args[1:]
 
