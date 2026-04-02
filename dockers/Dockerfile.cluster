@@ -1,4 +1,4 @@
-FROM valkey/valkey:latest as rss
+FROM valkey/valkey:latest AS rss
 
 COPY dockers/create_cluster.sh /create_cluster.sh
 RUN chmod a+x /create_cluster.sh
