@@ -37,6 +37,7 @@ services:
       - all
 
   cluster:
+    image: valkey-py-cluster
     container_name: valkey-cluster
     build:
       context: .
@@ -60,6 +61,7 @@ services:
       - all
 
   stunnel:
+    image: valkey-py-stunnel
     build:
       context: ./dockers/stunnel
     depends_on:
