@@ -781,9 +781,7 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
                     keys = [node.name for node in target_nodes]
                     values = await asyncio.gather(
                         *(
-                            asyncio.create_task(
-                                self._execute_command(node, *args, **kwargs)
-                            )
+                            self._execute_command(node, *args, **kwargs)
                             for node in target_nodes
                         )
                     )
@@ -1057,10 +1055,7 @@ class ClusterNode:
 
     async def disconnect(self) -> None:
         ret = await asyncio.gather(
-            *(
-                asyncio.create_task(connection.disconnect())
-                for connection in self._connections
-            ),
+            *(connection.disconnect() for connection in self._connections),
             return_exceptions=True,
         )
         exc = next((res for res in ret if isinstance(res, Exception)), None)
@@ -1165,6 +1160,7 @@ class ClusterNode:
 class NodesManager:
     __slots__ = (
         "_moved_exception",
+        "_pending_node_disconnects",
         "connection_kwargs",
         "default_node",
         "nodes_cache",
@@ -1195,6 +1191,7 @@ class NodesManager:
         self.slots_cache: Dict[int, List["ClusterNode"]] = {}
         self.read_load_balancer = LoadBalancer()
         self._moved_exception: MovedError = None
+        self._pending_node_disconnects: Dict[str, "ClusterNode"] = {}
 
     def get_node(
         self,
@@ -1223,14 +1220,40 @@ class NodesManager:
         if remove_old:
             for name in list(old.keys()):
                 if name not in new:
-                    task = asyncio.create_task(old.pop(name).disconnect())  # noqa
+                    self._pending_node_disconnects[name] = old.pop(name)
 
         for name, node in new.items():
             if name in old:
                 if old[name] is node:
                     continue
-                task = asyncio.create_task(old[name].disconnect())  # noqa
+                self._pending_node_disconnects[name] = old[name]
             old[name] = node
+
+    async def _close_pending_node_disconnects(self) -> None:
+        if not self._pending_node_disconnects:
+            return
+
+        pending_items = tuple(self._pending_node_disconnects.items())
+        ret = await asyncio.gather(
+            *(node.disconnect() for _, node in pending_items), return_exceptions=True
+        )
+        errors = []
+        for (name, node), res in zip(pending_items, ret):
+            if self._pending_node_disconnects.get(name) is not node:
+                continue
+            if isinstance(res, Exception):
+                errors.append(res)
+                continue
+            self._pending_node_disconnects.pop(name, None)
+
+        if errors:
+            msg = ", ".join(f"{type(err).__name__}: {err}" for err in errors)
+            warnings.warn(
+                "Error(s) while disconnecting stale cluster nodes during "
+                f"topology refresh: {msg}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
     def _update_moved_slots(self) -> None:
         e = self._moved_exception
@@ -1418,10 +1441,12 @@ class NodesManager:
         # Set the tmp variables to the real variables
         self.slots_cache = tmp_slots
         self.set_nodes(self.nodes_cache, tmp_nodes_cache, remove_old=True)
+        await self._close_pending_node_disconnects()
 
         if self._dynamic_startup_nodes:
             # Populate the startup nodes with all discovered nodes
             self.set_nodes(self.startup_nodes, self.nodes_cache, remove_old=True)
+            await self._close_pending_node_disconnects()
 
         # Set the default node
         self.default_node = self.get_nodes_by_server_type(PRIMARY)[0]
@@ -1430,11 +1455,9 @@ class NodesManager:
 
     async def aclose(self, attr: str = "nodes_cache") -> None:
         self.default_node = None
+        await self._close_pending_node_disconnects()
         await asyncio.gather(
-            *(
-                asyncio.create_task(node.disconnect())
-                for node in getattr(self, attr).values()
-            )
+            *(node.disconnect() for node in getattr(self, attr).values())
         )
 
     def remap_host_port(self, host: str, port: int) -> Tuple[str, int]:
@@ -1635,10 +1658,7 @@ class ClusterPipeline(
             nodes[node.name][1].append(cmd)
 
         errors = await asyncio.gather(
-            *(
-                asyncio.create_task(node[0].execute_pipeline(node[1]))
-                for node in nodes.values()
-            )
+            *(node[0].execute_pipeline(node[1]) for node in nodes.values())
         )
 
         if any(errors):
