@@ -344,7 +344,8 @@ class TestValkeyClusterObj:
             called += 1
 
         with mock.patch.object(cluster, "aclose", mock_aclose):
-            await cluster.close()
+            with pytest.deprecated_call():
+                await cluster.close()
             assert called == 1
         await cluster.aclose()
 

@@ -328,7 +328,7 @@ class AbstractConnection:
                 # Use the passed function valkey_connect_func
                 (
                     await self.valkey_connect_func(self)
-                    if asyncio.iscoroutinefunction(self.valkey_connect_func)
+                    if inspect.iscoroutinefunction(self.valkey_connect_func)
                     else self.valkey_connect_func(self)
                 )
         except ValkeyError:
