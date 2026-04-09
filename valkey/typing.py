@@ -17,8 +17,6 @@ from typing import (
 
 if TYPE_CHECKING:
     from valkey._parsers import Encoder
-    from valkey.asyncio.connection import ConnectionPool as AsyncConnectionPool
-    from valkey.connection import ConnectionPool
 
 
 class AsyncClientProtocol(Protocol):
@@ -135,8 +133,6 @@ FunctionStatsT = (
 
 
 class CommandsProtocol(Protocol):
-    connection_pool: Union["AsyncConnectionPool", "ConnectionPool"]
-
     def execute_command(self, *args, **options) -> ResponseT: ...
 
 
