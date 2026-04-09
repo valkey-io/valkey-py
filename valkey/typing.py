@@ -15,8 +15,6 @@ from typing import (
 
 if TYPE_CHECKING:
     from valkey._parsers import Encoder
-    from valkey.asyncio.connection import ConnectionPool as AsyncConnectionPool
-    from valkey.connection import ConnectionPool
 
 
 Number = Union[int, float]
@@ -54,8 +52,6 @@ ExceptionMappingT = Mapping[str, Union[Type[Exception], Mapping[str, Type[Except
 
 
 class CommandsProtocol(Protocol):
-    connection_pool: Union["AsyncConnectionPool", "ConnectionPool"]
-
     def execute_command(self, *args, **options): ...
 
 
