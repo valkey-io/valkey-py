@@ -5,6 +5,7 @@ import hashlib
 import warnings
 from typing import (
     TYPE_CHECKING,
+    Any,
     AsyncIterator,
     Awaitable,
     Callable,
@@ -13,20 +14,25 @@ from typing import (
     List,
     Literal,
     Mapping,
+    NoReturn,
     Optional,
     Sequence,
     Set,
     Tuple,
     Union,
+    overload,
 )
 
 from valkey.exceptions import ConnectionError, DataError, NoScriptError, ValkeyError
 from valkey.typing import (
     AbsExpiryT,
+    ACLGetUserData,
+    ACLLogData,
     AnyEncodableT,
     AnyFieldT,
     AnyKeyT,
     AnyStreamIdT,
+    AsyncClientProtocol,
     BitfieldOffsetT,
     ChannelT,
     CommandsProtocol,
@@ -41,6 +47,7 @@ from valkey.typing import (
     ResponseT,
     ScriptTextT,
     StreamIdT,
+    SyncClientProtocol,
     TimeoutSecT,
     ZScoreBoundT,
 )
@@ -58,7 +65,19 @@ class ACLCommands(CommandsProtocol):
     see: https://valkey.io/topics/acl
     """
 
-    def acl_cat(self, category: Union[str, None] = None, **kwargs) -> ResponseT:
+    @overload
+    def acl_cat(
+        self: SyncClientProtocol, category: str | None = None, **kwargs
+    ) -> list[str]: ...
+
+    @overload
+    def acl_cat(
+        self: AsyncClientProtocol, category: str | None, **kwargs
+    ) -> Awaitable[list[str]]: ...
+
+    def acl_cat(
+        self, category: str | None = None, **kwargs
+    ) -> list[str] | Awaitable[list[str]]:
         """
         Returns a list of categories or commands within a category.
 
@@ -71,7 +90,15 @@ class ACLCommands(CommandsProtocol):
         pieces: list[EncodableT] = [category] if category else []
         return self.execute_command("ACL CAT", *pieces, **kwargs)
 
-    def acl_deluser(self, *username: str, **kwargs) -> ResponseT:
+    @overload
+    def acl_deluser(self: SyncClientProtocol, *username: str, **kwargs) -> int: ...
+
+    @overload
+    def acl_deluser(
+        self: AsyncClientProtocol, *username: str, **kwargs
+    ) -> Awaitable[int]: ...
+
+    def acl_deluser(self, *username: str, **kwargs) -> int | Awaitable[int]:
         """
         Delete the ACL for the specified ``username``\\s
 
@@ -79,7 +106,15 @@ class ACLCommands(CommandsProtocol):
         """
         return self.execute_command("ACL DELUSER", *username, **kwargs)
 
-    def acl_dryrun(self, username, *args, **kwargs):
+    @overload
+    def acl_dryrun(self: SyncClientProtocol, username, *args, **kwargs) -> str: ...
+
+    @overload
+    def acl_dryrun(
+        self: AsyncClientProtocol, username, *args, **kwargs
+    ) -> Awaitable[str]: ...
+
+    def acl_dryrun(self, username, *args, **kwargs) -> str | Awaitable[str]:
         """
         Simulate the execution of a given command by a given ``username``.
 
@@ -87,7 +122,17 @@ class ACLCommands(CommandsProtocol):
         """
         return self.execute_command("ACL DRYRUN", username, *args, **kwargs)
 
-    def acl_genpass(self, bits: Union[int, None] = None, **kwargs) -> ResponseT:
+    @overload
+    def acl_genpass(
+        self: SyncClientProtocol, bits: int | None = None, **kwargs
+    ) -> str: ...
+
+    @overload
+    def acl_genpass(
+        self: AsyncClientProtocol, bits: int | None = None, **kwargs
+    ) -> Awaitable[str]: ...
+
+    def acl_genpass(self, bits: int | None = None, **kwargs) -> str | Awaitable[str]:
         """Generate a random password value.
         If ``bits`` is supplied then use this number of bits, rounded to
         the next multiple of 4.
@@ -106,7 +151,19 @@ class ACLCommands(CommandsProtocol):
                 )
         return self.execute_command("ACL GENPASS", *pieces, **kwargs)
 
-    def acl_getuser(self, username: str, **kwargs) -> ResponseT:
+    @overload
+    def acl_getuser(
+        self: SyncClientProtocol, username: str, **kwargs
+    ) -> ACLGetUserData: ...
+
+    @overload
+    def acl_getuser(
+        self: AsyncClientProtocol, username: str, **kwargs
+    ) -> Awaitable[ACLGetUserData]: ...
+
+    def acl_getuser(
+        self, username: str, **kwargs
+    ) -> ACLGetUserData | Awaitable[ACLGetUserData]:
         """
         Get the ACL details for the specified ``username``.
 
@@ -116,7 +173,13 @@ class ACLCommands(CommandsProtocol):
         """
         return self.execute_command("ACL GETUSER", username, **kwargs)
 
-    def acl_help(self, **kwargs) -> ResponseT:
+    @overload
+    def acl_help(self: SyncClientProtocol, **kwargs) -> list[str]: ...
+
+    @overload
+    def acl_help(self: AsyncClientProtocol, **kwargs) -> Awaitable[list[str]]: ...
+
+    def acl_help(self, **kwargs) -> list[str] | Awaitable[list[str]]:
         """The ACL HELP command returns helpful text describing
         the different subcommands.
 
@@ -124,7 +187,13 @@ class ACLCommands(CommandsProtocol):
         """
         return self.execute_command("ACL HELP", **kwargs)
 
-    def acl_list(self, **kwargs) -> ResponseT:
+    @overload
+    def acl_list(self: SyncClientProtocol, **kwargs) -> list[str]: ...
+
+    @overload
+    def acl_list(self: AsyncClientProtocol, **kwargs) -> Awaitable[list[str]]: ...
+
+    def acl_list(self, **kwargs) -> list[str] | Awaitable[list[str]]:
         """
         Return a list of all ACLs on the server
 
@@ -132,7 +201,19 @@ class ACLCommands(CommandsProtocol):
         """
         return self.execute_command("ACL LIST", **kwargs)
 
-    def acl_log(self, count: Union[int, None] = None, **kwargs) -> ResponseT:
+    @overload
+    def acl_log(
+        self: SyncClientProtocol, count: int | None = None, **kwargs
+    ) -> ACLLogData: ...
+
+    @overload
+    def acl_log(
+        self: AsyncClientProtocol, count: int | None = None, **kwargs
+    ) -> Awaitable[ACLLogData]: ...
+
+    def acl_log(
+        self, count: Union[int, None] = None, **kwargs
+    ) -> ACLLogData | Awaitable[ACLLogData]:
         """
         Get ACL logs as a list.
         :param int count: Get logs[0:count].
@@ -148,7 +229,15 @@ class ACLCommands(CommandsProtocol):
 
         return self.execute_command("ACL LOG", *args, **kwargs)
 
-    def acl_log_reset(self, **kwargs) -> ResponseT:
+    @overload
+    def acl_log_reset(self: SyncClientProtocol, **kwargs) -> Literal[True]: ...
+
+    @overload
+    def acl_log_reset(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[Literal[True]]: ...
+
+    def acl_log_reset(self, **kwargs) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Reset ACL logs.
         :rtype: Boolean.
@@ -158,7 +247,13 @@ class ACLCommands(CommandsProtocol):
         args = [b"RESET"]
         return self.execute_command("ACL LOG", *args, **kwargs)
 
-    def acl_load(self, **kwargs) -> ResponseT:
+    @overload
+    def acl_load(self: SyncClientProtocol, **kwargs) -> Literal[True]: ...
+
+    @overload
+    def acl_load(self: AsyncClientProtocol, **kwargs) -> Awaitable[Literal[True]]: ...
+
+    def acl_load(self, **kwargs) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Load ACL rules from the configured ``aclfile``.
 
@@ -169,7 +264,13 @@ class ACLCommands(CommandsProtocol):
         """
         return self.execute_command("ACL LOAD", **kwargs)
 
-    def acl_save(self, **kwargs) -> ResponseT:
+    @overload
+    def acl_save(self: SyncClientProtocol, **kwargs) -> Literal[True]: ...
+
+    @overload
+    def acl_save(self: AsyncClientProtocol, **kwargs) -> Awaitable[Literal[True]]: ...
+
+    def acl_save(self, **kwargs) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Save ACL rules to the configured ``aclfile``.
 
@@ -180,24 +281,64 @@ class ACLCommands(CommandsProtocol):
         """
         return self.execute_command("ACL SAVE", **kwargs)
 
+    @overload
     def acl_setuser(
-        self,
+        self: SyncClientProtocol,
         username: str,
         enabled: bool = False,
         nopass: bool = False,
-        passwords: Union[str, Iterable[str], None] = None,
-        hashed_passwords: Union[str, Iterable[str], None] = None,
-        categories: Optional[Iterable[str]] = None,
-        commands: Optional[Iterable[str]] = None,
-        keys: Optional[Iterable[KeyT]] = None,
-        channels: Optional[Iterable[ChannelT]] = None,
-        selectors: Optional[Iterable[Tuple[str, KeyT]]] = None,
+        passwords: str | Iterable[str] | None = None,
+        hashed_passwords: str | Iterable[str] | None = None,
+        categories: Iterable[str] | None = None,
+        commands: Iterable[str] | None = None,
+        keys: Iterable[KeyT] | None = None,
+        channels: Iterable[ChannelT] | None = None,
+        selectors: Iterable[tuple[str, KeyT]] | None = None,
         reset: bool = False,
         reset_keys: bool = False,
         reset_channels: bool = False,
         reset_passwords: bool = False,
         **kwargs,
-    ) -> ResponseT:
+    ) -> Literal[True]: ...
+
+    @overload
+    def acl_setuser(
+        self: AsyncClientProtocol,
+        username: str,
+        enabled: bool = False,
+        nopass: bool = False,
+        passwords: str | Iterable[str] | None = None,
+        hashed_passwords: str | Iterable[str] | None = None,
+        categories: Iterable[str] | None = None,
+        commands: Iterable[str] | None = None,
+        keys: Iterable[KeyT] | None = None,
+        channels: Iterable[ChannelT] | None = None,
+        selectors: Iterable[tuple[str, KeyT]] | None = None,
+        reset: bool = False,
+        reset_keys: bool = False,
+        reset_channels: bool = False,
+        reset_passwords: bool = False,
+        **kwargs,
+    ) -> Awaitable[Literal[True]]: ...
+
+    def acl_setuser(
+        self,
+        username: str,
+        enabled: bool = False,
+        nopass: bool = False,
+        passwords: str | Iterable[str] | None = None,
+        hashed_passwords: str | Iterable[str] | None = None,
+        categories: Iterable[str] | None = None,
+        commands: Iterable[str] | None = None,
+        keys: Iterable[KeyT] | None = None,
+        channels: Iterable[ChannelT] | None = None,
+        selectors: Iterable[tuple[str, KeyT]] | None = None,
+        reset: bool = False,
+        reset_keys: bool = False,
+        reset_channels: bool = False,
+        reset_passwords: bool = False,
+        **kwargs,
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Create or update an ACL user.
 
