@@ -6,6 +6,7 @@ from typing import (
     Any,
     Awaitable,
     Iterable,
+    Literal,
     Mapping,
     Protocol,
     Type,
@@ -19,11 +20,24 @@ if TYPE_CHECKING:
     from valkey.connection import ConnectionPool
 
 
+class AsyncClientProtocol(Protocol):
+    _is_async_client: Literal[True]
+
+
+class SyncClientProtocol(Protocol):
+    _is_async_client: Literal[False]
+
+
 Number = Union[int, float]
 EncodedT = Union[bytes, memoryview]
 DecodedT = Union[str, int, float]
 EncodableT = Union[EncodedT, DecodedT]
 AbsExpiryT = Union[int, datetime]
+ACLGetUserData = (
+    dict[str, bool | list[str] | list[list[str]] | list[dict[str, str]]] | None
+)
+ACLLogEntry = dict[str, str | float | dict[str, str | int]]
+ACLLogData = list[ACLLogEntry]
 ExpiryT = Union[int, timedelta]
 ZScoreBoundT = Union[float, str]  # str allows for the [ or ( prefix
 BitfieldOffsetT = Union[int, str]  # str allows for #x syntax
