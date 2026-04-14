@@ -41,6 +41,11 @@ ACLLogEntry = dict[str, str | float | dict[str, str | int]]
 ACLLogData = list[ACLLogEntry]
 InfoData = dict[str, str | int | float | dict[str, str | int]]
 MemoryStatsData = dict[str, str | int | float | dict[StringTypeT, int | str | float]]
+LCSMatchEntry = list[list[int] | int]
+LCSIdxData = (
+    list[StringTypeT | list[LCSMatchEntry] | int]
+    | dict[StringTypeT, list[LCSMatchEntry] | int]
+)
 ExpiryT = int | timedelta
 ZScoreBoundT = float | str  # str allows for the [ or ( prefix
 BitfieldOffsetT = int | str  # str allows for #x syntax
