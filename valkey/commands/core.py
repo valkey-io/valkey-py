@@ -47,6 +47,7 @@ from valkey.typing import (
     ResponseT,
     ScriptTextT,
     StreamIdT,
+    StringTypeT,
     SyncClientProtocol,
     TimeoutSecT,
     ZScoreBoundT,
@@ -68,16 +69,16 @@ class ACLCommands(CommandsProtocol):
     @overload
     def acl_cat(
         self: SyncClientProtocol, category: str | None = None, **kwargs
-    ) -> list[str]: ...
+    ) -> list[StringTypeT]: ...
 
     @overload
     def acl_cat(
         self: AsyncClientProtocol, category: str | None, **kwargs
-    ) -> Awaitable[list[str]]: ...
+    ) -> Awaitable[list[StringTypeT]]: ...
 
     def acl_cat(
         self, category: str | None = None, **kwargs
-    ) -> list[str] | Awaitable[list[str]]:
+    ) -> list[StringTypeT] | Awaitable[list[StringTypeT]]:
         """
         Returns a list of categories or commands within a category.
 
@@ -107,14 +108,18 @@ class ACLCommands(CommandsProtocol):
         return self.execute_command("ACL DELUSER", *username, **kwargs)
 
     @overload
-    def acl_dryrun(self: SyncClientProtocol, username, *args, **kwargs) -> str: ...
+    def acl_dryrun(
+        self: SyncClientProtocol, username, *args, **kwargs
+    ) -> StringTypeT: ...
 
     @overload
     def acl_dryrun(
         self: AsyncClientProtocol, username, *args, **kwargs
-    ) -> Awaitable[str]: ...
+    ) -> Awaitable[StringTypeT]: ...
 
-    def acl_dryrun(self, username, *args, **kwargs) -> str | Awaitable[str]:
+    def acl_dryrun(
+        self, username, *args, **kwargs
+    ) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Simulate the execution of a given command by a given ``username``.
 
@@ -125,14 +130,16 @@ class ACLCommands(CommandsProtocol):
     @overload
     def acl_genpass(
         self: SyncClientProtocol, bits: int | None = None, **kwargs
-    ) -> str: ...
+    ) -> StringTypeT: ...
 
     @overload
     def acl_genpass(
         self: AsyncClientProtocol, bits: int | None = None, **kwargs
-    ) -> Awaitable[str]: ...
+    ) -> Awaitable[StringTypeT]: ...
 
-    def acl_genpass(self, bits: int | None = None, **kwargs) -> str | Awaitable[str]:
+    def acl_genpass(
+        self, bits: int | None = None, **kwargs
+    ) -> StringTypeT | Awaitable[StringTypeT]:
         """Generate a random password value.
         If ``bits`` is supplied then use this number of bits, rounded to
         the next multiple of 4.
@@ -174,12 +181,14 @@ class ACLCommands(CommandsProtocol):
         return self.execute_command("ACL GETUSER", username, **kwargs)
 
     @overload
-    def acl_help(self: SyncClientProtocol, **kwargs) -> list[str]: ...
+    def acl_help(self: SyncClientProtocol, **kwargs) -> list[StringTypeT]: ...
 
     @overload
-    def acl_help(self: AsyncClientProtocol, **kwargs) -> Awaitable[list[str]]: ...
+    def acl_help(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[list[StringTypeT]]: ...
 
-    def acl_help(self, **kwargs) -> list[str] | Awaitable[list[str]]:
+    def acl_help(self, **kwargs) -> list[StringTypeT] | Awaitable[list[StringTypeT]]:
         """The ACL HELP command returns helpful text describing
         the different subcommands.
 
@@ -188,12 +197,14 @@ class ACLCommands(CommandsProtocol):
         return self.execute_command("ACL HELP", **kwargs)
 
     @overload
-    def acl_list(self: SyncClientProtocol, **kwargs) -> list[str]: ...
+    def acl_list(self: SyncClientProtocol, **kwargs) -> list[StringTypeT]: ...
 
     @overload
-    def acl_list(self: AsyncClientProtocol, **kwargs) -> Awaitable[list[str]]: ...
+    def acl_list(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[list[StringTypeT]]: ...
 
-    def acl_list(self, **kwargs) -> list[str] | Awaitable[list[str]]:
+    def acl_list(self, **kwargs) -> list[StringTypeT] | Awaitable[list[StringTypeT]]:
         """
         Return a list of all ACLs on the server
 
@@ -513,12 +524,14 @@ class ACLCommands(CommandsProtocol):
         return self.execute_command("ACL SETUSER", *pieces, **kwargs)
 
     @overload
-    def acl_users(self: SyncClientProtocol, **kwargs) -> list[str]: ...
+    def acl_users(self: SyncClientProtocol, **kwargs) -> list[StringTypeT]: ...
 
     @overload
-    def acl_users(self: AsyncClientProtocol, **kwargs) -> Awaitable[list[str]]: ...
+    def acl_users(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[list[StringTypeT]]: ...
 
-    def acl_users(self, **kwargs) -> list[str] | Awaitable[list[str]]:
+    def acl_users(self, **kwargs) -> list[StringTypeT] | Awaitable[list[StringTypeT]]:
         """Returns a list of all registered users on the server.
 
         For more information see https://valkey.io/commands/acl-users
@@ -526,12 +539,12 @@ class ACLCommands(CommandsProtocol):
         return self.execute_command("ACL USERS", **kwargs)
 
     @overload
-    def acl_whoami(self: SyncClientProtocol, **kwargs) -> str: ...
+    def acl_whoami(self: SyncClientProtocol, **kwargs) -> StringTypeT: ...
 
     @overload
-    def acl_whoami(self: AsyncClientProtocol, **kwargs) -> Awaitable[str]: ...
+    def acl_whoami(self: AsyncClientProtocol, **kwargs) -> Awaitable[StringTypeT]: ...
 
-    def acl_whoami(self, **kwargs) -> str | Awaitable[str]:
+    def acl_whoami(self, **kwargs) -> StringTypeT | Awaitable[StringTypeT]:
         """Get the username for the current connection
 
         For more information see https://valkey.io/commands/acl-whoami

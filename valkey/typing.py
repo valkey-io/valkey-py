@@ -41,6 +41,7 @@ ACLLogData = list[ACLLogEntry]
 ExpiryT = int | timedelta
 ZScoreBoundT = float | str  # str allows for the [ or ( prefix
 BitfieldOffsetT = int | str  # str allows for #x syntax
+StringTypeT = str | bytes
 _StringLikeT = bytes | str | memoryview
 KeyT = _StringLikeT  # Main valkey key space
 PatternT = _StringLikeT  # Patterns matched against keys, fields etc
