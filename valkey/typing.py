@@ -28,31 +28,31 @@ class SyncClientProtocol(Protocol):
     _is_async_client: Literal[False]
 
 
-Number = Union[int, float]
-EncodedT = Union[bytes, memoryview]
-DecodedT = Union[str, int, float]
-EncodableT = Union[EncodedT, DecodedT]
-AbsExpiryT = Union[int, datetime]
+Number = int | float
+EncodedT = bytes | memoryview
+DecodedT = str | int | float
+EncodableT = EncodedT | DecodedT
+AbsExpiryT = int | datetime
 ACLGetUserData = (
     dict[str, bool | list[str] | list[list[str]] | list[dict[str, str]]] | None
 )
 ACLLogEntry = dict[str, str | float | dict[str, str | int]]
 ACLLogData = list[ACLLogEntry]
-ExpiryT = Union[int, timedelta]
-ZScoreBoundT = Union[float, str]  # str allows for the [ or ( prefix
-BitfieldOffsetT = Union[int, str]  # str allows for #x syntax
-_StringLikeT = Union[bytes, str, memoryview]
+ExpiryT = int | timedelta
+ZScoreBoundT = float | str  # str allows for the [ or ( prefix
+BitfieldOffsetT = int | str  # str allows for #x syntax
+_StringLikeT = bytes | str | memoryview
 KeyT = _StringLikeT  # Main valkey key space
 PatternT = _StringLikeT  # Patterns matched against keys, fields etc
 FieldT = EncodableT  # Fields within hash tables, streams and geo commands
-KeysT = Union[KeyT, Iterable[KeyT]]
-ResponseT = Union[Awaitable[Any], Any]
+KeysT = KeyT | Iterable[KeyT]
+ResponseT = Awaitable[Any] | Any
 ChannelT = _StringLikeT
 GroupT = _StringLikeT  # Consumer group
 ConsumerT = _StringLikeT  # Consumer name
-StreamIdT = Union[int, _StringLikeT]
+StreamIdT = int | _StringLikeT
 ScriptTextT = _StringLikeT
-TimeoutSecT = Union[int, float, _StringLikeT]
+TimeoutSecT = int | float | _StringLikeT
 # Mapping is not covariant in the key type, which prevents
 # Mapping[_StringLikeT, X] from accepting arguments of type Dict[str, X]. Using
 # a TypeVar instead of a Union allows mappings with any of the permitted types
@@ -76,4 +76,4 @@ class CommandsProtocol(Protocol):
 class ClusterCommandsProtocol(CommandsProtocol, Protocol):
     encoder: "Encoder"
 
-    def execute_command(self, *args, **options) -> Union[Any, Awaitable]: ...
+    def execute_command(self, *args, **options) -> Any | Awaitable[Any]: ...
