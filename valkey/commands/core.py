@@ -820,16 +820,16 @@ class ManagementCommands(CommandsProtocol):
     @overload
     def client_capa(
         self: SyncClientProtocol, *capabilities: str, **kwargs
-    ) -> Literal[True]: ...
+    ) -> bytes | str: ...
 
     @overload
     def client_capa(
         self: AsyncClientProtocol, *capabilities: str, **kwargs
-    ) -> Awaitable[Literal[True]]: ...
+    ) -> Awaitable[bytes | str]: ...
 
     def client_capa(
         self, *capabilities: str, **kwargs
-    ) -> Literal[True] | Awaitable[Literal[True]]:
+    ) -> (bytes | str) | Awaitable[bytes | str]:
         """
         Declare client capabilities for the current connection.
 
