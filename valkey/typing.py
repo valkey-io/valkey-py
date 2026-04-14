@@ -30,6 +30,7 @@ class SyncClientProtocol(Protocol):
 
 Number = int | float
 EncodedT = bytes | memoryview
+StringTypeT = str | bytes
 DecodedT = str | int | float
 EncodableT = EncodedT | DecodedT
 AbsExpiryT = int | datetime
@@ -38,10 +39,11 @@ ACLGetUserData = (
 )
 ACLLogEntry = dict[str, str | float | dict[str, str | int]]
 ACLLogData = list[ACLLogEntry]
+InfoData = dict[str, str | int | float | dict[str, str | int]]
+MemoryStatsData = dict[str, str | int | float | dict[StringTypeT, int | str | float]]
 ExpiryT = int | timedelta
 ZScoreBoundT = float | str  # str allows for the [ or ( prefix
 BitfieldOffsetT = int | str  # str allows for #x syntax
-StringTypeT = str | bytes
 _StringLikeT = bytes | str | memoryview
 KeyT = _StringLikeT  # Main valkey key space
 PatternT = _StringLikeT  # Patterns matched against keys, fields etc

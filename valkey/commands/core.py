@@ -41,8 +41,10 @@ from valkey.typing import (
     ExpiryT,
     FieldT,
     GroupT,
+    InfoData,
     KeysT,
     KeyT,
+    MemoryStatsData,
     PatternT,
     ResponseT,
     ScriptTextT,
@@ -624,13 +626,25 @@ class ManagementCommands(CommandsProtocol):
             pieces.append("SCHEDULE")
         return self.execute_command("BGSAVE", *pieces, **kwargs)
 
+    # TODO: role() could use a parser to return a tuple
+    # The actual return type is:
+    #   list[StringTypeT, int, list[list[StringTypeT]]]  # master
+    #   | list[StringTypeT, StringTypeT, int, StringTypeT, int]  # replica
+    #   | list[StringTypeT, list[StringTypeT]]  # sentinel
     @overload
-    def role(self: SyncClientProtocol) -> list[Any]: ...
+    def role(self: SyncClientProtocol) -> list[StringTypeT | int | list[Any]]: ...
 
     @overload
-    def role(self: AsyncClientProtocol) -> Awaitable[list[Any]]: ...
+    def role(
+        self: AsyncClientProtocol,
+    ) -> Awaitable[list[StringTypeT | int | list[Any]]]: ...
 
-    def role(self) -> list[Any] | Awaitable[list[Any]]:
+    def role(
+        self,
+    ) -> (
+        list[StringTypeT | int | list[Any]]
+        | Awaitable[list[StringTypeT | int | list[Any]]]
+    ):
         """
         Provide information on the role of a Valkey instance in
         the context of replication, by returning if the instance
@@ -800,14 +814,16 @@ class ManagementCommands(CommandsProtocol):
         return self.execute_command("CLIENT LIST", *args, **kwargs)
 
     @overload
-    def client_getname(self: SyncClientProtocol, **kwargs) -> str | None: ...
+    def client_getname(self: SyncClientProtocol, **kwargs) -> StringTypeT | None: ...
 
     @overload
     def client_getname(
         self: AsyncClientProtocol, **kwargs
-    ) -> Awaitable[str | None]: ...
+    ) -> Awaitable[StringTypeT | None]: ...
 
-    def client_getname(self, **kwargs) -> (str | None) | Awaitable[str | None]:
+    def client_getname(
+        self, **kwargs
+    ) -> StringTypeT | None | Awaitable[StringTypeT | None]:
         """
         Returns the current connection name
 
@@ -830,19 +846,20 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT GETREDIR", **kwargs)
 
+    # TODO: client_capa could use bool_ok
     @overload
     def client_capa(
         self: SyncClientProtocol, *capabilities: str, **kwargs
-    ) -> bytes | str: ...
+    ) -> StringTypeT: ...
 
     @overload
     def client_capa(
         self: AsyncClientProtocol, *capabilities: str, **kwargs
-    ) -> Awaitable[bytes | str]: ...
+    ) -> Awaitable[StringTypeT]: ...
 
     def client_capa(
         self, *capabilities: str, **kwargs
-    ) -> (bytes | str) | Awaitable[bytes | str]:
+    ) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Declare client capabilities for the current connection.
 
@@ -850,19 +867,20 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT CAPA", *capabilities, **kwargs)
 
+    # TODO: client_reply could use bool_ok
     @overload
     def client_reply(
         self: SyncClientProtocol, reply: Literal["ON", "OFF", "SKIP"], **kwargs
-    ) -> str | bytes: ...
+    ) -> StringTypeT: ...
 
     @overload
     def client_reply(
         self: AsyncClientProtocol, reply: Literal["ON", "OFF", "SKIP"], **kwargs
-    ) -> Awaitable[str | bytes]: ...
+    ) -> Awaitable[StringTypeT]: ...
 
     def client_reply(
         self, reply: Literal["ON", "OFF", "SKIP"], **kwargs
-    ) -> (str | bytes) | Awaitable[str | bytes]:
+    ) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Enable and disable valkey server replies.
 
@@ -907,7 +925,7 @@ class ManagementCommands(CommandsProtocol):
         optin: bool = False,
         optout: bool = False,
         noloop: bool = False,
-    ) -> bytes | str: ...
+    ) -> StringTypeT: ...
 
     @overload
     def client_tracking_on(
@@ -918,7 +936,7 @@ class ManagementCommands(CommandsProtocol):
         optin: bool = False,
         optout: bool = False,
         noloop: bool = False,
-    ) -> Awaitable[bytes | str]: ...
+    ) -> Awaitable[StringTypeT]: ...
 
     def client_tracking_on(
         self,
@@ -928,7 +946,7 @@ class ManagementCommands(CommandsProtocol):
         optin: bool = False,
         optout: bool = False,
         noloop: bool = False,
-    ) -> (bytes | str) | Awaitable[bytes | str]:
+    ) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Turn on the tracking mode.
         For more information about the options look at client_tracking func.
@@ -948,7 +966,7 @@ class ManagementCommands(CommandsProtocol):
         optin: bool = False,
         optout: bool = False,
         noloop: bool = False,
-    ) -> bytes | str: ...
+    ) -> StringTypeT: ...
 
     @overload
     def client_tracking_off(
@@ -959,7 +977,7 @@ class ManagementCommands(CommandsProtocol):
         optin: bool = False,
         optout: bool = False,
         noloop: bool = False,
-    ) -> Awaitable[bytes | str]: ...
+    ) -> Awaitable[StringTypeT]: ...
 
     def client_tracking_off(
         self,
@@ -969,7 +987,7 @@ class ManagementCommands(CommandsProtocol):
         optin: bool = False,
         optout: bool = False,
         noloop: bool = False,
-    ) -> (bytes | str) | Awaitable[bytes | str]:
+    ) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Turn off the tracking mode.
         For more information about the options look at client_tracking func.
@@ -980,6 +998,7 @@ class ManagementCommands(CommandsProtocol):
             False, clientid, prefix, bcast, optin, optout, noloop
         )
 
+    # TODO: client_tracking could use bool_ok
     @overload
     def client_tracking(
         self: SyncClientProtocol,
@@ -991,7 +1010,7 @@ class ManagementCommands(CommandsProtocol):
         optout: bool = False,
         noloop: bool = False,
         **kwargs,
-    ) -> bytes | str: ...
+    ) -> StringTypeT: ...
 
     @overload
     def client_tracking(
@@ -1004,7 +1023,7 @@ class ManagementCommands(CommandsProtocol):
         optout: bool = False,
         noloop: bool = False,
         **kwargs,
-    ) -> Awaitable[bytes | str]: ...
+    ) -> Awaitable[StringTypeT]: ...
 
     def client_tracking(
         self,
@@ -1016,7 +1035,7 @@ class ManagementCommands(CommandsProtocol):
         optout: bool = False,
         noloop: bool = False,
         **kwargs,
-    ) -> (bytes | str) | Awaitable[bytes | str]:
+    ) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Enables the tracking feature of the Valkey server, that is used
         for server assisted client side caching.
@@ -1069,16 +1088,20 @@ class ManagementCommands(CommandsProtocol):
     @overload
     def client_trackinginfo(
         self: SyncClientProtocol, **kwargs
-    ) -> list[Any] | dict[str, Any]: ...
+    ) -> list[Any] | dict[StringTypeT, Any]: ...
 
     @overload
     def client_trackinginfo(
         self: AsyncClientProtocol, **kwargs
-    ) -> Awaitable[list[Any] | dict[str, Any]]: ...
+    ) -> Awaitable[list[Any] | dict[StringTypeT, Any]]: ...
 
     def client_trackinginfo(
         self, **kwargs
-    ) -> list[Any] | dict[str, Any] | Awaitable[list[Any] | dict[str, Any]]:
+    ) -> (
+        list[Any]
+        | dict[StringTypeT, Any]
+        | Awaitable[list[Any] | dict[StringTypeT, Any]]
+    ):
         """
         Returns the information about the current client connection's
         use of the server assisted client side cache.
@@ -1196,13 +1219,16 @@ class ManagementCommands(CommandsProtocol):
             args.append("WRITE")
         return self.execute_command(*args, **kwargs)
 
+    # TODO: client_unpause could use bool_ok
     @overload
-    def client_unpause(self: SyncClientProtocol, **kwargs) -> str: ...
+    def client_unpause(self: SyncClientProtocol, **kwargs) -> StringTypeT: ...
 
     @overload
-    def client_unpause(self: AsyncClientProtocol, **kwargs) -> Awaitable[str]: ...
+    def client_unpause(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[StringTypeT]: ...
 
-    def client_unpause(self, **kwargs) -> str | Awaitable[str]:
+    def client_unpause(self, **kwargs) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Unpause all valkey clients
 
@@ -1210,13 +1236,20 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT UNPAUSE", **kwargs)
 
+    # TODO: client_no_evict could use bool_ok
     @overload
-    def client_no_evict(self: SyncClientProtocol, mode: str) -> str: ...
+    def client_no_evict(
+        self: SyncClientProtocol, mode: Literal["ON", "OFF"]
+    ) -> StringTypeT: ...
 
     @overload
-    def client_no_evict(self: AsyncClientProtocol, mode: str) -> Awaitable[str]: ...
+    def client_no_evict(
+        self: AsyncClientProtocol, mode: Literal["ON", "OFF"]
+    ) -> Awaitable[StringTypeT]: ...
 
-    def client_no_evict(self, mode: str) -> str | Awaitable[str]:
+    def client_no_evict(
+        self, mode: Literal["ON", "OFF"]
+    ) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Sets the client eviction mode for the current connection.
 
@@ -1224,13 +1257,20 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT NO-EVICT", mode)
 
+    # TODO: client_no_touch could use bool_ok
     @overload
-    def client_no_touch(self: SyncClientProtocol, mode: str) -> str: ...
+    def client_no_touch(
+        self: SyncClientProtocol, mode: Literal["ON", "OFF"]
+    ) -> StringTypeT: ...
 
     @overload
-    def client_no_touch(self: AsyncClientProtocol, mode: str) -> Awaitable[str]: ...
+    def client_no_touch(
+        self: AsyncClientProtocol, mode: Literal["ON", "OFF"]
+    ) -> Awaitable[StringTypeT]: ...
 
-    def client_no_touch(self, mode: str) -> str | Awaitable[str]:
+    def client_no_touch(
+        self, mode: Literal["ON", "OFF"]
+    ) -> StringTypeT | Awaitable[StringTypeT]:
         """
         # The command controls whether commands sent by the client will alter
         # the LRU/LFU of the keys they access.
@@ -1279,7 +1319,7 @@ class ManagementCommands(CommandsProtocol):
         module: str | None = None,
         category: str | None = None,
         pattern: str | None = None,
-    ) -> list[bytes]: ...
+    ) -> list[StringTypeT]: ...
 
     @overload
     def command_list(
@@ -1287,14 +1327,14 @@ class ManagementCommands(CommandsProtocol):
         module: str | None = None,
         category: str | None = None,
         pattern: str | None = None,
-    ) -> Awaitable[list[bytes]]: ...
+    ) -> Awaitable[list[StringTypeT]]: ...
 
     def command_list(
         self,
         module: str | None = None,
         category: str | None = None,
         pattern: str | None = None,
-    ) -> list[bytes] | Awaitable[list[bytes]]:
+    ) -> list[StringTypeT] | Awaitable[list[StringTypeT]]:
         """
         Return an array of the server's command names.
         You can use one of the following filters:
@@ -1320,16 +1360,19 @@ class ManagementCommands(CommandsProtocol):
     @overload
     def command_getkeysandflags(
         self: SyncClientProtocol, *args: list[str]
-    ) -> list[str | list[str]]: ...
+    ) -> list[list[StringTypeT | list[StringTypeT]]]: ...
 
     @overload
     def command_getkeysandflags(
         self: AsyncClientProtocol, *args: list[str]
-    ) -> Awaitable[list[str | list[str]]]: ...
+    ) -> Awaitable[list[list[StringTypeT | list[StringTypeT]]]]: ...
 
     def command_getkeysandflags(
         self, *args: list[str]
-    ) -> list[str | list[str]] | Awaitable[list[str | list[str]]]:
+    ) -> (
+        list[list[StringTypeT | list[StringTypeT]]]
+        | Awaitable[list[list[StringTypeT | list[StringTypeT]]]]
+    ):
         """
         Returns array of keys from a full Valkey command and their usage flags.
 
@@ -1420,12 +1463,14 @@ class ManagementCommands(CommandsProtocol):
         return self.execute_command("CONFIG RESETSTAT", **kwargs)
 
     @overload
-    def config_rewrite(self: SyncClientProtocol, **kwargs) -> str: ...
+    def config_rewrite(self: SyncClientProtocol, **kwargs) -> StringTypeT: ...
 
     @overload
-    def config_rewrite(self: AsyncClientProtocol, **kwargs) -> Awaitable[str]: ...
+    def config_rewrite(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[StringTypeT]: ...
 
-    def config_rewrite(self, **kwargs) -> str | Awaitable[str]:
+    def config_rewrite(self, **kwargs) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Rewrite config file with the minimal change to reflect running config.
 
@@ -1447,19 +1492,24 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("DBSIZE", **kwargs)
 
+    # debug_object should also be parsed in RESP3
     @overload
     def debug_object(
         self: SyncClientProtocol, key: KeyT, **kwargs
-    ) -> dict[str, str | int]: ...
+    ) -> dict[str, str | int] | StringTypeT: ...
 
     @overload
     def debug_object(
         self: AsyncClientProtocol, key: KeyT, **kwargs
-    ) -> Awaitable[dict[str, str | int]]: ...
+    ) -> Awaitable[dict[str, str | int] | StringTypeT]: ...
 
     def debug_object(
         self, key: KeyT, **kwargs
-    ) -> dict[str, str | int] | Awaitable[dict[str, str | int]]:
+    ) -> (
+        dict[str, str | int]
+        | StringTypeT
+        | Awaitable[dict[str, str | int] | StringTypeT]
+    ):
         """
         Returns version specific meta information about a given key
 
@@ -1475,14 +1525,14 @@ class ManagementCommands(CommandsProtocol):
             """)
 
     @overload
-    def echo(self: SyncClientProtocol, value: EncodableT, **kwargs) -> str: ...
+    def echo(self: SyncClientProtocol, value: EncodableT, **kwargs) -> StringTypeT: ...
 
     @overload
     def echo(
         self: AsyncClientProtocol, value: EncodableT, **kwargs
-    ) -> Awaitable[str]: ...
+    ) -> Awaitable[StringTypeT]: ...
 
-    def echo(self, value: EncodableT, **kwargs) -> str | Awaitable[str]:
+    def echo(self, value: EncodableT, **kwargs) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Echo the string back from the server
 
@@ -1619,7 +1669,7 @@ class ManagementCommands(CommandsProtocol):
     @overload
     def info(
         self: SyncClientProtocol, section: str | None = None, *args: list[str], **kwargs
-    ) -> dict[str, Any]: ...
+    ) -> InfoData: ...
 
     @overload
     def info(
@@ -1627,11 +1677,11 @@ class ManagementCommands(CommandsProtocol):
         section: str | None = None,
         *args: list[str],
         **kwargs,
-    ) -> Awaitable[dict[str, Any]]: ...
+    ) -> Awaitable[InfoData]: ...
 
     def info(
         self, section: str | None = None, *args: list[str], **kwargs
-    ) -> dict[str, Any] | Awaitable[dict[str, Any]]:
+    ) -> InfoData | Awaitable[InfoData]:
         """
         Returns a dictionary containing information about the Valkey server
 
@@ -1694,16 +1744,16 @@ class ManagementCommands(CommandsProtocol):
     @overload
     def lolwut(
         self: SyncClientProtocol, *version_numbers: str | float, **kwargs
-    ) -> bytes: ...
+    ) -> StringTypeT: ...
 
     @overload
     def lolwut(
         self: AsyncClientProtocol, *version_numbers: str | float, **kwargs
-    ) -> Awaitable[bytes]: ...
+    ) -> Awaitable[StringTypeT]: ...
 
     def lolwut(
         self, *version_numbers: str | float, **kwargs
-    ) -> bytes | Awaitable[bytes]:
+    ) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Get the Valkey version and a piece of generative computer art
 
@@ -1715,12 +1765,12 @@ class ManagementCommands(CommandsProtocol):
             return self.execute_command("LOLWUT", **kwargs)
 
     @overload
-    def reset(self: SyncClientProtocol) -> str: ...
+    def reset(self: SyncClientProtocol) -> StringTypeT: ...
 
     @overload
-    def reset(self: AsyncClientProtocol) -> Awaitable[str]: ...
+    def reset(self: AsyncClientProtocol) -> Awaitable[StringTypeT]: ...
 
-    def reset(self) -> str | Awaitable[str]:
+    def reset(self) -> StringTypeT | Awaitable[StringTypeT]:
         """Perform a full reset on the connection's server side context.
 
         See: https://valkey.io/commands/reset
@@ -1739,7 +1789,7 @@ class ManagementCommands(CommandsProtocol):
         replace: bool = False,
         auth: str | None = None,
         **kwargs,
-    ) -> bytes | str: ...
+    ) -> StringTypeT: ...
 
     @overload
     def migrate(
@@ -1753,7 +1803,7 @@ class ManagementCommands(CommandsProtocol):
         replace: bool = False,
         auth: str | None = None,
         **kwargs,
-    ) -> Awaitable[bytes | str]: ...
+    ) -> Awaitable[StringTypeT]: ...
 
     def migrate(
         self,
@@ -1766,7 +1816,7 @@ class ManagementCommands(CommandsProtocol):
         replace: bool = False,
         auth: str | None = None,
         **kwargs,
-    ) -> bytes | str | Awaitable[bytes | str]:
+    ) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Migrate 1 or more keys from the current Valkey server to a different
         server specified by the ``host``, ``port`` and ``destination_db``.
@@ -1804,14 +1854,18 @@ class ManagementCommands(CommandsProtocol):
         )
 
     @overload
-    def object(self: SyncClientProtocol, infotype: str, key: KeyT, **kwargs) -> Any: ...
+    def object(
+        self: SyncClientProtocol, infotype: str, key: KeyT, **kwargs
+    ) -> StringTypeT | int | None: ...
 
     @overload
     def object(
         self: AsyncClientProtocol, infotype: str, key: KeyT, **kwargs
-    ) -> Awaitable[Any]: ...
+    ) -> Awaitable[StringTypeT | int | None]: ...
 
-    def object(self, infotype: str, key: KeyT, **kwargs) -> Any | Awaitable[Any]:
+    def object(
+        self, infotype: str, key: KeyT, **kwargs
+    ) -> StringTypeT | int | None | Awaitable[StringTypeT | int | None]:
         """
         Return the encoding, idletime, or refcount about the key
         """
@@ -1834,14 +1888,14 @@ class ManagementCommands(CommandsProtocol):
             """)
 
     @overload
-    def memory_stats(self: SyncClientProtocol, **kwargs) -> dict[str, Any]: ...
+    def memory_stats(self: SyncClientProtocol, **kwargs) -> MemoryStatsData: ...
 
     @overload
     def memory_stats(
         self: AsyncClientProtocol, **kwargs
-    ) -> Awaitable[dict[str, Any]]: ...
+    ) -> Awaitable[MemoryStatsData]: ...
 
-    def memory_stats(self, **kwargs) -> dict[str, Any] | Awaitable[dict[str, Any]]:
+    def memory_stats(self, **kwargs) -> MemoryStatsData | Awaitable[MemoryStatsData]:
         """
         Return a dictionary of memory stats
 
@@ -1850,14 +1904,14 @@ class ManagementCommands(CommandsProtocol):
         return self.execute_command("MEMORY STATS", **kwargs)
 
     @overload
-    def memory_malloc_stats(self: SyncClientProtocol, **kwargs) -> bytes: ...
+    def memory_malloc_stats(self: SyncClientProtocol, **kwargs) -> StringTypeT: ...
 
     @overload
     def memory_malloc_stats(
         self: AsyncClientProtocol, **kwargs
-    ) -> Awaitable[bytes]: ...
+    ) -> Awaitable[StringTypeT]: ...
 
-    def memory_malloc_stats(self, **kwargs) -> bytes | Awaitable[bytes]:
+    def memory_malloc_stats(self, **kwargs) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Return an internal statistics report from the memory allocator.
 
@@ -1937,16 +1991,16 @@ class ManagementCommands(CommandsProtocol):
         return self.execute_command("LATENCY HISTORY", event)
 
     @overload
-    def latency_latest(self: SyncClientProtocol) -> list[list[bytes | str | int]]: ...
+    def latency_latest(self: SyncClientProtocol) -> list[list[StringTypeT | int]]: ...
 
     @overload
     def latency_latest(
         self: AsyncClientProtocol,
-    ) -> Awaitable[list[list[bytes | str | int]]]: ...
+    ) -> Awaitable[list[list[StringTypeT | int]]]: ...
 
     def latency_latest(
         self,
-    ) -> list[list[bytes | str | int]] | Awaitable[list[list[bytes | str | int]]]:
+    ) -> list[list[StringTypeT | int]] | Awaitable[list[list[StringTypeT | int]]]:
         """
         Reports the latest latency events logged.
 
@@ -1996,15 +2050,16 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("QUIT", **kwargs)
 
+    # TODO: replicaof could use bool_ok
     @overload
-    def replicaof(self: SyncClientProtocol, *args, **kwargs) -> bytes | str: ...
+    def replicaof(self: SyncClientProtocol, *args, **kwargs) -> StringTypeT: ...
 
     @overload
     def replicaof(
         self: AsyncClientProtocol, *args, **kwargs
-    ) -> Awaitable[bytes | str]: ...
+    ) -> Awaitable[StringTypeT]: ...
 
-    def replicaof(self, *args, **kwargs) -> (bytes | str) | Awaitable[bytes | str]:
+    def replicaof(self, *args, **kwargs) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Update the replication settings of a valkey replica, on the fly.
 
@@ -2018,12 +2073,12 @@ class ManagementCommands(CommandsProtocol):
         return self.execute_command("REPLICAOF", *args, **kwargs)
 
     @overload
-    def save(self: SyncClientProtocol, **kwargs) -> bool: ...
+    def save(self: SyncClientProtocol, **kwargs) -> Literal[True]: ...
 
     @overload
-    def save(self: AsyncClientProtocol, **kwargs) -> Awaitable[bool]: ...
+    def save(self: AsyncClientProtocol, **kwargs) -> Awaitable[Literal[True]]: ...
 
-    def save(self, **kwargs) -> bool | Awaitable[bool]:
+    def save(self, **kwargs) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Tell the Valkey server to save its data to disk,
         blocking until the save is complete
@@ -2080,7 +2135,7 @@ class ManagementCommands(CommandsProtocol):
         host: str | None = None,
         port: int | None = None,
         **kwargs,
-    ) -> bool: ...
+    ) -> Literal[True]: ...
 
     @overload
     def slaveof(
@@ -2088,11 +2143,11 @@ class ManagementCommands(CommandsProtocol):
         host: str | None = None,
         port: int | None = None,
         **kwargs,
-    ) -> Awaitable[bool]: ...
+    ) -> Awaitable[Literal[True]]: ...
 
     def slaveof(
         self, host: str | None = None, port: int | None = None, **kwargs
-    ) -> bool | Awaitable[bool]:
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Set the server to be a replicated slave of the instance identified
         by the ``host`` and ``port``. If called without arguments, the
@@ -2107,16 +2162,16 @@ class ManagementCommands(CommandsProtocol):
     @overload
     def slowlog_get(
         self: SyncClientProtocol, num: int | None = None, **kwargs
-    ) -> list[dict[str, Any]]: ...
+    ) -> list[dict[str, int | bytes]]: ...
 
     @overload
     def slowlog_get(
         self: AsyncClientProtocol, num: int | None = None, **kwargs
-    ) -> Awaitable[list[dict[str, Any]]]: ...
+    ) -> Awaitable[list[dict[str, int | bytes]]]: ...
 
     def slowlog_get(
         self, num: int | None = None, **kwargs
-    ) -> list[dict[str, Any]] | Awaitable[list[dict[str, Any]]]:
+    ) -> list[dict[str, int | bytes]] | Awaitable[list[dict[str, int | bytes]]]:
         """
         Get the entries from the slowlog. If ``num`` is specified, get the
         most recent ``num`` items.
@@ -2402,7 +2457,7 @@ class BitFieldOperation:
             cmd.extend(ops)
         return cmd
 
-    def execute(self) -> ResponseT:
+    def execute(self) -> list[int | None]:
         """
         Execute the operation(s) in a single BITFIELD command. The return value
         is a list of values corresponding to each operation. If the client
