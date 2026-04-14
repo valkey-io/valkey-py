@@ -547,7 +547,19 @@ class ManagementCommands(CommandsProtocol):
     Valkey management commands
     """
 
-    def auth(self, password: str, username: Optional[str] = None, **kwargs):
+    @overload
+    def auth(
+        self: SyncClientProtocol, password: str, username: str | None = None, **kwargs
+    ) -> bool: ...
+
+    @overload
+    def auth(
+        self: AsyncClientProtocol, password: str, username: str | None = None, **kwargs
+    ) -> Awaitable[bool]: ...
+
+    def auth(
+        self, password: str, username: str | None = None, **kwargs
+    ) -> bool | Awaitable[bool]:
         """
         Authenticates the user. If you do not pass username, Valkey will try to
         authenticate for the "default" user. If you do pass username, it will
@@ -560,14 +572,34 @@ class ManagementCommands(CommandsProtocol):
         pieces.append(password)
         return self.execute_command("AUTH", *pieces, **kwargs)
 
-    def bgrewriteaof(self, **kwargs):
+    @overload
+    def bgrewriteaof(self: SyncClientProtocol, **kwargs) -> Literal[True]: ...
+
+    @overload
+    def bgrewriteaof(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[Literal[True]]: ...
+
+    def bgrewriteaof(self, **kwargs) -> Literal[True] | Awaitable[Literal[True]]:
         """Tell the Valkey server to rewrite the AOF file from data in memory.
 
         For more information see https://valkey.io/commands/bgrewriteaof
         """
         return self.execute_command("BGREWRITEAOF", **kwargs)
 
-    def bgsave(self, schedule: bool = True, **kwargs) -> ResponseT:
+    @overload
+    def bgsave(
+        self: SyncClientProtocol, schedule: bool = True, **kwargs
+    ) -> Literal[True]: ...
+
+    @overload
+    def bgsave(
+        self: AsyncClientProtocol, schedule: bool = True, **kwargs
+    ) -> Awaitable[Literal[True]]: ...
+
+    def bgsave(
+        self, schedule: bool = True, **kwargs
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Tell the Valkey server to save its data to disk.  Unlike save(),
         this method is asynchronous and returns immediately.
@@ -579,7 +611,13 @@ class ManagementCommands(CommandsProtocol):
             pieces.append("SCHEDULE")
         return self.execute_command("BGSAVE", *pieces, **kwargs)
 
-    def role(self) -> ResponseT:
+    @overload
+    def role(self: SyncClientProtocol) -> list[Any]: ...
+
+    @overload
+    def role(self: AsyncClientProtocol) -> Awaitable[list[Any]]: ...
+
+    def role(self) -> list[Any] | Awaitable[list[Any]]:
         """
         Provide information on the role of a Valkey instance in
         the context of replication, by returning if the instance
@@ -589,24 +627,60 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("ROLE")
 
-    def client_kill(self, address: str, **kwargs) -> ResponseT:
+    @overload
+    def client_kill(self: SyncClientProtocol, address: str, **kwargs) -> int | bool: ...
+
+    @overload
+    def client_kill(
+        self: AsyncClientProtocol, address: str, **kwargs
+    ) -> Awaitable[int | bool]: ...
+
+    def client_kill(
+        self, address: str, **kwargs
+    ) -> (int | bool) | Awaitable[int | bool]:
         """Disconnects the client at ``address`` (ip:port)
 
         For more information see https://valkey.io/commands/client-kill
         """
         return self.execute_command("CLIENT KILL", address, **kwargs)
 
+    @overload
+    def client_kill_filter(
+        self: SyncClientProtocol,
+        _id: str | None = None,
+        _type: str | None = None,
+        addr: str | None = None,
+        skipme: bool | None = None,
+        laddr: str | None = None,
+        user: str | None = None,
+        maxage: int | None = None,
+        **kwargs,
+    ) -> int | bool: ...
+
+    @overload
+    def client_kill_filter(
+        self: AsyncClientProtocol,
+        _id: str | None = None,
+        _type: str | None = None,
+        addr: str | None = None,
+        skipme: bool | None = None,
+        laddr: str | None = None,
+        user: str | None = None,
+        maxage: int | None = None,
+        **kwargs,
+    ) -> Awaitable[int | bool]: ...
+
     def client_kill_filter(
         self,
-        _id: Union[str, None] = None,
-        _type: Union[str, None] = None,
-        addr: Union[str, None] = None,
-        skipme: Union[bool, None] = None,
-        laddr: Union[bool, None] = None,
-        user: str = None,
-        maxage: Union[int, None] = None,
+        _id: str | None = None,
+        _type: str | None = None,
+        addr: str | None = None,
+        skipme: bool | None = None,
+        laddr: str | None = None,
+        user: str | None = None,
+        maxage: int | None = None,
         **kwargs,
-    ) -> ResponseT:
+    ) -> (int | bool) | Awaitable[int | bool]:
         """
         Disconnects client(s) using a variety of filter options
         :param _id: Kills a client by its unique ID field
@@ -650,7 +724,17 @@ class ManagementCommands(CommandsProtocol):
             )
         return self.execute_command("CLIENT KILL", *args, **kwargs)
 
-    def client_info(self, **kwargs) -> ResponseT:
+    @overload
+    def client_info(self: SyncClientProtocol, **kwargs) -> dict[str, str | int]: ...
+
+    @overload
+    def client_info(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[dict[str, str | int]]: ...
+
+    def client_info(
+        self, **kwargs
+    ) -> dict[str, str | int] | Awaitable[dict[str, str | int]]:
         """
         Returns information and statistics about the current
         client connection.
@@ -659,9 +743,25 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT INFO", **kwargs)
 
+    @overload
     def client_list(
-        self, _type: Union[str, None] = None, client_id: List[EncodableT] = [], **kwargs
-    ) -> ResponseT:
+        self: SyncClientProtocol,
+        _type: str | None = None,
+        client_id: list[EncodableT] = [],
+        **kwargs,
+    ) -> list[dict[str, str]]: ...
+
+    @overload
+    def client_list(
+        self: AsyncClientProtocol,
+        _type: str | None = None,
+        client_id: list[EncodableT] = [],
+        **kwargs,
+    ) -> Awaitable[list[dict[str, str]]]: ...
+
+    def client_list(
+        self, _type: str | None = None, client_id: list[EncodableT] = [], **kwargs
+    ) -> list[dict[str, str]] | Awaitable[list[dict[str, str]]]:
         """
         Returns a list of currently connected clients.
         If type of client specified, only that type will be returned.
@@ -686,7 +786,15 @@ class ManagementCommands(CommandsProtocol):
             args.append(" ".join(client_id))
         return self.execute_command("CLIENT LIST", *args, **kwargs)
 
-    def client_getname(self, **kwargs) -> ResponseT:
+    @overload
+    def client_getname(self: SyncClientProtocol, **kwargs) -> str | None: ...
+
+    @overload
+    def client_getname(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[str | None]: ...
+
+    def client_getname(self, **kwargs) -> (str | None) | Awaitable[str | None]:
         """
         Returns the current connection name
 
@@ -694,7 +802,13 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT GETNAME", **kwargs)
 
-    def client_getredir(self, **kwargs) -> ResponseT:
+    @overload
+    def client_getredir(self: SyncClientProtocol, **kwargs) -> int: ...
+
+    @overload
+    def client_getredir(self: AsyncClientProtocol, **kwargs) -> Awaitable[int]: ...
+
+    def client_getredir(self, **kwargs) -> int | Awaitable[int]:
         """
         Returns the ID (an integer) of the client to whom we are
         redirecting tracking notifications.
@@ -703,7 +817,19 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT GETREDIR", **kwargs)
 
-    def client_capa(self, *capabilities: str, **kwargs) -> ResponseT:
+    @overload
+    def client_capa(
+        self: SyncClientProtocol, *capabilities: str, **kwargs
+    ) -> Literal[True]: ...
+
+    @overload
+    def client_capa(
+        self: AsyncClientProtocol, *capabilities: str, **kwargs
+    ) -> Awaitable[Literal[True]]: ...
+
+    def client_capa(
+        self, *capabilities: str, **kwargs
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Declare client capabilities for the current connection.
 
@@ -711,9 +837,19 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT CAPA", *capabilities, **kwargs)
 
+    @overload
     def client_reply(
-        self, reply: Union[Literal["ON"], Literal["OFF"], Literal["SKIP"]], **kwargs
-    ) -> ResponseT:
+        self: SyncClientProtocol, reply: Literal["ON", "OFF", "SKIP"], **kwargs
+    ) -> str | bytes: ...
+
+    @overload
+    def client_reply(
+        self: AsyncClientProtocol, reply: Literal["ON", "OFF", "SKIP"], **kwargs
+    ) -> Awaitable[str | bytes]: ...
+
+    def client_reply(
+        self, reply: Literal["ON", "OFF", "SKIP"], **kwargs
+    ) -> (str | bytes) | Awaitable[str | bytes]:
         """
         Enable and disable valkey server replies.
 
@@ -735,7 +871,13 @@ class ManagementCommands(CommandsProtocol):
             raise DataError(f"CLIENT REPLY must be one of {replies!r}")
         return self.execute_command("CLIENT REPLY", reply, **kwargs)
 
-    def client_id(self, **kwargs) -> ResponseT:
+    @overload
+    def client_id(self: SyncClientProtocol, **kwargs) -> int: ...
+
+    @overload
+    def client_id(self: AsyncClientProtocol, **kwargs) -> Awaitable[int]: ...
+
+    def client_id(self, **kwargs) -> int | Awaitable[int]:
         """
         Returns the current connection id
 
@@ -743,15 +885,37 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT ID", **kwargs)
 
+    @overload
     def client_tracking_on(
-        self,
-        clientid: Union[int, None] = None,
+        self: SyncClientProtocol,
+        clientid: int | None = None,
         prefix: Sequence[KeyT] = [],
         bcast: bool = False,
         optin: bool = False,
         optout: bool = False,
         noloop: bool = False,
-    ) -> ResponseT:
+    ) -> bytes | str: ...
+
+    @overload
+    def client_tracking_on(
+        self: AsyncClientProtocol,
+        clientid: int | None = None,
+        prefix: Sequence[KeyT] = [],
+        bcast: bool = False,
+        optin: bool = False,
+        optout: bool = False,
+        noloop: bool = False,
+    ) -> Awaitable[bytes | str]: ...
+
+    def client_tracking_on(
+        self,
+        clientid: int | None = None,
+        prefix: Sequence[KeyT] = [],
+        bcast: bool = False,
+        optin: bool = False,
+        optout: bool = False,
+        noloop: bool = False,
+    ) -> (bytes | str) | Awaitable[bytes | str]:
         """
         Turn on the tracking mode.
         For more information about the options look at client_tracking func.
@@ -762,15 +926,37 @@ class ManagementCommands(CommandsProtocol):
             True, clientid, prefix, bcast, optin, optout, noloop
         )
 
+    @overload
     def client_tracking_off(
-        self,
-        clientid: Union[int, None] = None,
+        self: SyncClientProtocol,
+        clientid: int | None = None,
         prefix: Sequence[KeyT] = [],
         bcast: bool = False,
         optin: bool = False,
         optout: bool = False,
         noloop: bool = False,
-    ) -> ResponseT:
+    ) -> bytes | str: ...
+
+    @overload
+    def client_tracking_off(
+        self: AsyncClientProtocol,
+        clientid: int | None = None,
+        prefix: Sequence[KeyT] = [],
+        bcast: bool = False,
+        optin: bool = False,
+        optout: bool = False,
+        noloop: bool = False,
+    ) -> Awaitable[bytes | str]: ...
+
+    def client_tracking_off(
+        self,
+        clientid: int | None = None,
+        prefix: Sequence[KeyT] = [],
+        bcast: bool = False,
+        optin: bool = False,
+        optout: bool = False,
+        noloop: bool = False,
+    ) -> (bytes | str) | Awaitable[bytes | str]:
         """
         Turn off the tracking mode.
         For more information about the options look at client_tracking func.
@@ -781,17 +967,43 @@ class ManagementCommands(CommandsProtocol):
             False, clientid, prefix, bcast, optin, optout, noloop
         )
 
+    @overload
     def client_tracking(
-        self,
+        self: SyncClientProtocol,
         on: bool = True,
-        clientid: Union[int, None] = None,
+        clientid: int | None = None,
         prefix: Sequence[KeyT] = [],
         bcast: bool = False,
         optin: bool = False,
         optout: bool = False,
         noloop: bool = False,
         **kwargs,
-    ) -> ResponseT:
+    ) -> bytes | str: ...
+
+    @overload
+    def client_tracking(
+        self: AsyncClientProtocol,
+        on: bool = True,
+        clientid: int | None = None,
+        prefix: Sequence[KeyT] = [],
+        bcast: bool = False,
+        optin: bool = False,
+        optout: bool = False,
+        noloop: bool = False,
+        **kwargs,
+    ) -> Awaitable[bytes | str]: ...
+
+    def client_tracking(
+        self,
+        on: bool = True,
+        clientid: int | None = None,
+        prefix: Sequence[KeyT] = [],
+        bcast: bool = False,
+        optin: bool = False,
+        optout: bool = False,
+        noloop: bool = False,
+        **kwargs,
+    ) -> (bytes | str) | Awaitable[bytes | str]:
         """
         Enables the tracking feature of the Valkey server, that is used
         for server assisted client side caching.
@@ -841,7 +1053,19 @@ class ManagementCommands(CommandsProtocol):
 
         return self.execute_command("CLIENT TRACKING", *pieces)
 
-    def client_trackinginfo(self, **kwargs) -> ResponseT:
+    @overload
+    def client_trackinginfo(
+        self: SyncClientProtocol, **kwargs
+    ) -> list[Any] | dict[str, Any]: ...
+
+    @overload
+    def client_trackinginfo(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[list[Any] | dict[str, Any]]: ...
+
+    def client_trackinginfo(
+        self, **kwargs
+    ) -> list[Any] | dict[str, Any] | Awaitable[list[Any] | dict[str, Any]]:
         """
         Returns the information about the current client connection's
         use of the server assisted client side cache.
@@ -850,7 +1074,19 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT TRACKINGINFO", **kwargs)
 
-    def client_setname(self, name: str, **kwargs) -> ResponseT:
+    @overload
+    def client_setname(
+        self: SyncClientProtocol, name: str, **kwargs
+    ) -> Literal[True]: ...
+
+    @overload
+    def client_setname(
+        self: AsyncClientProtocol, name: str, **kwargs
+    ) -> Awaitable[Literal[True]]: ...
+
+    def client_setname(
+        self, name: str, **kwargs
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Sets the current connection name
 
@@ -864,16 +1100,38 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT SETNAME", name, **kwargs)
 
-    def client_setinfo(self, attr: str, value: str, **kwargs) -> ResponseT:
+    @overload
+    def client_setinfo(
+        self: SyncClientProtocol, attr: str, value: str, **kwargs
+    ) -> Literal[True]: ...
+
+    @overload
+    def client_setinfo(
+        self: AsyncClientProtocol, attr: str, value: str, **kwargs
+    ) -> Awaitable[Literal[True]]: ...
+
+    def client_setinfo(
+        self, attr: str, value: str, **kwargs
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Sets the current connection library name or version
         For mor information see https://valkey.io/commands/client-setinfo
         """
         return self.execute_command("CLIENT SETINFO", attr, value, **kwargs)
 
+    @overload
+    def client_unblock(
+        self: SyncClientProtocol, client_id: int, error: bool = False, **kwargs
+    ) -> bool: ...
+
+    @overload
+    def client_unblock(
+        self: AsyncClientProtocol, client_id: int, error: bool = False, **kwargs
+    ) -> Awaitable[bool]: ...
+
     def client_unblock(
         self, client_id: int, error: bool = False, **kwargs
-    ) -> ResponseT:
+    ) -> bool | Awaitable[bool]:
         """
         Unblocks a connection by its client id.
         If ``error`` is True, unblocks the client with a special error message.
@@ -887,7 +1145,19 @@ class ManagementCommands(CommandsProtocol):
             args.append(b"ERROR")
         return self.execute_command(*args, **kwargs)
 
-    def client_pause(self, timeout: int, all: bool = True, **kwargs) -> ResponseT:
+    @overload
+    def client_pause(
+        self: SyncClientProtocol, timeout: int, all: bool = True, **kwargs
+    ) -> Literal[True]: ...
+
+    @overload
+    def client_pause(
+        self: AsyncClientProtocol, timeout: int, all: bool = True, **kwargs
+    ) -> Awaitable[Literal[True]]: ...
+
+    def client_pause(
+        self, timeout: int, all: bool = True, **kwargs
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Suspend all the Valkey clients for the specified amount of time.
 
@@ -913,7 +1183,13 @@ class ManagementCommands(CommandsProtocol):
             args.append("WRITE")
         return self.execute_command(*args, **kwargs)
 
-    def client_unpause(self, **kwargs) -> ResponseT:
+    @overload
+    def client_unpause(self: SyncClientProtocol, **kwargs) -> str: ...
+
+    @overload
+    def client_unpause(self: AsyncClientProtocol, **kwargs) -> Awaitable[str]: ...
+
+    def client_unpause(self, **kwargs) -> str | Awaitable[str]:
         """
         Unpause all valkey clients
 
@@ -921,7 +1197,13 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT UNPAUSE", **kwargs)
 
-    def client_no_evict(self, mode: str) -> Union[Awaitable[str], str]:
+    @overload
+    def client_no_evict(self: SyncClientProtocol, mode: str) -> str: ...
+
+    @overload
+    def client_no_evict(self: AsyncClientProtocol, mode: str) -> Awaitable[str]: ...
+
+    def client_no_evict(self, mode: str) -> str | Awaitable[str]:
         """
         Sets the client eviction mode for the current connection.
 
@@ -929,7 +1211,13 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT NO-EVICT", mode)
 
-    def client_no_touch(self, mode: str) -> Union[Awaitable[str], str]:
+    @overload
+    def client_no_touch(self: SyncClientProtocol, mode: str) -> str: ...
+
+    @overload
+    def client_no_touch(self: AsyncClientProtocol, mode: str) -> Awaitable[str]: ...
+
+    def client_no_touch(self, mode: str) -> str | Awaitable[str]:
         """
         # The command controls whether commands sent by the client will alter
         # the LRU/LFU of the keys they access.
@@ -940,7 +1228,17 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT NO-TOUCH", mode)
 
-    def command(self, **kwargs):
+    @overload
+    def command(self: SyncClientProtocol, **kwargs) -> dict[str, dict[str, Any]]: ...
+
+    @overload
+    def command(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[dict[str, dict[str, Any]]]: ...
+
+    def command(
+        self, **kwargs
+    ) -> dict[str, dict[str, Any]] | Awaitable[dict[str, dict[str, Any]]]:
         """
         Returns dict reply of details about all Valkey commands.
 
@@ -948,20 +1246,42 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("COMMAND", **kwargs)
 
-    def command_info(self, **kwargs) -> None:
+    def command_info(self, **kwargs) -> NoReturn:
         raise NotImplementedError(
             "COMMAND INFO is intentionally not implemented in the client."
         )
 
-    def command_count(self, **kwargs) -> ResponseT:
+    @overload
+    def command_count(self: SyncClientProtocol, **kwargs) -> int: ...
+
+    @overload
+    def command_count(self: AsyncClientProtocol, **kwargs) -> Awaitable[int]: ...
+
+    def command_count(self, **kwargs) -> int | Awaitable[int]:
         return self.execute_command("COMMAND COUNT", **kwargs)
+
+    @overload
+    def command_list(
+        self: SyncClientProtocol,
+        module: str | None = None,
+        category: str | None = None,
+        pattern: str | None = None,
+    ) -> list[bytes]: ...
+
+    @overload
+    def command_list(
+        self: AsyncClientProtocol,
+        module: str | None = None,
+        category: str | None = None,
+        pattern: str | None = None,
+    ) -> Awaitable[list[bytes]]: ...
 
     def command_list(
         self,
-        module: Optional[str] = None,
-        category: Optional[str] = None,
-        pattern: Optional[str] = None,
-    ) -> ResponseT:
+        module: str | None = None,
+        category: str | None = None,
+        pattern: str | None = None,
+    ) -> list[bytes] | Awaitable[list[bytes]]:
         """
         Return an array of the server's command names.
         You can use one of the following filters:
@@ -984,7 +1304,19 @@ class ManagementCommands(CommandsProtocol):
 
         return self.execute_command("COMMAND LIST", *pieces)
 
-    def command_getkeysandflags(self, *args: List[str]) -> List[Union[str, List[str]]]:
+    @overload
+    def command_getkeysandflags(
+        self: SyncClientProtocol, *args: list[str]
+    ) -> list[str | list[str]]: ...
+
+    @overload
+    def command_getkeysandflags(
+        self: AsyncClientProtocol, *args: list[str]
+    ) -> Awaitable[list[str | list[str]]]: ...
+
+    def command_getkeysandflags(
+        self, *args: list[str]
+    ) -> list[str | list[str]] | Awaitable[list[str | list[str]]]:
         """
         Returns array of keys from a full Valkey command and their usage flags.
 
@@ -992,7 +1324,7 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("COMMAND GETKEYSANDFLAGS", *args)
 
-    def command_docs(self, *args):
+    def command_docs(self, *args) -> NoReturn:
         """
         This function throws a NotImplementedError since it is intentionally
         not supported.
@@ -1001,9 +1333,25 @@ class ManagementCommands(CommandsProtocol):
             "COMMAND DOCS is intentionally not implemented in the client."
         )
 
+    @overload
     def config_get(
-        self, pattern: PatternT = "*", *args: List[PatternT], **kwargs
-    ) -> ResponseT:
+        self: SyncClientProtocol,
+        pattern: PatternT = "*",
+        *args: list[PatternT],
+        **kwargs,
+    ) -> dict[str, str]: ...
+
+    @overload
+    def config_get(
+        self: AsyncClientProtocol,
+        pattern: PatternT = "*",
+        *args: list[PatternT],
+        **kwargs,
+    ) -> Awaitable[dict[str, str]]: ...
+
+    def config_get(
+        self, pattern: PatternT = "*", *args: list[PatternT], **kwargs
+    ) -> dict[str, str] | Awaitable[dict[str, str]]:
         """
         Return a dictionary of configuration based on the ``pattern``
 
@@ -1011,20 +1359,46 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CONFIG GET", pattern, *args, **kwargs)
 
+    @overload
+    def config_set(
+        self: SyncClientProtocol,
+        name: KeyT,
+        value: EncodableT,
+        *args: list[KeyT | EncodableT],
+        **kwargs,
+    ) -> Literal[True]: ...
+
+    @overload
+    def config_set(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        value: EncodableT,
+        *args: list[KeyT | EncodableT],
+        **kwargs,
+    ) -> Awaitable[Literal[True]]: ...
+
     def config_set(
         self,
         name: KeyT,
         value: EncodableT,
-        *args: List[Union[KeyT, EncodableT]],
+        *args: list[KeyT | EncodableT],
         **kwargs,
-    ) -> ResponseT:
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """Set config item ``name`` with ``value``
 
         For more information see https://valkey.io/commands/config-set
         """
         return self.execute_command("CONFIG SET", name, value, *args, **kwargs)
 
-    def config_resetstat(self, **kwargs) -> ResponseT:
+    @overload
+    def config_resetstat(self: SyncClientProtocol, **kwargs) -> Literal[True]: ...
+
+    @overload
+    def config_resetstat(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[Literal[True]]: ...
+
+    def config_resetstat(self, **kwargs) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Reset runtime statistics
 
@@ -1032,7 +1406,13 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CONFIG RESETSTAT", **kwargs)
 
-    def config_rewrite(self, **kwargs) -> ResponseT:
+    @overload
+    def config_rewrite(self: SyncClientProtocol, **kwargs) -> str: ...
+
+    @overload
+    def config_rewrite(self: AsyncClientProtocol, **kwargs) -> Awaitable[str]: ...
+
+    def config_rewrite(self, **kwargs) -> str | Awaitable[str]:
         """
         Rewrite config file with the minimal change to reflect running config.
 
@@ -1040,7 +1420,13 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("CONFIG REWRITE", **kwargs)
 
-    def dbsize(self, **kwargs) -> ResponseT:
+    @overload
+    def dbsize(self: SyncClientProtocol, **kwargs) -> int: ...
+
+    @overload
+    def dbsize(self: AsyncClientProtocol, **kwargs) -> Awaitable[int]: ...
+
+    def dbsize(self, **kwargs) -> int | Awaitable[int]:
         """
         Returns the number of keys in the current database
 
@@ -1048,7 +1434,19 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("DBSIZE", **kwargs)
 
-    def debug_object(self, key: KeyT, **kwargs) -> ResponseT:
+    @overload
+    def debug_object(
+        self: SyncClientProtocol, key: KeyT, **kwargs
+    ) -> dict[str, str | int]: ...
+
+    @overload
+    def debug_object(
+        self: AsyncClientProtocol, key: KeyT, **kwargs
+    ) -> Awaitable[dict[str, str | int]]: ...
+
+    def debug_object(
+        self, key: KeyT, **kwargs
+    ) -> dict[str, str | int] | Awaitable[dict[str, str | int]]:
         """
         Returns version specific meta information about a given key
 
@@ -1056,14 +1454,22 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("DEBUG OBJECT", key, **kwargs)
 
-    def debug_segfault(self, **kwargs) -> None:
+    def debug_segfault(self, **kwargs) -> NoReturn:
         raise NotImplementedError("""
             DEBUG SEGFAULT is intentionally not implemented in the client.
 
             For more information see https://valkey.io/commands/debug-segfault
             """)
 
-    def echo(self, value: EncodableT, **kwargs) -> ResponseT:
+    @overload
+    def echo(self: SyncClientProtocol, value: EncodableT, **kwargs) -> str: ...
+
+    @overload
+    def echo(
+        self: AsyncClientProtocol, value: EncodableT, **kwargs
+    ) -> Awaitable[str]: ...
+
+    def echo(self, value: EncodableT, **kwargs) -> str | Awaitable[str]:
         """
         Echo the string back from the server
 
@@ -1071,7 +1477,19 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("ECHO", value, **kwargs)
 
-    def flushall(self, asynchronous: bool = False, **kwargs) -> ResponseT:
+    @overload
+    def flushall(
+        self: SyncClientProtocol, asynchronous: bool = False, **kwargs
+    ) -> Literal[True]: ...
+
+    @overload
+    def flushall(
+        self: AsyncClientProtocol, asynchronous: bool = False, **kwargs
+    ) -> Awaitable[Literal[True]]: ...
+
+    def flushall(
+        self, asynchronous: bool = False, **kwargs
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Delete all keys in all databases on the current host.
 
@@ -1085,7 +1503,19 @@ class ManagementCommands(CommandsProtocol):
             args.append(b"ASYNC")
         return self.execute_command("FLUSHALL", *args, **kwargs)
 
-    def flushdb(self, asynchronous: bool = False, **kwargs) -> ResponseT:
+    @overload
+    def flushdb(
+        self: SyncClientProtocol, asynchronous: bool = False, **kwargs
+    ) -> Literal[True]: ...
+
+    @overload
+    def flushdb(
+        self: AsyncClientProtocol, asynchronous: bool = False, **kwargs
+    ) -> Awaitable[Literal[True]]: ...
+
+    def flushdb(
+        self, asynchronous: bool = False, **kwargs
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Delete all keys in the current database.
 
@@ -1099,7 +1529,13 @@ class ManagementCommands(CommandsProtocol):
             args.append(b"ASYNC")
         return self.execute_command("FLUSHDB", *args, **kwargs)
 
-    def sync(self) -> ResponseT:
+    @overload
+    def sync(self: SyncClientProtocol) -> bytes: ...
+
+    @overload
+    def sync(self: AsyncClientProtocol) -> Awaitable[bytes]: ...
+
+    def sync(self) -> bytes | Awaitable[bytes]:
         """
         Initiates a replication stream from the master.
 
@@ -1111,7 +1547,15 @@ class ManagementCommands(CommandsProtocol):
         options[NEVER_DECODE] = []
         return self.execute_command("SYNC", **options)
 
-    def psync(self, replicationid: str, offset: int):
+    @overload
+    def psync(self: SyncClientProtocol, replicationid: str, offset: int) -> bytes: ...
+
+    @overload
+    def psync(
+        self: AsyncClientProtocol, replicationid: str, offset: int
+    ) -> Awaitable[bytes]: ...
+
+    def psync(self, replicationid: str, offset: int) -> bytes | Awaitable[bytes]:
         """
         Initiates a replication stream from the master.
         Newer version for `sync`.
@@ -1124,7 +1568,19 @@ class ManagementCommands(CommandsProtocol):
         options[NEVER_DECODE] = []
         return self.execute_command("PSYNC", replicationid, offset, **options)
 
-    def swapdb(self, first: int, second: int, **kwargs) -> ResponseT:
+    @overload
+    def swapdb(
+        self: SyncClientProtocol, first: int, second: int, **kwargs
+    ) -> Literal[True]: ...
+
+    @overload
+    def swapdb(
+        self: AsyncClientProtocol, first: int, second: int, **kwargs
+    ) -> Awaitable[Literal[True]]: ...
+
+    def swapdb(
+        self, first: int, second: int, **kwargs
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Swap two databases
 
@@ -1132,16 +1588,37 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("SWAPDB", first, second, **kwargs)
 
-    def select(self, index: int, **kwargs) -> ResponseT:
+    @overload
+    def select(self: SyncClientProtocol, index: int, **kwargs) -> Literal[True]: ...
+
+    @overload
+    def select(
+        self: AsyncClientProtocol, index: int, **kwargs
+    ) -> Awaitable[Literal[True]]: ...
+
+    def select(self, index: int, **kwargs) -> Literal[True] | Awaitable[Literal[True]]:
         """Select the Valkey logical database at index.
 
         See: https://valkey.io/commands/select
         """
         return self.execute_command("SELECT", index, **kwargs)
 
+    @overload
     def info(
-        self, section: Union[str, None] = None, *args: List[str], **kwargs
-    ) -> ResponseT:
+        self: SyncClientProtocol, section: str | None = None, *args: list[str], **kwargs
+    ) -> dict[str, Any]: ...
+
+    @overload
+    def info(
+        self: AsyncClientProtocol,
+        section: str | None = None,
+        *args: list[str],
+        **kwargs,
+    ) -> Awaitable[dict[str, Any]]: ...
+
+    def info(
+        self, section: str | None = None, *args: list[str], **kwargs
+    ) -> dict[str, Any] | Awaitable[dict[str, Any]]:
         """
         Returns a dictionary containing information about the Valkey server
 
@@ -1158,7 +1635,17 @@ class ManagementCommands(CommandsProtocol):
         else:
             return self.execute_command("INFO", section, *args, **kwargs)
 
-    def lastsave(self, **kwargs) -> ResponseT:
+    @overload
+    def lastsave(self: SyncClientProtocol, **kwargs) -> datetime.datetime | None: ...
+
+    @overload
+    def lastsave(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[datetime.datetime | None]: ...
+
+    def lastsave(
+        self, **kwargs
+    ) -> (datetime.datetime | None) | Awaitable[datetime.datetime | None]:
         """
         Return a Python datetime object representing the last time the
         Valkey database was saved to disk
@@ -1167,7 +1654,7 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("LASTSAVE", **kwargs)
 
-    def latency_doctor(self):
+    def latency_doctor(self) -> NoReturn:
         """Raise a NotImplementedError, as the client will not support LATENCY DOCTOR.
         This function is best used within the valkey-cli.
 
@@ -1179,7 +1666,7 @@ class ManagementCommands(CommandsProtocol):
             For more information see https://valkey.io/commands/latency-doctor
             """)
 
-    def latency_graph(self):
+    def latency_graph(self) -> NoReturn:
         """Raise a NotImplementedError, as the client will not support LATENCY GRAPH.
         This function is best used within the valkey-cli.
 
@@ -1191,7 +1678,19 @@ class ManagementCommands(CommandsProtocol):
             For more information see https://valkey.io/commands/latency-graph
             """)
 
-    def lolwut(self, *version_numbers: Union[str, float], **kwargs) -> ResponseT:
+    @overload
+    def lolwut(
+        self: SyncClientProtocol, *version_numbers: str | float, **kwargs
+    ) -> bytes: ...
+
+    @overload
+    def lolwut(
+        self: AsyncClientProtocol, *version_numbers: str | float, **kwargs
+    ) -> Awaitable[bytes]: ...
+
+    def lolwut(
+        self, *version_numbers: str | float, **kwargs
+    ) -> bytes | Awaitable[bytes]:
         """
         Get the Valkey version and a piece of generative computer art
 
@@ -1202,12 +1701,46 @@ class ManagementCommands(CommandsProtocol):
         else:
             return self.execute_command("LOLWUT", **kwargs)
 
-    def reset(self) -> ResponseT:
+    @overload
+    def reset(self: SyncClientProtocol) -> str: ...
+
+    @overload
+    def reset(self: AsyncClientProtocol) -> Awaitable[str]: ...
+
+    def reset(self) -> str | Awaitable[str]:
         """Perform a full reset on the connection's server side context.
 
         See: https://valkey.io/commands/reset
         """
         return self.execute_command("RESET")
+
+    @overload
+    def migrate(
+        self: SyncClientProtocol,
+        host: str,
+        port: int,
+        keys: KeysT,
+        destination_db: int,
+        timeout: int,
+        copy: bool = False,
+        replace: bool = False,
+        auth: str | None = None,
+        **kwargs,
+    ) -> bytes | str: ...
+
+    @overload
+    def migrate(
+        self: AsyncClientProtocol,
+        host: str,
+        port: int,
+        keys: KeysT,
+        destination_db: int,
+        timeout: int,
+        copy: bool = False,
+        replace: bool = False,
+        auth: str | None = None,
+        **kwargs,
+    ) -> Awaitable[bytes | str]: ...
 
     def migrate(
         self,
@@ -1218,9 +1751,9 @@ class ManagementCommands(CommandsProtocol):
         timeout: int,
         copy: bool = False,
         replace: bool = False,
-        auth: Union[str, None] = None,
+        auth: str | None = None,
         **kwargs,
-    ) -> ResponseT:
+    ) -> bytes | str | Awaitable[bytes | str]:
         """
         Migrate 1 or more keys from the current Valkey server to a different
         server specified by the ``host``, ``port`` and ``destination_db``.
@@ -1257,7 +1790,15 @@ class ManagementCommands(CommandsProtocol):
             "MIGRATE", host, port, "", destination_db, timeout, *pieces, **kwargs
         )
 
-    def object(self, infotype: str, key: KeyT, **kwargs) -> ResponseT:
+    @overload
+    def object(self: SyncClientProtocol, infotype: str, key: KeyT, **kwargs) -> Any: ...
+
+    @overload
+    def object(
+        self: AsyncClientProtocol, infotype: str, key: KeyT, **kwargs
+    ) -> Awaitable[Any]: ...
+
+    def object(self, infotype: str, key: KeyT, **kwargs) -> Any | Awaitable[Any]:
         """
         Return the encoding, idletime, or refcount about the key
         """
@@ -1265,21 +1806,29 @@ class ManagementCommands(CommandsProtocol):
             "OBJECT", infotype, key, infotype=infotype, **kwargs
         )
 
-    def memory_doctor(self, **kwargs) -> None:
+    def memory_doctor(self, **kwargs) -> NoReturn:
         raise NotImplementedError("""
             MEMORY DOCTOR is intentionally not implemented in the client.
 
             For more information see https://valkey.io/commands/memory-doctor
             """)
 
-    def memory_help(self, **kwargs) -> None:
+    def memory_help(self, **kwargs) -> NoReturn:
         raise NotImplementedError("""
             MEMORY HELP is intentionally not implemented in the client.
 
             For more information see https://valkey.io/commands/memory-help
             """)
 
-    def memory_stats(self, **kwargs) -> ResponseT:
+    @overload
+    def memory_stats(self: SyncClientProtocol, **kwargs) -> dict[str, Any]: ...
+
+    @overload
+    def memory_stats(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[dict[str, Any]]: ...
+
+    def memory_stats(self, **kwargs) -> dict[str, Any] | Awaitable[dict[str, Any]]:
         """
         Return a dictionary of memory stats
 
@@ -1287,7 +1836,15 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("MEMORY STATS", **kwargs)
 
-    def memory_malloc_stats(self, **kwargs) -> ResponseT:
+    @overload
+    def memory_malloc_stats(self: SyncClientProtocol, **kwargs) -> bytes: ...
+
+    @overload
+    def memory_malloc_stats(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[bytes]: ...
+
+    def memory_malloc_stats(self, **kwargs) -> bytes | Awaitable[bytes]:
         """
         Return an internal statistics report from the memory allocator.
 
@@ -1295,9 +1852,19 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("MEMORY MALLOC-STATS", **kwargs)
 
+    @overload
+    def memory_usage(
+        self: SyncClientProtocol, key: KeyT, samples: Union[int, None] = None, **kwargs
+    ) -> int | None: ...
+
+    @overload
+    def memory_usage(
+        self: AsyncClientProtocol, key: KeyT, samples: Union[int, None] = None, **kwargs
+    ) -> Awaitable[int | None]: ...
+
     def memory_usage(
         self, key: KeyT, samples: Union[int, None] = None, **kwargs
-    ) -> ResponseT:
+    ) -> (int | None) | Awaitable[int | None]:
         """
         Return the total memory usage for key, its value and associated
         administrative overheads.
@@ -1313,7 +1880,15 @@ class ManagementCommands(CommandsProtocol):
             args.extend([b"SAMPLES", samples])
         return self.execute_command("MEMORY USAGE", key, *args, **kwargs)
 
-    def memory_purge(self, **kwargs) -> ResponseT:
+    @overload
+    def memory_purge(self: SyncClientProtocol, **kwargs) -> Literal[True]: ...
+
+    @overload
+    def memory_purge(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[Literal[True]]: ...
+
+    def memory_purge(self, **kwargs) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Attempts to purge dirty pages for reclamation by allocator
 
@@ -1321,7 +1896,7 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("MEMORY PURGE", **kwargs)
 
-    def latency_histogram(self, *args):
+    def latency_histogram(self, *args) -> NoReturn:
         """
         This function throws a NotImplementedError since it is intentionally
         not supported.
@@ -1330,7 +1905,17 @@ class ManagementCommands(CommandsProtocol):
             "LATENCY HISTOGRAM is intentionally not implemented in the client."
         )
 
-    def latency_history(self, event: str) -> ResponseT:
+    @overload
+    def latency_history(self: SyncClientProtocol, event: str) -> list[list[int]]: ...
+
+    @overload
+    def latency_history(
+        self: AsyncClientProtocol, event: str
+    ) -> Awaitable[list[list[int]]]: ...
+
+    def latency_history(
+        self, event: str
+    ) -> list[list[int]] | Awaitable[list[list[int]]]:
         """
         Returns the raw data of the ``event``'s latency spikes time series.
 
@@ -1338,7 +1923,17 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("LATENCY HISTORY", event)
 
-    def latency_latest(self) -> ResponseT:
+    @overload
+    def latency_latest(self: SyncClientProtocol) -> list[list[bytes | str | int]]: ...
+
+    @overload
+    def latency_latest(
+        self: AsyncClientProtocol,
+    ) -> Awaitable[list[list[bytes | str | int]]]: ...
+
+    def latency_latest(
+        self,
+    ) -> list[list[bytes | str | int]] | Awaitable[list[list[bytes | str | int]]]:
         """
         Reports the latest latency events logged.
 
@@ -1346,7 +1941,13 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("LATENCY LATEST")
 
-    def latency_reset(self, *events: str) -> ResponseT:
+    @overload
+    def latency_reset(self: SyncClientProtocol, *events: str) -> int: ...
+
+    @overload
+    def latency_reset(self: AsyncClientProtocol, *events: str) -> Awaitable[int]: ...
+
+    def latency_reset(self, *events: str) -> int | Awaitable[int]:
         """
         Resets the latency spikes time series of all, or only some, events.
 
@@ -1354,7 +1955,13 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("LATENCY RESET", *events)
 
-    def ping(self, **kwargs) -> ResponseT:
+    @overload
+    def ping(self: SyncClientProtocol, **kwargs) -> bool: ...
+
+    @overload
+    def ping(self: AsyncClientProtocol, **kwargs) -> Awaitable[bool]: ...
+
+    def ping(self, **kwargs) -> bool | Awaitable[bool]:
         """
         Ping the Valkey server
 
@@ -1362,7 +1969,13 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("PING", **kwargs)
 
-    def quit(self, **kwargs) -> ResponseT:
+    @overload
+    def quit(self: SyncClientProtocol, **kwargs) -> Literal[True]: ...
+
+    @overload
+    def quit(self: AsyncClientProtocol, **kwargs) -> Awaitable[Literal[True]]: ...
+
+    def quit(self, **kwargs) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Ask the server to close the connection.
 
@@ -1370,7 +1983,15 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("QUIT", **kwargs)
 
-    def replicaof(self, *args, **kwargs) -> ResponseT:
+    @overload
+    def replicaof(self: SyncClientProtocol, *args, **kwargs) -> bytes | str: ...
+
+    @overload
+    def replicaof(
+        self: AsyncClientProtocol, *args, **kwargs
+    ) -> Awaitable[bytes | str]: ...
+
+    def replicaof(self, *args, **kwargs) -> (bytes | str) | Awaitable[bytes | str]:
         """
         Update the replication settings of a valkey replica, on the fly.
 
@@ -1383,7 +2004,13 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("REPLICAOF", *args, **kwargs)
 
-    def save(self, **kwargs) -> ResponseT:
+    @overload
+    def save(self: SyncClientProtocol, **kwargs) -> bool: ...
+
+    @overload
+    def save(self: AsyncClientProtocol, **kwargs) -> Awaitable[bool]: ...
+
+    def save(self, **kwargs) -> bool | Awaitable[bool]:
         """
         Tell the Valkey server to save its data to disk,
         blocking until the save is complete
@@ -1434,9 +2061,25 @@ class ManagementCommands(CommandsProtocol):
             return
         raise ValkeyError("SHUTDOWN seems to have failed.")
 
+    @overload
     def slaveof(
-        self, host: Union[str, None] = None, port: Union[int, None] = None, **kwargs
-    ) -> ResponseT:
+        self: SyncClientProtocol,
+        host: str | None = None,
+        port: int | None = None,
+        **kwargs,
+    ) -> bool: ...
+
+    @overload
+    def slaveof(
+        self: AsyncClientProtocol,
+        host: str | None = None,
+        port: int | None = None,
+        **kwargs,
+    ) -> Awaitable[bool]: ...
+
+    def slaveof(
+        self, host: str | None = None, port: int | None = None, **kwargs
+    ) -> bool | Awaitable[bool]:
         """
         Set the server to be a replicated slave of the instance identified
         by the ``host`` and ``port``. If called without arguments, the
@@ -1448,7 +2091,19 @@ class ManagementCommands(CommandsProtocol):
             return self.execute_command("SLAVEOF", b"NO", b"ONE", **kwargs)
         return self.execute_command("SLAVEOF", host, port, **kwargs)
 
-    def slowlog_get(self, num: Union[int, None] = None, **kwargs) -> ResponseT:
+    @overload
+    def slowlog_get(
+        self: SyncClientProtocol, num: int | None = None, **kwargs
+    ) -> list[dict[str, Any]]: ...
+
+    @overload
+    def slowlog_get(
+        self: AsyncClientProtocol, num: int | None = None, **kwargs
+    ) -> Awaitable[list[dict[str, Any]]]: ...
+
+    def slowlog_get(
+        self, num: int | None = None, **kwargs
+    ) -> list[dict[str, Any]] | Awaitable[list[dict[str, Any]]]:
         """
         Get the entries from the slowlog. If ``num`` is specified, get the
         most recent ``num`` items.
@@ -1465,7 +2120,13 @@ class ManagementCommands(CommandsProtocol):
             kwargs[NEVER_DECODE] = []
         return self.execute_command(*args, **kwargs)
 
-    def slowlog_len(self, **kwargs) -> ResponseT:
+    @overload
+    def slowlog_len(self: SyncClientProtocol, **kwargs) -> int: ...
+
+    @overload
+    def slowlog_len(self: AsyncClientProtocol, **kwargs) -> Awaitable[int]: ...
+
+    def slowlog_len(self, **kwargs) -> int | Awaitable[int]:
         """
         Get the number of items in the slowlog
 
@@ -1473,7 +2134,15 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("SLOWLOG LEN", **kwargs)
 
-    def slowlog_reset(self, **kwargs) -> ResponseT:
+    @overload
+    def slowlog_reset(self: SyncClientProtocol, **kwargs) -> Literal[True]: ...
+
+    @overload
+    def slowlog_reset(
+        self: AsyncClientProtocol, **kwargs
+    ) -> Awaitable[Literal[True]]: ...
+
+    def slowlog_reset(self, **kwargs) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Remove all items in the slowlog
 
@@ -1481,7 +2150,13 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("SLOWLOG RESET", **kwargs)
 
-    def time(self, **kwargs) -> ResponseT:
+    @overload
+    def time(self: SyncClientProtocol, **kwargs) -> tuple[int, int]: ...
+
+    @overload
+    def time(self: AsyncClientProtocol, **kwargs) -> Awaitable[tuple[int, int]]: ...
+
+    def time(self, **kwargs) -> tuple[int, int] | Awaitable[tuple[int, int]]:
         """
         Returns the server time as a 2-item tuple of ints:
         (seconds since epoch, microseconds into this second).
@@ -1490,7 +2165,17 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("TIME", **kwargs)
 
-    def wait(self, num_replicas: int, timeout: int, **kwargs) -> ResponseT:
+    @overload
+    def wait(
+        self: SyncClientProtocol, num_replicas: int, timeout: int, **kwargs
+    ) -> int: ...
+
+    @overload
+    def wait(
+        self: AsyncClientProtocol, num_replicas: int, timeout: int, **kwargs
+    ) -> Awaitable[int]: ...
+
+    def wait(self, num_replicas: int, timeout: int, **kwargs) -> int | Awaitable[int]:
         """
         Valkey synchronous replication
         That returns the number of replicas that processed the query when
@@ -1501,9 +2186,27 @@ class ManagementCommands(CommandsProtocol):
         """
         return self.execute_command("WAIT", num_replicas, timeout, **kwargs)
 
+    @overload
+    def waitaof(
+        self: SyncClientProtocol,
+        num_local: int,
+        num_replicas: int,
+        timeout: int,
+        **kwargs,
+    ) -> list[int]: ...
+
+    @overload
+    def waitaof(
+        self: AsyncClientProtocol,
+        num_local: int,
+        num_replicas: int,
+        timeout: int,
+        **kwargs,
+    ) -> Awaitable[list[int]]: ...
+
     def waitaof(
         self, num_local: int, num_replicas: int, timeout: int, **kwargs
-    ) -> ResponseT:
+    ) -> list[int] | Awaitable[list[int]]:
         """
         This command blocks the current client until all previous write
         commands by that client are acknowledged as having been fsynced
@@ -1516,7 +2219,7 @@ class ManagementCommands(CommandsProtocol):
             "WAITAOF", num_local, num_replicas, timeout, **kwargs
         )
 
-    def hello(self):
+    def hello(self) -> NoReturn:
         """
         This function throws a NotImplementedError since it is intentionally
         not supported.
@@ -1525,7 +2228,7 @@ class ManagementCommands(CommandsProtocol):
             "HELLO is intentionally not implemented in the client."
         )
 
-    def failover(self):
+    def failover(self) -> NoReturn:
         """
         This function throws a NotImplementedError since it is intentionally
         not supported.
@@ -1536,17 +2239,17 @@ class ManagementCommands(CommandsProtocol):
 
 
 class AsyncManagementCommands(ManagementCommands):
-    async def command_info(self, **kwargs) -> None:
-        return super().command_info(**kwargs)
+    async def command_info(self, **kwargs) -> NoReturn:
+        super().command_info(**kwargs)
 
-    async def debug_segfault(self, **kwargs) -> None:
-        return super().debug_segfault(**kwargs)
+    async def debug_segfault(self, **kwargs) -> NoReturn:
+        super().debug_segfault(**kwargs)
 
-    async def memory_doctor(self, **kwargs) -> None:
-        return super().memory_doctor(**kwargs)
+    async def memory_doctor(self, **kwargs) -> NoReturn:
+        super().memory_doctor(**kwargs)
 
-    async def memory_help(self, **kwargs) -> None:
-        return super().memory_help(**kwargs)
+    async def memory_help(self, **kwargs) -> NoReturn:
+        super().memory_help(**kwargs)
 
     async def shutdown(
         self,
