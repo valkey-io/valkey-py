@@ -512,14 +512,26 @@ class ACLCommands(CommandsProtocol):
 
         return self.execute_command("ACL SETUSER", *pieces, **kwargs)
 
-    def acl_users(self, **kwargs) -> ResponseT:
+    @overload
+    def acl_users(self: SyncClientProtocol, **kwargs) -> list[str]: ...
+
+    @overload
+    def acl_users(self: AsyncClientProtocol, **kwargs) -> Awaitable[list[str]]: ...
+
+    def acl_users(self, **kwargs) -> list[str] | Awaitable[list[str]]:
         """Returns a list of all registered users on the server.
 
         For more information see https://valkey.io/commands/acl-users
         """
         return self.execute_command("ACL USERS", **kwargs)
 
-    def acl_whoami(self, **kwargs) -> ResponseT:
+    @overload
+    def acl_whoami(self: SyncClientProtocol, **kwargs) -> str: ...
+
+    @overload
+    def acl_whoami(self: AsyncClientProtocol, **kwargs) -> Awaitable[str]: ...
+
+    def acl_whoami(self, **kwargs) -> str | Awaitable[str]:
         """Get the username for the current connection
 
         For more information see https://valkey.io/commands/acl-whoami
