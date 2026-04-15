@@ -17,7 +17,6 @@ from typing import (
     NoReturn,
     Optional,
     Sequence,
-    Set,
     Tuple,
     TypeVar,
     Union,
@@ -5881,7 +5880,15 @@ class SetCommands(CommandsProtocol):
     see: https://valkey.io/topics/data-types#sets
     """
 
-    def sadd(self, name: str, *values: FieldT) -> Union[Awaitable[int], int]:
+    @overload
+    def sadd(self: SyncClientProtocol, name: KeyT, *values: FieldT) -> int: ...
+
+    @overload
+    def sadd(
+        self: AsyncClientProtocol, name: KeyT, *values: FieldT
+    ) -> Awaitable[int]: ...
+
+    def sadd(self, name: KeyT, *values: FieldT) -> int | Awaitable[int]:
         """
         Add ``value(s)`` to set ``name``
 
@@ -5889,7 +5896,13 @@ class SetCommands(CommandsProtocol):
         """
         return self.execute_command("SADD", name, *values)
 
-    def scard(self, name: str) -> Union[Awaitable[int], int]:
+    @overload
+    def scard(self: SyncClientProtocol, name: KeyT) -> int: ...
+
+    @overload
+    def scard(self: AsyncClientProtocol, name: KeyT) -> Awaitable[int]: ...
+
+    def scard(self, name: KeyT) -> int | Awaitable[int]:
         """
         Return the number of elements in set ``name``
 
@@ -5897,39 +5910,90 @@ class SetCommands(CommandsProtocol):
         """
         return self.execute_command("SCARD", name, keys=[name])
 
-    def sdiff(self, keys: List, *args: List) -> Union[Awaitable[list], list]:
+    @overload
+    def sdiff(
+        self: SyncClientProtocol, keys: KeysT, *args: KeyT
+    ) -> list[StringTypeT]: ...
+
+    @overload
+    def sdiff(
+        self: AsyncClientProtocol, keys: KeysT, *args: KeyT
+    ) -> Awaitable[list[StringTypeT]]: ...
+
+    def sdiff(
+        self, keys: KeysT, *args: KeyT
+    ) -> list[StringTypeT] | Awaitable[list[StringTypeT]]:
         """
         Return the difference of sets specified by ``keys``
 
         For more information see https://valkey.io/commands/sdiff
         """
-        args = list_or_args(keys, args)
-        return self.execute_command("SDIFF", *args, keys=args)
+        all_args = list_or_args(keys, args)
+        return self.execute_command("SDIFF", *all_args, keys=all_args)
 
+    @overload
     def sdiffstore(
-        self, dest: str, keys: List, *args: List
-    ) -> Union[Awaitable[int], int]:
+        self: SyncClientProtocol, dest: KeyT, keys: KeysT, *args: KeyT
+    ) -> int: ...
+
+    @overload
+    def sdiffstore(
+        self: AsyncClientProtocol, dest: KeyT, keys: KeysT, *args: KeyT
+    ) -> Awaitable[int]: ...
+
+    def sdiffstore(self, dest: KeyT, keys: KeysT, *args: KeyT) -> int | Awaitable[int]:
         """
         Store the difference of sets specified by ``keys`` into a new
         set named ``dest``.  Returns the number of keys in the new set.
 
         For more information see https://valkey.io/commands/sdiffstore
         """
-        args = list_or_args(keys, args)
-        return self.execute_command("SDIFFSTORE", dest, *args)
+        all_args = list_or_args(keys, args)
+        return self.execute_command("SDIFFSTORE", dest, *all_args)
 
-    def sinter(self, keys: List, *args: List) -> Union[Awaitable[list], list]:
+    @overload
+    def sinter(
+        self: SyncClientProtocol, keys: KeysT, *args: KeyT
+    ) -> list[StringTypeT]: ...
+
+    @overload
+    def sinter(
+        self: AsyncClientProtocol, keys: KeysT, *args: KeyT
+    ) -> Awaitable[list[StringTypeT]]: ...
+
+    def sinter(
+        self, keys: KeysT, *args: KeyT
+    ) -> list[StringTypeT] | Awaitable[list[StringTypeT]]:
         """
         Return the intersection of sets specified by ``keys``
 
         For more information see https://valkey.io/commands/sinter
         """
-        args = list_or_args(keys, args)
-        return self.execute_command("SINTER", *args, keys=args)
+        all_args = list_or_args(keys, args)
+        return self.execute_command("SINTER", *all_args, keys=all_args)
+
+    @overload
+    def sintercard(
+        self: SyncClientProtocol,
+        numkeys: int,
+        keys: Iterable[KeyT],
+        limit: int = 0,
+    ) -> int: ...
+
+    @overload
+    def sintercard(
+        self: AsyncClientProtocol,
+        numkeys: int,
+        keys: Iterable[KeyT],
+        limit: int = 0,
+    ) -> Awaitable[int]: ...
 
     def sintercard(
-        self, numkeys: int, keys: List[str], limit: int = 0
-    ) -> Union[Awaitable[int], int]:
+        self,
+        numkeys: int,
+        keys: Iterable[KeyT],
+        limit: int = 0,
+    ) -> int | Awaitable[int]:
         """
         Return the cardinality of the intersect of multiple sets specified by ``keys``.
 
@@ -5942,21 +6006,39 @@ class SetCommands(CommandsProtocol):
         args = [numkeys, *keys, "LIMIT", limit]
         return self.execute_command("SINTERCARD", *args, keys=keys)
 
+    @overload
     def sinterstore(
-        self, dest: str, keys: List, *args: List
-    ) -> Union[Awaitable[int], int]:
+        self: SyncClientProtocol, dest: KeyT, keys: KeysT, *args: KeyT
+    ) -> int: ...
+
+    @overload
+    def sinterstore(
+        self: AsyncClientProtocol, dest: KeyT, keys: KeysT, *args: KeyT
+    ) -> Awaitable[int]: ...
+
+    def sinterstore(self, dest: KeyT, keys: KeysT, *args: KeyT) -> int | Awaitable[int]:
         """
         Store the intersection of sets specified by ``keys`` into a new
         set named ``dest``.  Returns the number of keys in the new set.
 
         For more information see https://valkey.io/commands/sinterstore
         """
-        args = list_or_args(keys, args)
-        return self.execute_command("SINTERSTORE", dest, *args)
+        all_args = list_or_args(keys, args)
+        return self.execute_command("SINTERSTORE", dest, *all_args)
+
+    @overload
+    def sismember(
+        self: SyncClientProtocol, name: KeyT, value: FieldT
+    ) -> Literal[0] | Literal[1]: ...
+
+    @overload
+    def sismember(
+        self: AsyncClientProtocol, name: KeyT, value: FieldT
+    ) -> Awaitable[Literal[0] | Literal[1]]: ...
 
     def sismember(
-        self, name: str, value: str
-    ) -> Union[Awaitable[Union[Literal[0], Literal[1]]], Union[Literal[0], Literal[1]]]:
+        self, name: KeyT, value: FieldT
+    ) -> Literal[0] | Literal[1] | Awaitable[Literal[0] | Literal[1]]:
         """
         Return whether ``value`` is a member of set ``name``:
         - 1 if the value is a member of the set.
@@ -5966,7 +6048,15 @@ class SetCommands(CommandsProtocol):
         """
         return self.execute_command("SISMEMBER", name, value, keys=[name])
 
-    def smembers(self, name: str) -> Union[Awaitable[Set], Set]:
+    @overload
+    def smembers(self: SyncClientProtocol, name: KeyT) -> list[StringTypeT]: ...
+
+    @overload
+    def smembers(
+        self: AsyncClientProtocol, name: KeyT
+    ) -> Awaitable[list[StringTypeT]]: ...
+
+    def smembers(self, name: KeyT) -> list[StringTypeT] | Awaitable[list[StringTypeT]]:
         """
         Return all members of the set ``name``
 
@@ -5974,10 +6064,28 @@ class SetCommands(CommandsProtocol):
         """
         return self.execute_command("SMEMBERS", name, keys=[name])
 
-    def smismember(self, name: str, values: List, *args: List) -> Union[
-        Awaitable[List[Union[Literal[0], Literal[1]]]],
-        List[Union[Literal[0], Literal[1]]],
-    ]:
+    @overload
+    def smismember(
+        self: SyncClientProtocol,
+        name: KeyT,
+        values: FieldT | Iterable[FieldT],
+        *args: FieldT,
+    ) -> list[Literal[0] | Literal[1]]: ...
+
+    @overload
+    def smismember(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        values: FieldT | Iterable[FieldT],
+        *args: FieldT,
+    ) -> Awaitable[list[Literal[0] | Literal[1]]]: ...
+
+    def smismember(
+        self,
+        name: KeyT,
+        values: FieldT | Iterable[FieldT],
+        *args: FieldT,
+    ) -> list[Literal[0] | Literal[1]] | Awaitable[list[Literal[0] | Literal[1]]]:
         """
         Return whether each value in ``values`` is a member of the set ``name``
         as a list of ``int`` in the order of ``values``:
@@ -5986,10 +6094,20 @@ class SetCommands(CommandsProtocol):
 
         For more information see https://valkey.io/commands/smismember
         """
-        args = list_or_args(values, args)
-        return self.execute_command("SMISMEMBER", name, *args, keys=[name])
+        all_args = list_or_args(values, args)  # type: ignore[arg-type]
+        return self.execute_command("SMISMEMBER", name, *all_args, keys=[name])
 
-    def smove(self, src: str, dst: str, value: str) -> Union[Awaitable[bool], bool]:
+    @overload
+    def smove(
+        self: SyncClientProtocol, src: KeyT, dst: KeyT, value: FieldT
+    ) -> bool: ...
+
+    @overload
+    def smove(
+        self: AsyncClientProtocol, src: KeyT, dst: KeyT, value: FieldT
+    ) -> Awaitable[bool]: ...
+
+    def smove(self, src: KeyT, dst: KeyT, value: FieldT) -> bool | Awaitable[bool]:
         """
         Move ``value`` from set ``src`` to set ``dst`` atomically
 
@@ -5997,7 +6115,45 @@ class SetCommands(CommandsProtocol):
         """
         return self.execute_command("SMOVE", src, dst, value)
 
-    def spop(self, name: str, count: Optional[int] = None) -> Union[str, List, None]:
+    @overload
+    def spop(
+        self: SyncClientProtocol,
+        name: KeyT,
+        count: None = None,
+    ) -> StringTypeT | None: ...
+
+    @overload
+    def spop(
+        self: SyncClientProtocol,
+        name: KeyT,
+        count: int,
+    ) -> list[StringTypeT]: ...
+
+    @overload
+    def spop(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        count: None = None,
+    ) -> Awaitable[StringTypeT | None]: ...
+
+    @overload
+    def spop(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        count: int,
+    ) -> Awaitable[list[StringTypeT]]: ...
+
+    def spop(
+        self,
+        name: KeyT,
+        count: int | None = None,
+    ) -> (
+        StringTypeT
+        | list[StringTypeT]
+        | None
+        | Awaitable[StringTypeT | None]
+        | Awaitable[list[StringTypeT]]
+    ):
         """
         Remove and return a random member of set ``name``
 
@@ -6006,9 +6162,45 @@ class SetCommands(CommandsProtocol):
         args = (count is not None) and [count] or []
         return self.execute_command("SPOP", name, *args)
 
+    @overload
     def srandmember(
-        self, name: str, number: Optional[int] = None
-    ) -> Union[str, List, None]:
+        self: SyncClientProtocol,
+        name: KeyT,
+        number: None = None,
+    ) -> StringTypeT | None: ...
+
+    @overload
+    def srandmember(
+        self: SyncClientProtocol,
+        name: KeyT,
+        number: int,
+    ) -> list[StringTypeT]: ...
+
+    @overload
+    def srandmember(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        number: None = None,
+    ) -> Awaitable[StringTypeT | None]: ...
+
+    @overload
+    def srandmember(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        number: int,
+    ) -> Awaitable[list[StringTypeT]]: ...
+
+    def srandmember(
+        self,
+        name: KeyT,
+        number: int | None = None,
+    ) -> (
+        StringTypeT
+        | list[StringTypeT]
+        | None
+        | Awaitable[StringTypeT | None]
+        | Awaitable[list[StringTypeT]]
+    ):
         """
         If ``number`` is None, returns a random member of set ``name``.
 
@@ -6020,7 +6212,15 @@ class SetCommands(CommandsProtocol):
         args = (number is not None) and [number] or []
         return self.execute_command("SRANDMEMBER", name, *args)
 
-    def srem(self, name: str, *values: FieldT) -> Union[Awaitable[int], int]:
+    @overload
+    def srem(self: SyncClientProtocol, name: KeyT, *values: FieldT) -> int: ...
+
+    @overload
+    def srem(
+        self: AsyncClientProtocol, name: KeyT, *values: FieldT
+    ) -> Awaitable[int]: ...
+
+    def srem(self, name: KeyT, *values: FieldT) -> int | Awaitable[int]:
         """
         Remove ``values`` from set ``name``
 
@@ -6028,26 +6228,46 @@ class SetCommands(CommandsProtocol):
         """
         return self.execute_command("SREM", name, *values)
 
-    def sunion(self, keys: List, *args: List) -> Union[Awaitable[List], List]:
+    @overload
+    def sunion(
+        self: SyncClientProtocol, keys: KeysT, *args: KeyT
+    ) -> list[StringTypeT]: ...
+
+    @overload
+    def sunion(
+        self: AsyncClientProtocol, keys: KeysT, *args: KeyT
+    ) -> Awaitable[list[StringTypeT]]: ...
+
+    def sunion(
+        self, keys: KeysT, *args: KeyT
+    ) -> list[StringTypeT] | Awaitable[list[StringTypeT]]:
         """
         Return the union of sets specified by ``keys``
 
         For more information see https://valkey.io/commands/sunion
         """
-        args = list_or_args(keys, args)
-        return self.execute_command("SUNION", *args, keys=args)
+        all_args = list_or_args(keys, args)
+        return self.execute_command("SUNION", *all_args, keys=all_args)
 
+    @overload
     def sunionstore(
-        self, dest: str, keys: List, *args: List
-    ) -> Union[Awaitable[int], int]:
+        self: SyncClientProtocol, dest: KeyT, keys: KeysT, *args: KeyT
+    ) -> int: ...
+
+    @overload
+    def sunionstore(
+        self: AsyncClientProtocol, dest: KeyT, keys: KeysT, *args: KeyT
+    ) -> Awaitable[int]: ...
+
+    def sunionstore(self, dest: KeyT, keys: KeysT, *args: KeyT) -> int | Awaitable[int]:
         """
         Store the union of sets specified by ``keys`` into a new
         set named ``dest``.  Returns the number of keys in the new set.
 
         For more information see https://valkey.io/commands/sunionstore
         """
-        args = list_or_args(keys, args)
-        return self.execute_command("SUNIONSTORE", dest, *args)
+        all_args = list_or_args(keys, args)
+        return self.execute_command("SUNIONSTORE", dest, *all_args)
 
 
 AsyncSetCommands = SetCommands
