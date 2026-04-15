@@ -46,6 +46,7 @@ LCSIdxData = (
     list[StringTypeT | list[LCSMatchEntry] | int]
     | dict[StringTypeT, list[LCSMatchEntry] | int]
 )
+BlockingPopResult = list[StringTypeT] | tuple[StringTypeT, StringTypeT]
 ExpiryT = int | timedelta
 ZScoreBoundT = float | str  # str allows for the [ or ( prefix
 BitfieldOffsetT = int | str  # str allows for #x syntax
