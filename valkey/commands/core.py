@@ -19,9 +19,12 @@ from typing import (
     Sequence,
     Set,
     Tuple,
+    TypeVar,
     Union,
     overload,
 )
+
+_ScoreCastReturnT = TypeVar("_ScoreCastReturnT")
 
 from valkey.exceptions import ConnectionError, DataError, NoScriptError, ValkeyError
 from valkey.typing import (
@@ -5248,14 +5251,34 @@ class ScanCommands(CommandsProtocol):
     see: https://valkey.io/commands/scan
     """
 
+    @overload
+    def scan(
+        self: SyncClientProtocol,
+        cursor: int = 0,
+        match: PatternT | None = None,
+        count: int | None = None,
+        _type: str | None = None,
+        **kwargs,
+    ) -> tuple[int, list[StringTypeT]]: ...
+
+    @overload
+    def scan(
+        self: AsyncClientProtocol,
+        cursor: int = 0,
+        match: PatternT | None = None,
+        count: int | None = None,
+        _type: str | None = None,
+        **kwargs,
+    ) -> Awaitable[tuple[int, list[StringTypeT]]]: ...
+
     def scan(
         self,
         cursor: int = 0,
-        match: Union[PatternT, None] = None,
-        count: Union[int, None] = None,
-        _type: Union[str, None] = None,
+        match: PatternT | None = None,
+        count: int | None = None,
+        _type: str | None = None,
         **kwargs,
-    ) -> ResponseT:
+    ) -> tuple[int, list[StringTypeT]] | Awaitable[tuple[int, list[StringTypeT]]]:
         """
         Incrementally return lists of key names. Also return a cursor
         indicating the scan position. In ValkeyCluster, the cursors are returned
@@ -5285,11 +5308,11 @@ class ScanCommands(CommandsProtocol):
 
     def scan_iter(
         self,
-        match: Union[PatternT, None] = None,
-        count: Union[int, None] = None,
-        _type: Union[str, None] = None,
+        match: PatternT | None = None,
+        count: int | None = None,
+        _type: str | None = None,
         **kwargs,
-    ) -> Iterator:
+    ) -> Iterator[StringTypeT]:
         """
         Make an iterator using the SCAN command so that the client doesn't
         need to remember the cursor position.
@@ -5304,20 +5327,40 @@ class ScanCommands(CommandsProtocol):
             HASH, LIST, SET, STREAM, STRING, ZSET
             Additionally, Valkey modules can expose other types as well.
         """
-        cursor = "0"
-        while cursor != 0:
+        cursor = 0
+        while True:
             cursor, data = self.scan(
                 cursor=cursor, match=match, count=count, _type=_type, **kwargs
             )
             yield from data
+            if cursor == 0:
+                break
+
+    @overload
+    def sscan(
+        self: SyncClientProtocol,
+        name: KeyT,
+        cursor: int = 0,
+        match: PatternT | None = None,
+        count: int | None = None,
+    ) -> tuple[int, list[StringTypeT]]: ...
+
+    @overload
+    def sscan(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        cursor: int = 0,
+        match: PatternT | None = None,
+        count: int | None = None,
+    ) -> Awaitable[tuple[int, list[StringTypeT]]]: ...
 
     def sscan(
         self,
         name: KeyT,
         cursor: int = 0,
-        match: Union[PatternT, None] = None,
-        count: Union[int, None] = None,
-    ) -> ResponseT:
+        match: PatternT | None = None,
+        count: int | None = None,
+    ) -> tuple[int, list[StringTypeT]] | Awaitable[tuple[int, list[StringTypeT]]]:
         """
         Incrementally return lists of elements in a set. Also return a cursor
         indicating the scan position.
@@ -5338,9 +5381,9 @@ class ScanCommands(CommandsProtocol):
     def sscan_iter(
         self,
         name: KeyT,
-        match: Union[PatternT, None] = None,
-        count: Union[int, None] = None,
-    ) -> Iterator:
+        match: PatternT | None = None,
+        count: int | None = None,
+    ) -> Iterator[StringTypeT]:
         """
         Make an iterator using the SSCAN command so that the client doesn't
         need to remember the cursor position.
@@ -5349,19 +5392,86 @@ class ScanCommands(CommandsProtocol):
 
         ``count`` allows for hint the minimum number of returns
         """
-        cursor = "0"
-        while cursor != 0:
+        cursor = 0
+        while True:
             cursor, data = self.sscan(name, cursor=cursor, match=match, count=count)
             yield from data
+            if cursor == 0:
+                break
+
+    @overload
+    def hscan(
+        self: SyncClientProtocol,
+        name: KeyT,
+        cursor: int = 0,
+        match: PatternT | None = None,
+        count: int | None = None,
+        no_values: Literal[False] | None = None,
+    ) -> tuple[int, dict[StringTypeT, StringTypeT]]: ...
+
+    @overload
+    def hscan(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        cursor: int = 0,
+        match: PatternT | None = None,
+        count: int | None = None,
+        no_values: Literal[False] | None = None,
+    ) -> Awaitable[tuple[int, dict[StringTypeT, StringTypeT]]]: ...
+
+    @overload
+    def hscan(
+        self: SyncClientProtocol,
+        name: KeyT,
+        cursor: int = 0,
+        match: PatternT | None = None,
+        count: int | None = None,
+        *,
+        no_values: Literal[True],
+    ) -> tuple[int, list[StringTypeT]]: ...
+
+    @overload
+    def hscan(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        cursor: int = 0,
+        match: PatternT | None = None,
+        count: int | None = None,
+        *,
+        no_values: Literal[True],
+    ) -> Awaitable[tuple[int, list[StringTypeT]]]: ...
+
+    @overload
+    def hscan(
+        self: SyncClientProtocol,
+        name: KeyT,
+        cursor: int = 0,
+        match: PatternT | None = None,
+        count: int | None = None,
+        no_values: bool | None = None,
+    ) -> tuple[int, dict[StringTypeT, StringTypeT] | list[StringTypeT]]: ...
+
+    @overload
+    def hscan(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        cursor: int = 0,
+        match: PatternT | None = None,
+        count: int | None = None,
+        no_values: bool | None = None,
+    ) -> Awaitable[tuple[int, dict[StringTypeT, StringTypeT] | list[StringTypeT]]]: ...
 
     def hscan(
         self,
         name: KeyT,
         cursor: int = 0,
-        match: Union[PatternT, None] = None,
-        count: Union[int, None] = None,
-        no_values: Union[bool, None] = None,
-    ) -> ResponseT:
+        match: PatternT | None = None,
+        count: int | None = None,
+        no_values: bool | None = None,
+    ) -> (
+        tuple[int, dict[StringTypeT, StringTypeT] | list[StringTypeT]]
+        | Awaitable[tuple[int, dict[StringTypeT, StringTypeT] | list[StringTypeT]]]
+    ):
         """
         Incrementally return key/value slices in a hash. Also return a cursor
         indicating the scan position.
@@ -5383,13 +5493,41 @@ class ScanCommands(CommandsProtocol):
             pieces.extend([b"NOVALUES"])
         return self.execute_command("HSCAN", *pieces, no_values=no_values)
 
+    @overload
     def hscan_iter(
         self,
-        name: str,
-        match: Union[PatternT, None] = None,
-        count: Union[int, None] = None,
-        no_values: Union[bool, None] = None,
-    ) -> Iterator:
+        name: KeyT,
+        match: PatternT | None = None,
+        count: int | None = None,
+        no_values: Literal[False] | None = None,
+    ) -> Iterator[tuple[StringTypeT, StringTypeT]]: ...
+
+    @overload
+    def hscan_iter(
+        self,
+        name: KeyT,
+        match: PatternT | None = None,
+        count: int | None = None,
+        *,
+        no_values: Literal[True],
+    ) -> Iterator[StringTypeT]: ...
+
+    @overload
+    def hscan_iter(
+        self,
+        name: KeyT,
+        match: PatternT | None = None,
+        count: int | None = None,
+        no_values: bool | None = None,
+    ) -> Iterator[tuple[StringTypeT, StringTypeT]] | Iterator[StringTypeT]: ...
+
+    def hscan_iter(
+        self,
+        name: KeyT,
+        match: PatternT | None = None,
+        count: int | None = None,
+        no_values: bool | None = None,
+    ) -> Iterator[tuple[StringTypeT, StringTypeT]] | Iterator[StringTypeT]:
         """
         Make an iterator using the HSCAN command so that the client doesn't
         need to remember the cursor position.
@@ -5400,8 +5538,8 @@ class ScanCommands(CommandsProtocol):
 
         ``no_values`` indicates to return only the keys, without values
         """
-        cursor = "0"
-        while cursor != 0:
+        cursor = 0
+        while True:
             cursor, data = self.hscan(
                 name, cursor=cursor, match=match, count=count, no_values=no_values
             )
@@ -5409,15 +5547,80 @@ class ScanCommands(CommandsProtocol):
                 yield from data
             else:
                 yield from data.items()
+            if cursor == 0:
+                break
+
+    @overload
+    def zscan(
+        self: SyncClientProtocol,
+        name: KeyT,
+        cursor: int = 0,
+        match: PatternT | None = None,
+        count: int | None = None,
+    ) -> tuple[int, list[tuple[StringTypeT, float]]]: ...
+
+    @overload
+    def zscan(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        cursor: int = 0,
+        match: PatternT | None = None,
+        count: int | None = None,
+    ) -> Awaitable[tuple[int, list[tuple[StringTypeT, float]]]]: ...
+
+    @overload
+    def zscan(
+        self: SyncClientProtocol,
+        name: KeyT,
+        cursor: int = 0,
+        match: PatternT | None = None,
+        count: int | None = None,
+        *,
+        score_cast_func: Callable[[StringTypeT], _ScoreCastReturnT],
+    ) -> tuple[int, list[tuple[StringTypeT, _ScoreCastReturnT]]]: ...
+
+    @overload
+    def zscan(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        cursor: int = 0,
+        match: PatternT | None = None,
+        count: int | None = None,
+        *,
+        score_cast_func: Callable[[StringTypeT], _ScoreCastReturnT],
+    ) -> Awaitable[tuple[int, list[tuple[StringTypeT, _ScoreCastReturnT]]]]: ...
+
+    @overload
+    def zscan(
+        self: SyncClientProtocol,
+        name: KeyT,
+        cursor: int,
+        match: PatternT | None,
+        count: int | None,
+        score_cast_func: Callable[[StringTypeT], _ScoreCastReturnT],
+    ) -> tuple[int, list[tuple[StringTypeT, _ScoreCastReturnT]]]: ...
+
+    @overload
+    def zscan(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        cursor: int,
+        match: PatternT | None,
+        count: int | None,
+        score_cast_func: Callable[[StringTypeT], _ScoreCastReturnT],
+    ) -> Awaitable[tuple[int, list[tuple[StringTypeT, _ScoreCastReturnT]]]]: ...
 
     def zscan(
         self,
         name: KeyT,
         cursor: int = 0,
-        match: Union[PatternT, None] = None,
-        count: Union[int, None] = None,
-        score_cast_func: Union[type, Callable] = float,
-    ) -> ResponseT:
+        match: PatternT | None = None,
+        count: int | None = None,
+        score_cast_func: Callable[[StringTypeT], Any] = float,
+    ) -> (
+        tuple[int, list[tuple[StringTypeT, Any]]]
+        | Awaitable[tuple[int, list[tuple[StringTypeT, Any]]]]
+    ):
         """
         Incrementally return lists of elements in a sorted set. Also return a
         cursor indicating the scan position.
@@ -5438,13 +5641,40 @@ class ScanCommands(CommandsProtocol):
         options = {"score_cast_func": score_cast_func}
         return self.execute_command("ZSCAN", *pieces, **options)
 
+    @overload
     def zscan_iter(
         self,
         name: KeyT,
-        match: Union[PatternT, None] = None,
-        count: Union[int, None] = None,
-        score_cast_func: Union[type, Callable] = float,
-    ) -> Iterator:
+        match: PatternT | None = None,
+        count: int | None = None,
+    ) -> Iterator[tuple[StringTypeT, float]]: ...
+
+    @overload
+    def zscan_iter(
+        self,
+        name: KeyT,
+        match: PatternT | None = None,
+        count: int | None = None,
+        *,
+        score_cast_func: Callable[[StringTypeT], _ScoreCastReturnT],
+    ) -> Iterator[tuple[StringTypeT, _ScoreCastReturnT]]: ...
+
+    @overload
+    def zscan_iter(
+        self,
+        name: KeyT,
+        match: PatternT | None,
+        count: int | None,
+        score_cast_func: Callable[[StringTypeT], _ScoreCastReturnT],
+    ) -> Iterator[tuple[StringTypeT, _ScoreCastReturnT]]: ...
+
+    def zscan_iter(
+        self,
+        name: KeyT,
+        match: PatternT | None = None,
+        count: int | None = None,
+        score_cast_func: Callable[[StringTypeT], Any] = float,
+    ) -> Iterator[tuple[StringTypeT, Any]]:
         """
         Make an iterator using the ZSCAN command so that the client doesn't
         need to remember the cursor position.
@@ -5455,8 +5685,8 @@ class ScanCommands(CommandsProtocol):
 
         ``score_cast_func`` a callable used to cast the score return value
         """
-        cursor = "0"
-        while cursor != 0:
+        cursor = 0
+        while True:
             cursor, data = self.zscan(
                 name,
                 cursor=cursor,
@@ -5465,16 +5695,18 @@ class ScanCommands(CommandsProtocol):
                 score_cast_func=score_cast_func,
             )
             yield from data
+            if cursor == 0:
+                break
 
 
 class AsyncScanCommands(ScanCommands):
     async def scan_iter(
         self,
-        match: Union[PatternT, None] = None,
-        count: Union[int, None] = None,
-        _type: Union[str, None] = None,
+        match: PatternT | None = None,
+        count: int | None = None,
+        _type: str | None = None,
         **kwargs,
-    ) -> AsyncIterator:
+    ) -> AsyncIterator[StringTypeT]:
         """
         Make an iterator using the SCAN command so that the client doesn't
         need to remember the cursor position.
@@ -5489,20 +5721,22 @@ class AsyncScanCommands(ScanCommands):
             HASH, LIST, SET, STREAM, STRING, ZSET
             Additionally, Valkey modules can expose other types as well.
         """
-        cursor = "0"
-        while cursor != 0:
+        cursor = 0
+        while True:
             cursor, data = await self.scan(
                 cursor=cursor, match=match, count=count, _type=_type, **kwargs
             )
             for d in data:
                 yield d
+            if cursor == 0:
+                break
 
     async def sscan_iter(
         self,
         name: KeyT,
-        match: Union[PatternT, None] = None,
-        count: Union[int, None] = None,
-    ) -> AsyncIterator:
+        match: PatternT | None = None,
+        count: int | None = None,
+    ) -> AsyncIterator[StringTypeT]:
         """
         Make an iterator using the SSCAN command so that the client doesn't
         need to remember the cursor position.
@@ -5511,21 +5745,53 @@ class AsyncScanCommands(ScanCommands):
 
         ``count`` allows for hint the minimum number of returns
         """
-        cursor = "0"
-        while cursor != 0:
+        cursor = 0
+        while True:
             cursor, data = await self.sscan(
                 name, cursor=cursor, match=match, count=count
             )
             for d in data:
                 yield d
+            if cursor == 0:
+                break
+
+    @overload
+    async def hscan_iter(
+        self,
+        name: KeyT,
+        match: PatternT | None = None,
+        count: int | None = None,
+        no_values: Literal[False] | None = None,
+    ) -> AsyncIterator[tuple[StringTypeT, StringTypeT]]: ...
+
+    @overload
+    async def hscan_iter(
+        self,
+        name: KeyT,
+        match: PatternT | None = None,
+        count: int | None = None,
+        *,
+        no_values: Literal[True],
+    ) -> AsyncIterator[StringTypeT]: ...
+
+    @overload
+    async def hscan_iter(
+        self,
+        name: KeyT,
+        match: PatternT | None = None,
+        count: int | None = None,
+        no_values: bool | None = None,
+    ) -> (
+        AsyncIterator[tuple[StringTypeT, StringTypeT]] | AsyncIterator[StringTypeT]
+    ): ...
 
     async def hscan_iter(
         self,
-        name: str,
-        match: Union[PatternT, None] = None,
-        count: Union[int, None] = None,
-        no_values: Union[bool, None] = None,
-    ) -> AsyncIterator:
+        name: KeyT,
+        match: PatternT | None = None,
+        count: int | None = None,
+        no_values: bool | None = None,
+    ) -> AsyncIterator[tuple[StringTypeT, StringTypeT]] | AsyncIterator[StringTypeT]:
         """
         Make an iterator using the HSCAN command so that the client doesn't
         need to remember the cursor position.
@@ -5536,8 +5802,8 @@ class AsyncScanCommands(ScanCommands):
 
         ``no_values`` indicates to return only the keys, without values
         """
-        cursor = "0"
-        while cursor != 0:
+        cursor = 0
+        while True:
             cursor, data = await self.hscan(
                 name, cursor=cursor, match=match, count=count, no_values=no_values
             )
@@ -5547,14 +5813,43 @@ class AsyncScanCommands(ScanCommands):
             else:
                 for it in data.items():
                     yield it
+            if cursor == 0:
+                break
+
+    @overload
+    async def zscan_iter(
+        self,
+        name: KeyT,
+        match: PatternT | None = None,
+        count: int | None = None,
+    ) -> AsyncIterator[tuple[StringTypeT, float]]: ...
+
+    @overload
+    async def zscan_iter(
+        self,
+        name: KeyT,
+        match: PatternT | None = None,
+        count: int | None = None,
+        *,
+        score_cast_func: Callable[[StringTypeT], _ScoreCastReturnT],
+    ) -> AsyncIterator[tuple[StringTypeT, _ScoreCastReturnT]]: ...
+
+    @overload
+    async def zscan_iter(
+        self,
+        name: KeyT,
+        match: PatternT | None,
+        count: int | None,
+        score_cast_func: Callable[[StringTypeT], _ScoreCastReturnT],
+    ) -> AsyncIterator[tuple[StringTypeT, _ScoreCastReturnT]]: ...
 
     async def zscan_iter(
         self,
         name: KeyT,
-        match: Union[PatternT, None] = None,
-        count: Union[int, None] = None,
-        score_cast_func: Union[type, Callable] = float,
-    ) -> AsyncIterator:
+        match: PatternT | None = None,
+        count: int | None = None,
+        score_cast_func: Callable[[StringTypeT], Any] = float,
+    ) -> AsyncIterator[tuple[StringTypeT, Any]]:
         """
         Make an iterator using the ZSCAN command so that the client doesn't
         need to remember the cursor position.
@@ -5565,8 +5860,8 @@ class AsyncScanCommands(ScanCommands):
 
         ``score_cast_func`` a callable used to cast the score return value
         """
-        cursor = "0"
-        while cursor != 0:
+        cursor = 0
+        while True:
             cursor, data = await self.zscan(
                 name,
                 cursor=cursor,
@@ -5576,6 +5871,8 @@ class AsyncScanCommands(ScanCommands):
             )
             for d in data:
                 yield d
+            if cursor == 0:
+                break
 
 
 class SetCommands(CommandsProtocol):
