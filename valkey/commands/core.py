@@ -23,8 +23,6 @@ from typing import (
     overload,
 )
 
-_ScoreCastReturnT = TypeVar("_ScoreCastReturnT")
-
 from valkey.exceptions import ConnectionError, DataError, NoScriptError, ValkeyError
 from valkey.typing import (
     AbsExpiryT,
@@ -69,6 +67,8 @@ from .helpers import list_or_args
 if TYPE_CHECKING:
     from valkey.asyncio.client import Valkey as AsyncValkey
     from valkey.client import Valkey
+
+_ScoreCastReturnT = TypeVar("_ScoreCastReturnT")
 
 
 class ACLCommands(CommandsProtocol):
