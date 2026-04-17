@@ -10,6 +10,7 @@ from typing import (
     Mapping,
     Protocol,
     Type,
+    TypedDict,
     TypeVar,
     Union,
 )
@@ -61,7 +62,31 @@ GroupT = _StringLikeT  # Consumer group
 ConsumerT = _StringLikeT  # Consumer name
 StreamIdT = int | _StringLikeT
 ScriptTextT = _StringLikeT
+StreamEntryT = tuple[StringTypeT, dict[StringTypeT, StringTypeT]]
+StreamReadResp2T = list[tuple[StringTypeT, list[StreamEntryT]]]
+StreamReadResp3T = dict[StringTypeT, list[list[StreamEntryT]]]
 TimeoutSecT = int | float | _StringLikeT
+
+
+class XPendingConsumer(TypedDict):
+    name: StringTypeT
+    pending: int
+
+
+class XPendingResult(TypedDict):
+    pending: int
+    min: StringTypeT
+    max: StringTypeT
+    consumers: list[XPendingConsumer]
+
+
+class XPendingRangeEntry(TypedDict):
+    message_id: StringTypeT
+    consumer: StringTypeT
+    time_since_delivered: int
+    times_delivered: int
+
+
 # Mapping is not covariant in the key type, which prevents
 # Mapping[_StringLikeT, X] from accepting arguments of type Dict[str, X]. Using
 # a TypeVar instead of a Union allows mappings with any of the permitted types
