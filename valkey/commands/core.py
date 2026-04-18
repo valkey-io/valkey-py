@@ -9842,8 +9842,8 @@ class Script:
 
     def __call__(
         self,
-        keys: Union[Sequence[KeyT], None] = None,
-        args: Union[Iterable[EncodableT], None] = None,
+        keys: Sequence[KeyT] | None = None,
+        args: Iterable[EncodableT] | None = None,
         client: Union["Valkey", None] = None,
     ):
         """Execute the script, passing any required ``args``"""
@@ -9909,8 +9909,8 @@ class AsyncScript:
 
     async def __call__(
         self,
-        keys: Union[Sequence[KeyT], None] = None,
-        args: Union[Iterable[EncodableT], None] = None,
+        keys: Sequence[KeyT] | None = None,
+        args: Iterable[EncodableT] | None = None,
         client: Union["AsyncValkey", None] = None,
     ):
         """Execute the script, passing any required ``args``"""
