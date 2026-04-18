@@ -11274,10 +11274,16 @@ class ClusterCommands(CommandsProtocol):
     Class for Valkey Cluster commands
     """
 
-    def cluster(self, cluster_arg, *args, **kwargs) -> ResponseT:
+    def cluster(self, cluster_arg: str, *args, **kwargs) -> Any:
         return self.execute_command(f"CLUSTER {cluster_arg.upper()}", *args, **kwargs)
 
-    def readwrite(self, **kwargs) -> ResponseT:
+    @overload
+    def readwrite(self: SyncClientProtocol, **kwargs) -> Literal[True]: ...
+
+    @overload
+    def readwrite(self: AsyncClientProtocol, **kwargs) -> Awaitable[Literal[True]]: ...
+
+    def readwrite(self, **kwargs) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Disables read queries for a connection to a Valkey Cluster slave node.
 
@@ -11285,7 +11291,13 @@ class ClusterCommands(CommandsProtocol):
         """
         return self.execute_command("READWRITE", **kwargs)
 
-    def readonly(self, **kwargs) -> ResponseT:
+    @overload
+    def readonly(self: SyncClientProtocol, **kwargs) -> Literal[True]: ...
+
+    @overload
+    def readonly(self: AsyncClientProtocol, **kwargs) -> Awaitable[Literal[True]]: ...
+
+    def readonly(self, **kwargs) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Enables read queries for a connection to a Valkey Cluster replica node.
 
