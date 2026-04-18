@@ -109,6 +109,9 @@ AnyEncodableT = TypeVar("AnyEncodableT", int, float, bytes, str, memoryview)
 
 ExceptionMappingT = Mapping[str, Union[Type[Exception], Mapping[str, Type[Exception]]]]
 
+GeoSearchEntryT = list[StringTypeT | float | int | tuple[float, float]]
+GeoSearchReplyT = list[StringTypeT] | list[GeoSearchEntryT]
+
 
 class CommandsProtocol(Protocol):
     connection_pool: Union["AsyncConnectionPool", "ConnectionPool"]

@@ -40,6 +40,7 @@ from valkey.typing import (
     EncodableT,
     ExpiryT,
     FieldT,
+    GeoSearchReplyT,
     GroupT,
     InfoData,
     KeysT,
@@ -10343,6 +10344,26 @@ class GeoCommands(CommandsProtocol):
     see: https://valkey.com/valkey-best-practices/indexing-patterns/geospatial/
     """
 
+    @overload
+    def geoadd(
+        self: SyncClientProtocol,
+        name: KeyT,
+        values: Sequence[EncodableT],
+        nx: bool = False,
+        xx: bool = False,
+        ch: bool = False,
+    ) -> int: ...
+
+    @overload
+    def geoadd(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        values: Sequence[EncodableT],
+        nx: bool = False,
+        xx: bool = False,
+        ch: bool = False,
+    ) -> Awaitable[int]: ...
+
     def geoadd(
         self,
         name: KeyT,
@@ -10350,7 +10371,7 @@ class GeoCommands(CommandsProtocol):
         nx: bool = False,
         xx: bool = False,
         ch: bool = False,
-    ) -> ResponseT:
+    ) -> int | Awaitable[int]:
         """
         Add the specified geospatial items to the specified key identified
         by the ``name`` argument. The Geospatial items are given as ordered
@@ -10375,7 +10396,7 @@ class GeoCommands(CommandsProtocol):
             raise DataError("GEOADD allows either 'nx' or 'xx', not both")
         if len(values) % 3 != 0:
             raise DataError("GEOADD requires places with lon, lat and name values")
-        pieces = [name]
+        pieces: list[Any] = [name]
         if nx:
             pieces.append("NX")
         if xx:
@@ -10385,9 +10406,27 @@ class GeoCommands(CommandsProtocol):
         pieces.extend(values)
         return self.execute_command("GEOADD", *pieces)
 
+    @overload
     def geodist(
-        self, name: KeyT, place1: FieldT, place2: FieldT, unit: Union[str, None] = None
-    ) -> ResponseT:
+        self: SyncClientProtocol,
+        name: KeyT,
+        place1: FieldT,
+        place2: FieldT,
+        unit: str | None = None,
+    ) -> float | None: ...
+
+    @overload
+    def geodist(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        place1: FieldT,
+        place2: FieldT,
+        unit: str | None = None,
+    ) -> Awaitable[float | None]: ...
+
+    def geodist(
+        self, name: KeyT, place1: FieldT, place2: FieldT, unit: str | None = None
+    ) -> float | None | Awaitable[float | None]:
         """
         Return the distance between ``place1`` and ``place2`` members of the
         ``name`` key.
@@ -10403,7 +10442,19 @@ class GeoCommands(CommandsProtocol):
             pieces.append(unit)
         return self.execute_command("GEODIST", *pieces, keys=[name])
 
-    def geohash(self, name: KeyT, *values: FieldT) -> ResponseT:
+    @overload
+    def geohash(
+        self: SyncClientProtocol, name: KeyT, *values: FieldT
+    ) -> list[StringTypeT | None]: ...
+
+    @overload
+    def geohash(
+        self: AsyncClientProtocol, name: KeyT, *values: FieldT
+    ) -> Awaitable[list[StringTypeT | None]]: ...
+
+    def geohash(
+        self, name: KeyT, *values: FieldT
+    ) -> list[StringTypeT | None] | Awaitable[list[StringTypeT | None]]:
         """
         Return the geo hash string for each item of ``values`` members of
         the specified key identified by the ``name`` argument.
@@ -10412,7 +10463,22 @@ class GeoCommands(CommandsProtocol):
         """
         return self.execute_command("GEOHASH", name, *values, keys=[name])
 
-    def geopos(self, name: KeyT, *values: FieldT) -> ResponseT:
+    @overload
+    def geopos(
+        self: SyncClientProtocol, name: KeyT, *values: FieldT
+    ) -> list[tuple[float, float] | list[float] | None]: ...
+
+    @overload
+    def geopos(
+        self: AsyncClientProtocol, name: KeyT, *values: FieldT
+    ) -> Awaitable[list[tuple[float, float] | list[float] | None]]: ...
+
+    def geopos(
+        self, name: KeyT, *values: FieldT
+    ) -> (
+        list[tuple[float, float] | list[float] | None]
+        | Awaitable[list[tuple[float, float] | list[float] | None]]
+    ):
         """
         Return the positions of each item of ``values`` as members of
         the specified key identified by the ``name`` argument. Each position
@@ -10422,22 +10488,130 @@ class GeoCommands(CommandsProtocol):
         """
         return self.execute_command("GEOPOS", name, *values, keys=[name])
 
+    @overload
+    def georadius(
+        self: SyncClientProtocol,
+        name: KeyT,
+        longitude: float,
+        latitude: float,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        store: KeyT = ...,
+        store_dist: None = None,
+        any: bool = False,
+    ) -> int: ...
+
+    @overload
+    def georadius(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        longitude: float,
+        latitude: float,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        store: KeyT = ...,
+        store_dist: None = None,
+        any: bool = False,
+    ) -> Awaitable[int]: ...
+
+    @overload
+    def georadius(
+        self: SyncClientProtocol,
+        name: KeyT,
+        longitude: float,
+        latitude: float,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        store: None = None,
+        store_dist: KeyT = ...,
+        any: bool = False,
+    ) -> int: ...
+
+    @overload
+    def georadius(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        longitude: float,
+        latitude: float,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        store: None = None,
+        store_dist: KeyT = ...,
+        any: bool = False,
+    ) -> Awaitable[int]: ...
+
+    @overload
+    def georadius(
+        self: SyncClientProtocol,
+        name: KeyT,
+        longitude: float,
+        latitude: float,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        store: KeyT | None = None,
+        store_dist: KeyT | None = None,
+        any: bool = False,
+    ) -> GeoSearchReplyT | int: ...
+
+    @overload
+    def georadius(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        longitude: float,
+        latitude: float,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        store: KeyT | None = None,
+        store_dist: KeyT | None = None,
+        any: bool = False,
+    ) -> Awaitable[GeoSearchReplyT | int]: ...
+
     def georadius(
         self,
         name: KeyT,
         longitude: float,
         latitude: float,
         radius: float,
-        unit: Union[str, None] = None,
+        unit: str | None = None,
         withdist: bool = False,
         withcoord: bool = False,
         withhash: bool = False,
-        count: Union[int, None] = None,
-        sort: Union[str, None] = None,
-        store: Union[KeyT, None] = None,
-        store_dist: Union[KeyT, None] = None,
+        count: int | None = None,
+        sort: str | None = None,
+        store: KeyT | None = None,
+        store_dist: KeyT | None = None,
         any: bool = False,
-    ) -> ResponseT:
+    ) -> GeoSearchReplyT | int | Awaitable[GeoSearchReplyT | int]:
         """
         Return the members of the specified key identified by the
         ``name`` argument which are within the borders of the area specified
@@ -10485,21 +10659,123 @@ class GeoCommands(CommandsProtocol):
             any=any,
         )
 
+    @overload
+    def georadiusbymember(
+        self: SyncClientProtocol,
+        name: KeyT,
+        member: FieldT,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        store: KeyT = ...,
+        store_dist: None = None,
+        any: bool = False,
+    ) -> int: ...
+
+    @overload
+    def georadiusbymember(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        member: FieldT,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        store: KeyT = ...,
+        store_dist: None = None,
+        any: bool = False,
+    ) -> Awaitable[int]: ...
+
+    @overload
+    def georadiusbymember(
+        self: SyncClientProtocol,
+        name: KeyT,
+        member: FieldT,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        store: None = None,
+        store_dist: KeyT = ...,
+        any: bool = False,
+    ) -> int: ...
+
+    @overload
+    def georadiusbymember(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        member: FieldT,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        store: None = None,
+        store_dist: KeyT = ...,
+        any: bool = False,
+    ) -> Awaitable[int]: ...
+
+    @overload
+    def georadiusbymember(
+        self: SyncClientProtocol,
+        name: KeyT,
+        member: FieldT,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        store: KeyT | None = None,
+        store_dist: KeyT | None = None,
+        any: bool = False,
+    ) -> GeoSearchReplyT | int: ...
+
+    @overload
+    def georadiusbymember(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        member: FieldT,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        store: KeyT | None = None,
+        store_dist: KeyT | None = None,
+        any: bool = False,
+    ) -> Awaitable[GeoSearchReplyT | int]: ...
+
     def georadiusbymember(
         self,
         name: KeyT,
         member: FieldT,
         radius: float,
-        unit: Union[str, None] = None,
+        unit: str | None = None,
         withdist: bool = False,
         withcoord: bool = False,
         withhash: bool = False,
-        count: Union[int, None] = None,
-        sort: Union[str, None] = None,
-        store: Union[KeyT, None] = None,
-        store_dist: Union[KeyT, None] = None,
+        count: int | None = None,
+        sort: str | None = None,
+        store: KeyT | None = None,
+        store_dist: KeyT | None = None,
         any: bool = False,
-    ) -> ResponseT:
+    ) -> GeoSearchReplyT | int | Awaitable[GeoSearchReplyT | int]:
         """
         This command is exactly like ``georadius`` with the sole difference
         that instead of taking, as the center of the area to query, a longitude
@@ -10524,9 +10800,7 @@ class GeoCommands(CommandsProtocol):
             any=any,
         )
 
-    def _georadiusgeneric(
-        self, command: str, *args: EncodableT, **kwargs: Union[EncodableT, None]
-    ) -> ResponseT:
+    def _georadiusgeneric(self, command: str, *args: EncodableT, **kwargs: Any) -> Any:
         pieces = list(args)
         if kwargs["unit"] and kwargs["unit"] not in ("m", "km", "mi", "ft"):
             raise DataError("GEORADIUS invalid unit")
@@ -10570,23 +10844,61 @@ class GeoCommands(CommandsProtocol):
 
         return self.execute_command(command, *pieces, **kwargs)
 
+    @overload
     def geosearch(
-        self,
+        self: SyncClientProtocol,
         name: KeyT,
-        member: Union[FieldT, None] = None,
-        longitude: Union[float, None] = None,
-        latitude: Union[float, None] = None,
+        member: FieldT | None = None,
+        longitude: float | None = None,
+        latitude: float | None = None,
         unit: str = "m",
-        radius: Union[float, None] = None,
-        width: Union[float, None] = None,
-        height: Union[float, None] = None,
-        sort: Union[str, None] = None,
-        count: Union[int, None] = None,
+        radius: float | None = None,
+        width: float | None = None,
+        height: float | None = None,
+        sort: str | None = None,
+        count: int | None = None,
         any: bool = False,
         withcoord: bool = False,
         withdist: bool = False,
         withhash: bool = False,
-    ) -> ResponseT:
+    ) -> GeoSearchReplyT: ...
+
+    @overload
+    def geosearch(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        member: FieldT | None = None,
+        longitude: float | None = None,
+        latitude: float | None = None,
+        unit: str = "m",
+        radius: float | None = None,
+        width: float | None = None,
+        height: float | None = None,
+        sort: str | None = None,
+        count: int | None = None,
+        any: bool = False,
+        withcoord: bool = False,
+        withdist: bool = False,
+        withhash: bool = False,
+    ) -> Awaitable[GeoSearchReplyT]: ...
+
+    def geosearch(
+        self,
+        name: KeyT,
+        member: FieldT | None = None,
+        longitude: float | None = None,
+        latitude: float | None = None,
+        unit: str = "m",
+        radius: float | None = None,
+        width: float | None = None,
+        height: float | None = None,
+        sort: str | None = None,
+        count: int | None = None,
+        any: bool = False,
+        withcoord: bool = False,
+        withdist: bool = False,
+        withhash: bool = False,
+    ) -> GeoSearchReplyT | Awaitable[GeoSearchReplyT]:
         """
         Return the members of specified key identified by the
         ``name`` argument, which are within the borders of the
@@ -10651,22 +10963,58 @@ class GeoCommands(CommandsProtocol):
             store_dist=None,
         )
 
+    @overload
+    def geosearchstore(
+        self: SyncClientProtocol,
+        dest: KeyT,
+        name: KeyT,
+        member: FieldT | None = None,
+        longitude: float | None = None,
+        latitude: float | None = None,
+        unit: str = "m",
+        radius: float | None = None,
+        width: float | None = None,
+        height: float | None = None,
+        sort: str | None = None,
+        count: int | None = None,
+        any: bool = False,
+        storedist: bool = False,
+    ) -> int: ...
+
+    @overload
+    def geosearchstore(
+        self: AsyncClientProtocol,
+        dest: KeyT,
+        name: KeyT,
+        member: FieldT | None = None,
+        longitude: float | None = None,
+        latitude: float | None = None,
+        unit: str = "m",
+        radius: float | None = None,
+        width: float | None = None,
+        height: float | None = None,
+        sort: str | None = None,
+        count: int | None = None,
+        any: bool = False,
+        storedist: bool = False,
+    ) -> Awaitable[int]: ...
+
     def geosearchstore(
         self,
         dest: KeyT,
         name: KeyT,
-        member: Union[FieldT, None] = None,
-        longitude: Union[float, None] = None,
-        latitude: Union[float, None] = None,
+        member: FieldT | None = None,
+        longitude: float | None = None,
+        latitude: float | None = None,
         unit: str = "m",
-        radius: Union[float, None] = None,
-        width: Union[float, None] = None,
-        height: Union[float, None] = None,
-        sort: Union[str, None] = None,
-        count: Union[int, None] = None,
+        radius: float | None = None,
+        width: float | None = None,
+        height: float | None = None,
+        sort: str | None = None,
+        count: int | None = None,
         any: bool = False,
         storedist: bool = False,
-    ) -> ResponseT:
+    ) -> int | Awaitable[int]:
         """
         This command is like GEOSEARCH, but stores the result in
         ``dest``. By default, it stores the results in the destination
@@ -10698,10 +11046,8 @@ class GeoCommands(CommandsProtocol):
             store_dist=storedist,
         )
 
-    def _geosearchgeneric(
-        self, command: str, *args: EncodableT, **kwargs: Union[EncodableT, None]
-    ) -> ResponseT:
-        pieces = list(args)
+    def _geosearchgeneric(self, command: str, *args: EncodableT, **kwargs: Any) -> Any:
+        pieces: list[Any] = list(args)
 
         # FROMMEMBER or FROMLONLAT
         if kwargs["member"] is None:
