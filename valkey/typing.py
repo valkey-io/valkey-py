@@ -66,6 +66,15 @@ StreamEntryT = tuple[StringTypeT, dict[StringTypeT, StringTypeT]]
 StreamReadResp2T = list[tuple[StringTypeT, list[StreamEntryT]]]
 StreamReadResp3T = dict[StringTypeT, list[list[StreamEntryT]]]
 TimeoutSecT = int | float | _StringLikeT
+ZSetScorePairsT = list[tuple[StringTypeT, float]] | list[list[StringTypeT | float]]
+ZSetWithScoresRawT = list[StringTypeT] | list[list[StringTypeT | float]]
+ZPopResultT = (
+    list[tuple[StringTypeT, float]]
+    | list[StringTypeT | float]
+    | list[list[StringTypeT | float]]
+)
+BZPopResultT = tuple[StringTypeT, StringTypeT, float] | list[StringTypeT | float]
+ZMPopResultT = list[StringTypeT | list[list[StringTypeT | float]]]
 
 
 class XPendingConsumer(TypedDict):
