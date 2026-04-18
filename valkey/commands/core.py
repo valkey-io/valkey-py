@@ -10090,13 +10090,33 @@ class ScriptCommands(CommandsProtocol):
     """
 
     def _eval(
-        self, command: str, script: str, numkeys: int, *keys_and_args: str
-    ) -> Union[Awaitable[str], str]:
+        self,
+        command: str,
+        script: ScriptTextT,
+        numkeys: int,
+        *keys_and_args: EncodableT,
+    ) -> Any:
         return self.execute_command(command, script, numkeys, *keys_and_args)
 
+    @overload
     def eval(
-        self, script: str, numkeys: int, *keys_and_args: str
-    ) -> Union[Awaitable[str], str]:
+        self: SyncClientProtocol,
+        script: ScriptTextT,
+        numkeys: int,
+        *keys_and_args: EncodableT,
+    ) -> Any: ...
+
+    @overload
+    def eval(
+        self: AsyncClientProtocol,
+        script: ScriptTextT,
+        numkeys: int,
+        *keys_and_args: EncodableT,
+    ) -> Awaitable[Any]: ...
+
+    def eval(
+        self, script: ScriptTextT, numkeys: int, *keys_and_args: EncodableT
+    ) -> Any | Awaitable[Any]:
         """
         Execute the Lua ``script``, specifying the ``numkeys`` the script
         will touch and the key names and argument values in ``keys_and_args``.
@@ -10109,9 +10129,25 @@ class ScriptCommands(CommandsProtocol):
         """
         return self._eval("EVAL", script, numkeys, *keys_and_args)
 
+    @overload
     def eval_ro(
-        self, script: str, numkeys: int, *keys_and_args: str
-    ) -> Union[Awaitable[str], str]:
+        self: SyncClientProtocol,
+        script: ScriptTextT,
+        numkeys: int,
+        *keys_and_args: EncodableT,
+    ) -> Any: ...
+
+    @overload
+    def eval_ro(
+        self: AsyncClientProtocol,
+        script: ScriptTextT,
+        numkeys: int,
+        *keys_and_args: EncodableT,
+    ) -> Awaitable[Any]: ...
+
+    def eval_ro(
+        self, script: ScriptTextT, numkeys: int, *keys_and_args: EncodableT
+    ) -> Any | Awaitable[Any]:
         """
         The read-only variant of the EVAL command
 
@@ -10124,13 +10160,29 @@ class ScriptCommands(CommandsProtocol):
         return self._eval("EVAL_RO", script, numkeys, *keys_and_args)
 
     def _evalsha(
-        self, command: str, sha: str, numkeys: int, *keys_and_args: list
-    ) -> Union[Awaitable[str], str]:
+        self, command: str, sha: str, numkeys: int, *keys_and_args: EncodableT
+    ) -> Any:
         return self.execute_command(command, sha, numkeys, *keys_and_args)
 
+    @overload
     def evalsha(
-        self, sha: str, numkeys: int, *keys_and_args: str
-    ) -> Union[Awaitable[str], str]:
+        self: SyncClientProtocol,
+        sha: str,
+        numkeys: int,
+        *keys_and_args: EncodableT,
+    ) -> Any: ...
+
+    @overload
+    def evalsha(
+        self: AsyncClientProtocol,
+        sha: str,
+        numkeys: int,
+        *keys_and_args: EncodableT,
+    ) -> Awaitable[Any]: ...
+
+    def evalsha(
+        self, sha: str, numkeys: int, *keys_and_args: EncodableT
+    ) -> Any | Awaitable[Any]:
         """
         Use the ``sha`` to execute a Lua script already registered via EVAL
         or SCRIPT LOAD. Specify the ``numkeys`` the script will touch and the
@@ -10144,9 +10196,25 @@ class ScriptCommands(CommandsProtocol):
         """
         return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
 
+    @overload
     def evalsha_ro(
-        self, sha: str, numkeys: int, *keys_and_args: str
-    ) -> Union[Awaitable[str], str]:
+        self: SyncClientProtocol,
+        sha: str,
+        numkeys: int,
+        *keys_and_args: EncodableT,
+    ) -> Any: ...
+
+    @overload
+    def evalsha_ro(
+        self: AsyncClientProtocol,
+        sha: str,
+        numkeys: int,
+        *keys_and_args: EncodableT,
+    ) -> Awaitable[Any]: ...
+
+    def evalsha_ro(
+        self, sha: str, numkeys: int, *keys_and_args: EncodableT
+    ) -> Any | Awaitable[Any]:
         """
         The read-only variant of the EVALSHA command
 
@@ -10159,7 +10227,15 @@ class ScriptCommands(CommandsProtocol):
         """
         return self._evalsha("EVALSHA_RO", sha, numkeys, *keys_and_args)
 
-    def script_exists(self, *args: str) -> ResponseT:
+    @overload
+    def script_exists(self: SyncClientProtocol, *args: str) -> list[bool]: ...
+
+    @overload
+    def script_exists(
+        self: AsyncClientProtocol, *args: str
+    ) -> Awaitable[list[bool]]: ...
+
+    def script_exists(self, *args: str) -> list[bool] | Awaitable[list[bool]]:
         """
         Check if a script exists in the script cache by specifying the SHAs of
         each script as ``args``. Returns a list of boolean values indicating if
@@ -10169,14 +10245,26 @@ class ScriptCommands(CommandsProtocol):
         """
         return self.execute_command("SCRIPT EXISTS", *args)
 
-    def script_debug(self, *args) -> None:
+    def script_debug(self, *args) -> NoReturn:
         raise NotImplementedError(
             "SCRIPT DEBUG is intentionally not implemented in the client."
         )
 
+    @overload
     def script_flush(
-        self, sync_type: Union[Literal["SYNC"], Literal["ASYNC"]] = None
-    ) -> ResponseT:
+        self: SyncClientProtocol,
+        sync_type: Literal["SYNC", "ASYNC"] | None = None,
+    ) -> Literal[True]: ...
+
+    @overload
+    def script_flush(
+        self: AsyncClientProtocol,
+        sync_type: Literal["SYNC", "ASYNC"] | None = None,
+    ) -> Awaitable[Literal[True]]: ...
+
+    def script_flush(
+        self, sync_type: Literal["SYNC", "ASYNC"] | None = None
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """Flush all scripts from the script cache.
 
         ``sync_type`` is by default SYNC (synchronous) but it can also be
@@ -10193,12 +10281,18 @@ class ScriptCommands(CommandsProtocol):
                 "of valkey leave as None."
             )
         if sync_type is None:
-            pieces = []
+            pieces: list[str] = []
         else:
             pieces = [sync_type]
         return self.execute_command("SCRIPT FLUSH", *pieces)
 
-    def script_kill(self) -> ResponseT:
+    @overload
+    def script_kill(self: SyncClientProtocol) -> Literal[True]: ...
+
+    @overload
+    def script_kill(self: AsyncClientProtocol) -> Awaitable[Literal[True]]: ...
+
+    def script_kill(self) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Kill the currently executing Lua script
 
@@ -10206,7 +10300,15 @@ class ScriptCommands(CommandsProtocol):
         """
         return self.execute_command("SCRIPT KILL")
 
-    def script_load(self, script: ScriptTextT) -> ResponseT:
+    @overload
+    def script_load(self: SyncClientProtocol, script: ScriptTextT) -> str: ...
+
+    @overload
+    def script_load(
+        self: AsyncClientProtocol, script: ScriptTextT
+    ) -> Awaitable[str]: ...
+
+    def script_load(self, script: ScriptTextT) -> str | Awaitable[str]:
         """
         Load a Lua ``script`` into the script cache. Returns the SHA.
 
@@ -10225,9 +10327,6 @@ class ScriptCommands(CommandsProtocol):
 
 
 class AsyncScriptCommands(ScriptCommands):
-    async def script_debug(self, *args) -> None:
-        return super().script_debug()
-
     def register_script(self: "AsyncValkey", script: ScriptTextT) -> AsyncScript:
         """
         Register a Lua ``script`` specifying the ``keys`` it will touch.
