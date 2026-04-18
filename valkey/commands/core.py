@@ -9407,7 +9407,15 @@ class HashCommands(CommandsProtocol):
     see: https://valkey.io/topics/data-types-intro#valkey-hashes
     """
 
-    def hdel(self, name: str, *keys: str) -> Union[Awaitable[int], int]:
+    @overload
+    def hdel(self: SyncClientProtocol, name: KeyT, *keys: FieldT) -> int: ...
+
+    @overload
+    def hdel(
+        self: AsyncClientProtocol, name: KeyT, *keys: FieldT
+    ) -> Awaitable[int]: ...
+
+    def hdel(self, name: KeyT, *keys: FieldT) -> int | Awaitable[int]:
         """
         Delete ``keys`` from hash ``name``
 
@@ -9415,7 +9423,15 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HDEL", name, *keys)
 
-    def hexists(self, name: str, key: str) -> Union[Awaitable[bool], bool]:
+    @overload
+    def hexists(self: SyncClientProtocol, name: KeyT, key: FieldT) -> bool: ...
+
+    @overload
+    def hexists(
+        self: AsyncClientProtocol, name: KeyT, key: FieldT
+    ) -> Awaitable[bool]: ...
+
+    def hexists(self, name: KeyT, key: FieldT) -> bool | Awaitable[bool]:
         """
         Returns a boolean indicating if ``key`` exists within hash ``name``
 
@@ -9423,9 +9439,19 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HEXISTS", name, key, keys=[name])
 
+    @overload
     def hget(
-        self, name: str, key: str
-    ) -> Union[Awaitable[Optional[str]], Optional[str]]:
+        self: SyncClientProtocol, name: KeyT, key: FieldT
+    ) -> StringTypeT | None: ...
+
+    @overload
+    def hget(
+        self: AsyncClientProtocol, name: KeyT, key: FieldT
+    ) -> Awaitable[StringTypeT | None]: ...
+
+    def hget(
+        self, name: KeyT, key: FieldT
+    ) -> StringTypeT | None | Awaitable[StringTypeT | None]:
         """
         Return the value of ``key`` within the hash ``name``
 
@@ -9433,7 +9459,19 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HGET", name, key, keys=[name])
 
-    def hgetall(self, name: str) -> Union[Awaitable[dict], dict]:
+    @overload
+    def hgetall(
+        self: SyncClientProtocol, name: KeyT
+    ) -> dict[StringTypeT, StringTypeT]: ...
+
+    @overload
+    def hgetall(
+        self: AsyncClientProtocol, name: KeyT
+    ) -> Awaitable[dict[StringTypeT, StringTypeT]]: ...
+
+    def hgetall(
+        self, name: KeyT
+    ) -> dict[StringTypeT, StringTypeT] | Awaitable[dict[StringTypeT, StringTypeT]]:
         """
         Return a Python dict of the hash's name/value pairs
 
@@ -9441,9 +9479,17 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HGETALL", name, keys=[name])
 
+    @overload
     def hincrby(
-        self, name: str, key: str, amount: int = 1
-    ) -> Union[Awaitable[int], int]:
+        self: SyncClientProtocol, name: KeyT, key: FieldT, amount: int = 1
+    ) -> int: ...
+
+    @overload
+    def hincrby(
+        self: AsyncClientProtocol, name: KeyT, key: FieldT, amount: int = 1
+    ) -> Awaitable[int]: ...
+
+    def hincrby(self, name: KeyT, key: FieldT, amount: int = 1) -> int | Awaitable[int]:
         """
         Increment the value of ``key`` in hash ``name`` by ``amount``
 
@@ -9451,9 +9497,19 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HINCRBY", name, key, amount)
 
+    @overload
     def hincrbyfloat(
-        self, name: str, key: str, amount: float = 1.0
-    ) -> Union[Awaitable[float], float]:
+        self: SyncClientProtocol, name: KeyT, key: FieldT, amount: float = 1.0
+    ) -> float: ...
+
+    @overload
+    def hincrbyfloat(
+        self: AsyncClientProtocol, name: KeyT, key: FieldT, amount: float = 1.0
+    ) -> Awaitable[float]: ...
+
+    def hincrbyfloat(
+        self, name: KeyT, key: FieldT, amount: float = 1.0
+    ) -> float | Awaitable[float]:
         """
         Increment the value of ``key`` in hash ``name`` by floating ``amount``
 
@@ -9461,7 +9517,15 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HINCRBYFLOAT", name, key, amount)
 
-    def hkeys(self, name: str) -> Union[Awaitable[List], List]:
+    @overload
+    def hkeys(self: SyncClientProtocol, name: KeyT) -> list[StringTypeT]: ...
+
+    @overload
+    def hkeys(
+        self: AsyncClientProtocol, name: KeyT
+    ) -> Awaitable[list[StringTypeT]]: ...
+
+    def hkeys(self, name: KeyT) -> list[StringTypeT] | Awaitable[list[StringTypeT]]:
         """
         Return the list of keys within hash ``name``
 
@@ -9469,7 +9533,13 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HKEYS", name, keys=[name])
 
-    def hlen(self, name: str) -> Union[Awaitable[int], int]:
+    @overload
+    def hlen(self: SyncClientProtocol, name: KeyT) -> int: ...
+
+    @overload
+    def hlen(self: AsyncClientProtocol, name: KeyT) -> Awaitable[int]: ...
+
+    def hlen(self, name: KeyT) -> int | Awaitable[int]:
         """
         Return the number of elements in hash ``name``
 
@@ -9477,14 +9547,34 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HLEN", name, keys=[name])
 
+    @overload
+    def hset(
+        self: SyncClientProtocol,
+        name: KeyT,
+        key: FieldT | None = None,
+        value: FieldT | None = None,
+        mapping: dict[FieldT, FieldT] | None = None,
+        items: list[FieldT] | None = None,
+    ) -> int: ...
+
+    @overload
+    def hset(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        key: FieldT | None = None,
+        value: FieldT | None = None,
+        mapping: dict[FieldT, FieldT] | None = None,
+        items: list[FieldT] | None = None,
+    ) -> Awaitable[int]: ...
+
     def hset(
         self,
-        name: str,
-        key: Optional[str] = None,
-        value: Optional[str] = None,
-        mapping: Optional[dict] = None,
-        items: Optional[list] = None,
-    ) -> Union[Awaitable[int], int]:
+        name: KeyT,
+        key: FieldT | None = None,
+        value: FieldT | None = None,
+        mapping: dict[FieldT, FieldT] | None = None,
+        items: list[FieldT] | None = None,
+    ) -> int | Awaitable[int]:
         """
         Set ``key`` to ``value`` within hash ``name``,
         ``mapping`` accepts a dict of key/value pairs that will be
@@ -9497,7 +9587,7 @@ class HashCommands(CommandsProtocol):
         """
         if key is None and not mapping and not items:
             raise DataError("'hset' with no key value pairs")
-        pieces = []
+        pieces: list[Any] = []
         if items:
             pieces.extend(items)
         if key is not None:
@@ -9508,7 +9598,18 @@ class HashCommands(CommandsProtocol):
 
         return self.execute_command("HSET", name, *pieces)
 
-    def hsetnx(self, name: str, key: str, value: str) -> Union[Awaitable[bool], bool]:
+    # TODO: could use a bool
+    @overload
+    def hsetnx(
+        self: SyncClientProtocol, name: KeyT, key: FieldT, value: FieldT
+    ) -> int: ...
+
+    @overload
+    def hsetnx(
+        self: AsyncClientProtocol, name: KeyT, key: FieldT, value: FieldT
+    ) -> Awaitable[int]: ...
+
+    def hsetnx(self, name: KeyT, key: FieldT, value: FieldT) -> int | Awaitable[int]:
         """
         Set ``key`` to ``value`` within hash ``name`` if ``key`` does not
         exist.  Returns 1 if HSETNX created a field, otherwise 0.
@@ -9517,23 +9618,62 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HSETNX", name, key, value)
 
+    # TODO: could use a bool
+    @overload
     def hsetex(
-        self,
-        name: str,
-        key: Optional[str] = None,
-        value: Optional[str] = None,
-        mapping: Optional[dict] = None,
-        items: Optional[list] = None,
-        ex: Union[ExpiryT, None] = None,
-        px: Union[ExpiryT, None] = None,
-        exat: Union[AbsExpiryT, None] = None,
-        pxat: Union[AbsExpiryT, None] = None,
+        self: SyncClientProtocol,
+        name: KeyT,
+        key: FieldT | None = None,
+        value: FieldT | None = None,
+        mapping: dict[FieldT, FieldT] | None = None,
+        items: list[FieldT] | None = None,
+        ex: ExpiryT | None = None,
+        px: ExpiryT | None = None,
+        exat: AbsExpiryT | None = None,
+        pxat: AbsExpiryT | None = None,
         keepttl: bool = False,
         nx: bool = False,
         xx: bool = False,
         fnx: bool = False,
         fxx: bool = False,
-    ) -> Union[Awaitable[bool], bool]:
+    ) -> int: ...
+
+    @overload
+    def hsetex(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        key: FieldT | None = None,
+        value: FieldT | None = None,
+        mapping: dict[FieldT, FieldT] | None = None,
+        items: list[FieldT] | None = None,
+        ex: ExpiryT | None = None,
+        px: ExpiryT | None = None,
+        exat: AbsExpiryT | None = None,
+        pxat: AbsExpiryT | None = None,
+        keepttl: bool = False,
+        nx: bool = False,
+        xx: bool = False,
+        fnx: bool = False,
+        fxx: bool = False,
+    ) -> Awaitable[int]: ...
+
+    def hsetex(
+        self,
+        name: KeyT,
+        key: FieldT | None = None,
+        value: FieldT | None = None,
+        mapping: dict[FieldT, FieldT] | None = None,
+        items: list[FieldT] | None = None,
+        ex: ExpiryT | None = None,
+        px: ExpiryT | None = None,
+        exat: AbsExpiryT | None = None,
+        pxat: AbsExpiryT | None = None,
+        keepttl: bool = False,
+        nx: bool = False,
+        xx: bool = False,
+        fnx: bool = False,
+        fxx: bool = False,
+    ) -> int | Awaitable[int]:
         """
         Set key to value within hash ``name``,
         ``mapping`` accepts a dict of key/value pairs to be added to hash ``name``.
@@ -9558,7 +9698,7 @@ class HashCommands(CommandsProtocol):
             raise DataError("Only one of 'nx' or 'xx' can be specified.")
         if fnx and fxx:
             raise DataError("Only one of 'fnx' or 'fxx' can be specified.")
-        pieces = []
+        pieces: list[Any] = []
         if ex is not None:
             pieces.extend(["EX", ex])
         if px is not None:
@@ -9593,7 +9733,19 @@ class HashCommands(CommandsProtocol):
 
         return self.execute_command("HSETEX", name, *pieces)
 
-    def hmset(self, name: str, mapping: dict) -> Union[Awaitable[str], str]:
+    @overload
+    def hmset(
+        self: SyncClientProtocol, name: KeyT, mapping: dict[FieldT, FieldT]
+    ) -> Literal[True]: ...
+
+    @overload
+    def hmset(
+        self: AsyncClientProtocol, name: KeyT, mapping: dict[FieldT, FieldT]
+    ) -> Awaitable[Literal[True]]: ...
+
+    def hmset(
+        self, name: KeyT, mapping: dict[FieldT, FieldT]
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Set key to value within hash ``name`` for each corresponding
         key and value from the ``mapping`` dict.
@@ -9608,12 +9760,24 @@ class HashCommands(CommandsProtocol):
         )
         if not mapping:
             raise DataError("'hmset' with 'mapping' of length 0")
-        items = []
+        items: list[FieldT] = []
         for pair in mapping.items():
             items.extend(pair)
         return self.execute_command("HMSET", name, *items)
 
-    def hmget(self, name: str, keys: List, *args: List) -> Union[Awaitable[List], List]:
+    @overload
+    def hmget(
+        self: SyncClientProtocol, name: KeyT, keys: Sequence[FieldT], *args: FieldT
+    ) -> list[StringTypeT | None]: ...
+
+    @overload
+    def hmget(
+        self: AsyncClientProtocol, name: KeyT, keys: Sequence[FieldT], *args: FieldT
+    ) -> Awaitable[list[StringTypeT | None]]: ...
+
+    def hmget(
+        self, name: KeyT, keys: Sequence[FieldT], *args: FieldT
+    ) -> list[StringTypeT | None] | Awaitable[list[StringTypeT | None]]:
         """
         Returns a list of values ordered identically to ``keys``
 
@@ -9622,7 +9786,15 @@ class HashCommands(CommandsProtocol):
         args = list_or_args(keys, args)
         return self.execute_command("HMGET", name, *args, keys=[name])
 
-    def hvals(self, name: str) -> Union[Awaitable[List], List]:
+    @overload
+    def hvals(self: SyncClientProtocol, name: KeyT) -> list[StringTypeT]: ...
+
+    @overload
+    def hvals(
+        self: AsyncClientProtocol, name: KeyT
+    ) -> Awaitable[list[StringTypeT]]: ...
+
+    def hvals(self, name: KeyT) -> list[StringTypeT] | Awaitable[list[StringTypeT]]:
         """
         Return the list of values within hash ``name``
 
@@ -9630,7 +9802,15 @@ class HashCommands(CommandsProtocol):
         """
         return self.execute_command("HVALS", name, keys=[name])
 
-    def hstrlen(self, name: str, key: str) -> Union[Awaitable[int], int]:
+    @overload
+    def hstrlen(self: SyncClientProtocol, name: KeyT, key: FieldT) -> int: ...
+
+    @overload
+    def hstrlen(
+        self: AsyncClientProtocol, name: KeyT, key: FieldT
+    ) -> Awaitable[int]: ...
+
+    def hstrlen(self, name: KeyT, key: FieldT) -> int | Awaitable[int]:
         """
         Return the number of bytes stored in the value of ``key``
         within hash ``name``
