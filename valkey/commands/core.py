@@ -11120,7 +11120,19 @@ class ModuleCommands(CommandsProtocol):
     see: https://valkey.io/topics/modules-intro
     """
 
-    def module_load(self, path, *args) -> ResponseT:
+    @overload
+    def module_load(
+        self: SyncClientProtocol, path: str, *args: str
+    ) -> Literal[True]: ...
+
+    @overload
+    def module_load(
+        self: AsyncClientProtocol, path: str, *args: str
+    ) -> Awaitable[Literal[True]]: ...
+
+    def module_load(
+        self, path: str, *args: str
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Loads the module from ``path``.
         Passes all ``*args`` to the module, during loading.
@@ -11130,18 +11142,37 @@ class ModuleCommands(CommandsProtocol):
         """
         return self.execute_command("MODULE LOAD", path, *args)
 
+    # TODO: module_loadex misses the parsing callback in the implementation,
+    # so the return type is a string. This seems to be an oversight in the
+    # implementation. It needs to be handled the same way as module_load
+    @overload
+    def module_loadex(
+        self: SyncClientProtocol,
+        path: str,
+        options: list[str] | None = None,
+        args: list[str] | None = None,
+    ) -> StringTypeT: ...
+
+    @overload
+    def module_loadex(
+        self: AsyncClientProtocol,
+        path: str,
+        options: list[str] | None = None,
+        args: list[str] | None = None,
+    ) -> Awaitable[StringTypeT]: ...
+
     def module_loadex(
         self,
         path: str,
-        options: Optional[List[str]] = None,
-        args: Optional[List[str]] = None,
-    ) -> ResponseT:
+        options: list[str] | None = None,
+        args: list[str] | None = None,
+    ) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Loads a module from a dynamic library at runtime with configuration directives.
 
         For more information see https://valkey.io/commands/module-loadex
         """
-        pieces = []
+        pieces: list[Any] = []
         if options is not None:
             pieces.append("CONFIG")
             pieces.extend(options)
@@ -11151,7 +11182,15 @@ class ModuleCommands(CommandsProtocol):
 
         return self.execute_command("MODULE LOADEX", path, *pieces)
 
-    def module_unload(self, name) -> ResponseT:
+    @overload
+    def module_unload(self: SyncClientProtocol, name: str) -> Literal[True]: ...
+
+    @overload
+    def module_unload(
+        self: AsyncClientProtocol, name: str
+    ) -> Awaitable[Literal[True]]: ...
+
+    def module_unload(self, name: str) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Unloads the module ``name``.
         Raises ``ModuleError`` if ``name`` is not in loaded modules.
@@ -11160,7 +11199,22 @@ class ModuleCommands(CommandsProtocol):
         """
         return self.execute_command("MODULE UNLOAD", name)
 
-    def module_list(self) -> ResponseT:
+    @overload
+    def module_list(
+        self: SyncClientProtocol,
+    ) -> list[dict[StringTypeT, StringTypeT | int]]: ...
+
+    @overload
+    def module_list(
+        self: AsyncClientProtocol,
+    ) -> Awaitable[list[dict[StringTypeT, StringTypeT | int]]]: ...
+
+    def module_list(
+        self,
+    ) -> (
+        list[dict[StringTypeT, StringTypeT | int]]
+        | Awaitable[list[dict[StringTypeT, StringTypeT | int]]]
+    ):
         """
         Returns a list of dictionaries containing the name and version of
         all loaded modules.
@@ -11169,24 +11223,50 @@ class ModuleCommands(CommandsProtocol):
         """
         return self.execute_command("MODULE LIST")
 
-    def command_info(self) -> None:
+    def command_info(self) -> NoReturn:
         raise NotImplementedError(
             "COMMAND INFO is intentionally not implemented in the client."
         )
 
-    def command_count(self) -> ResponseT:
+    @overload
+    def command_count(self: SyncClientProtocol) -> int: ...
+
+    @overload
+    def command_count(self: AsyncClientProtocol) -> Awaitable[int]: ...
+
+    def command_count(self) -> int | Awaitable[int]:
         return self.execute_command("COMMAND COUNT")
 
-    def command_getkeys(self, *args) -> ResponseT:
+    @overload
+    def command_getkeys(self: SyncClientProtocol, *args: str) -> list[StringTypeT]: ...
+
+    @overload
+    def command_getkeys(
+        self: AsyncClientProtocol, *args: str
+    ) -> Awaitable[list[StringTypeT]]: ...
+
+    def command_getkeys(
+        self, *args: str
+    ) -> list[StringTypeT] | Awaitable[list[StringTypeT]]:
         return self.execute_command("COMMAND GETKEYS", *args)
 
-    def command(self) -> ResponseT:
+    @overload
+    def command(
+        self: SyncClientProtocol,
+    ) -> dict[str, dict[str, Any]]: ...
+
+    @overload
+    def command(
+        self: AsyncClientProtocol,
+    ) -> Awaitable[dict[str, dict[str, Any]]]: ...
+
+    def command(
+        self,
+    ) -> dict[str, dict[str, Any]] | Awaitable[dict[str, dict[str, Any]]]:
         return self.execute_command("COMMAND")
 
 
-class AsyncModuleCommands(ModuleCommands):
-    async def command_info(self) -> None:
-        return super().command_info()
+AsyncModuleCommands = ModuleCommands
 
 
 class ClusterCommands(CommandsProtocol):
