@@ -9346,7 +9346,15 @@ class HyperlogCommands(CommandsProtocol):
     see: https://valkey.io/topics/data-types-intro#hyperloglogs
     """
 
-    def pfadd(self, name: KeyT, *values: FieldT) -> ResponseT:
+    @overload
+    def pfadd(self: SyncClientProtocol, name: KeyT, *values: FieldT) -> int: ...
+
+    @overload
+    def pfadd(
+        self: AsyncClientProtocol, name: KeyT, *values: FieldT
+    ) -> Awaitable[int]: ...
+
+    def pfadd(self, name: KeyT, *values: FieldT) -> int | Awaitable[int]:
         """
         Adds the specified elements to the specified HyperLogLog.
 
@@ -9354,7 +9362,13 @@ class HyperlogCommands(CommandsProtocol):
         """
         return self.execute_command("PFADD", name, *values)
 
-    def pfcount(self, *sources: KeyT) -> ResponseT:
+    @overload
+    def pfcount(self: SyncClientProtocol, *sources: KeyT) -> int: ...
+
+    @overload
+    def pfcount(self: AsyncClientProtocol, *sources: KeyT) -> Awaitable[int]: ...
+
+    def pfcount(self, *sources: KeyT) -> int | Awaitable[int]:
         """
         Return the approximated cardinality of
         the set observed by the HyperLogLog at key(s).
@@ -9363,7 +9377,19 @@ class HyperlogCommands(CommandsProtocol):
         """
         return self.execute_command("PFCOUNT", *sources)
 
-    def pfmerge(self, dest: KeyT, *sources: KeyT) -> ResponseT:
+    @overload
+    def pfmerge(
+        self: SyncClientProtocol, dest: KeyT, *sources: KeyT
+    ) -> Literal[True]: ...
+
+    @overload
+    def pfmerge(
+        self: AsyncClientProtocol, dest: KeyT, *sources: KeyT
+    ) -> Awaitable[Literal[True]]: ...
+
+    def pfmerge(
+        self, dest: KeyT, *sources: KeyT
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Merge N different HyperLogLogs into a single one.
 
