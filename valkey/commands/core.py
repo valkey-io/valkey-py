@@ -9941,7 +9941,19 @@ class PubSubCommands(CommandsProtocol):
     see https://valkey.io/topics/pubsub
     """
 
-    def publish(self, channel: ChannelT, message: EncodableT, **kwargs) -> ResponseT:
+    @overload
+    def publish(
+        self: SyncClientProtocol, channel: ChannelT, message: EncodableT, **kwargs
+    ) -> int: ...
+
+    @overload
+    def publish(
+        self: AsyncClientProtocol, channel: ChannelT, message: EncodableT, **kwargs
+    ) -> Awaitable[int]: ...
+
+    def publish(
+        self, channel: ChannelT, message: EncodableT, **kwargs
+    ) -> int | Awaitable[int]:
         """
         Publish ``message`` on ``channel``.
         Returns the number of subscribers the message was delivered to.
@@ -9950,7 +9962,19 @@ class PubSubCommands(CommandsProtocol):
         """
         return self.execute_command("PUBLISH", channel, message, **kwargs)
 
-    def spublish(self, shard_channel: ChannelT, message: EncodableT) -> ResponseT:
+    @overload
+    def spublish(
+        self: SyncClientProtocol, shard_channel: ChannelT, message: EncodableT
+    ) -> int: ...
+
+    @overload
+    def spublish(
+        self: AsyncClientProtocol, shard_channel: ChannelT, message: EncodableT
+    ) -> Awaitable[int]: ...
+
+    def spublish(
+        self, shard_channel: ChannelT, message: EncodableT
+    ) -> int | Awaitable[int]:
         """
         Posts a message to the given shard channel.
         Returns the number of clients that received the message
@@ -9959,7 +9983,19 @@ class PubSubCommands(CommandsProtocol):
         """
         return self.execute_command("SPUBLISH", shard_channel, message)
 
-    def pubsub_channels(self, pattern: PatternT = "*", **kwargs) -> ResponseT:
+    @overload
+    def pubsub_channels(
+        self: SyncClientProtocol, pattern: PatternT = "*", **kwargs
+    ) -> list[StringTypeT]: ...
+
+    @overload
+    def pubsub_channels(
+        self: AsyncClientProtocol, pattern: PatternT = "*", **kwargs
+    ) -> Awaitable[list[StringTypeT]]: ...
+
+    def pubsub_channels(
+        self, pattern: PatternT = "*", **kwargs
+    ) -> list[StringTypeT] | Awaitable[list[StringTypeT]]:
         """
         Return a list of channels that have at least one subscriber
 
@@ -9967,7 +10003,19 @@ class PubSubCommands(CommandsProtocol):
         """
         return self.execute_command("PUBSUB CHANNELS", pattern, **kwargs)
 
-    def pubsub_shardchannels(self, pattern: PatternT = "*", **kwargs) -> ResponseT:
+    @overload
+    def pubsub_shardchannels(
+        self: SyncClientProtocol, pattern: PatternT = "*", **kwargs
+    ) -> list[StringTypeT]: ...
+
+    @overload
+    def pubsub_shardchannels(
+        self: AsyncClientProtocol, pattern: PatternT = "*", **kwargs
+    ) -> Awaitable[list[StringTypeT]]: ...
+
+    def pubsub_shardchannels(
+        self, pattern: PatternT = "*", **kwargs
+    ) -> list[StringTypeT] | Awaitable[list[StringTypeT]]:
         """
         Return a list of shard_channels that have at least one subscriber
 
@@ -9975,7 +10023,13 @@ class PubSubCommands(CommandsProtocol):
         """
         return self.execute_command("PUBSUB SHARDCHANNELS", pattern, **kwargs)
 
-    def pubsub_numpat(self, **kwargs) -> ResponseT:
+    @overload
+    def pubsub_numpat(self: SyncClientProtocol, **kwargs) -> int: ...
+
+    @overload
+    def pubsub_numpat(self: AsyncClientProtocol, **kwargs) -> Awaitable[int]: ...
+
+    def pubsub_numpat(self, **kwargs) -> int | Awaitable[int]:
         """
         Returns the number of subscriptions to patterns
 
@@ -9983,7 +10037,19 @@ class PubSubCommands(CommandsProtocol):
         """
         return self.execute_command("PUBSUB NUMPAT", **kwargs)
 
-    def pubsub_numsub(self, *args: ChannelT, **kwargs) -> ResponseT:
+    @overload
+    def pubsub_numsub(
+        self: SyncClientProtocol, *args: ChannelT, **kwargs
+    ) -> list[tuple[StringTypeT, int]]: ...
+
+    @overload
+    def pubsub_numsub(
+        self: AsyncClientProtocol, *args: ChannelT, **kwargs
+    ) -> Awaitable[list[tuple[StringTypeT, int]]]: ...
+
+    def pubsub_numsub(
+        self, *args: ChannelT, **kwargs
+    ) -> list[tuple[StringTypeT, int]] | Awaitable[list[tuple[StringTypeT, int]]]:
         """
         Return a list of (channel, number of subscribers) tuples
         for each channel given in ``*args``
@@ -9992,7 +10058,19 @@ class PubSubCommands(CommandsProtocol):
         """
         return self.execute_command("PUBSUB NUMSUB", *args, **kwargs)
 
-    def pubsub_shardnumsub(self, *args: ChannelT, **kwargs) -> ResponseT:
+    @overload
+    def pubsub_shardnumsub(
+        self: SyncClientProtocol, *args: ChannelT, **kwargs
+    ) -> list[tuple[StringTypeT, int]]: ...
+
+    @overload
+    def pubsub_shardnumsub(
+        self: AsyncClientProtocol, *args: ChannelT, **kwargs
+    ) -> Awaitable[list[tuple[StringTypeT, int]]]: ...
+
+    def pubsub_shardnumsub(
+        self, *args: ChannelT, **kwargs
+    ) -> list[tuple[StringTypeT, int]] | Awaitable[list[tuple[StringTypeT, int]]]:
         """
         Return a list of (shard_channel, number of subscribers) tuples
         for each channel given in ``*args``
