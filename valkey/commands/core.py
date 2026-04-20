@@ -2568,7 +2568,7 @@ class BasicKeyCommands(CommandsProtocol):
         key: KeyT,
         encoding: str,
         offset: BitfieldOffsetT,
-        items: list[tuple[str, BitfieldOffsetT]] | None = None,
+        items: Sequence[tuple[str, BitfieldOffsetT]] | None = None,
     ) -> list[int]: ...
 
     @overload
@@ -2577,7 +2577,7 @@ class BasicKeyCommands(CommandsProtocol):
         key: KeyT,
         encoding: str,
         offset: BitfieldOffsetT,
-        items: list[tuple[str, BitfieldOffsetT]] | None = None,
+        items: Sequence[tuple[str, BitfieldOffsetT]] | None = None,
     ) -> Awaitable[list[int]]: ...
 
     def bitfield_ro(
@@ -2585,7 +2585,7 @@ class BasicKeyCommands(CommandsProtocol):
         key: KeyT,
         encoding: str,
         offset: BitfieldOffsetT,
-        items: list[tuple[str, BitfieldOffsetT]] | None = None,
+        items: Sequence[tuple[str, BitfieldOffsetT]] | None = None,
     ) -> list[int] | Awaitable[list[int]]:
         """
         Return an array of the specified bitfield values
