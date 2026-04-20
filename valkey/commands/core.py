@@ -48,6 +48,8 @@ from valkey.typing import (
     LCSIdxData,
     MemoryStatsData,
     PatternT,
+    FunctionListEntryT,
+    FunctionStatsT,
     ResponseT,
     ScriptTextT,
     StreamEntryT,
@@ -11314,9 +11316,19 @@ class FunctionCommands:
     Valkey Function commands
     """
 
+    @overload
     def function_load(
-        self, code: str, replace: Optional[bool] = False
-    ) -> Union[Awaitable[str], str]:
+        self: SyncClientProtocol, code: str, replace: bool = False
+    ) -> StringTypeT: ...
+
+    @overload
+    def function_load(
+        self: AsyncClientProtocol, code: str, replace: bool = False
+    ) -> Awaitable[StringTypeT]: ...
+
+    def function_load(
+        self, code: str, replace: bool = False
+    ) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Load a library to Valkey.
         :param code: the source code (must start with
@@ -11327,11 +11339,19 @@ class FunctionCommands:
 
         For more information see https://valkey.io/commands/function-load
         """
-        pieces = ["REPLACE"] if replace else []
+        pieces: list[Any] = ["REPLACE"] if replace else []
         pieces.append(code)
         return self.execute_command("FUNCTION LOAD", *pieces)
 
-    def function_delete(self, library: str) -> Union[Awaitable[str], str]:
+    @overload
+    def function_delete(self: SyncClientProtocol, library: str) -> Literal[True]: ...
+
+    @overload
+    def function_delete(
+        self: AsyncClientProtocol, library: str
+    ) -> Awaitable[Literal[True]]: ...
+
+    def function_delete(self, library: str) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Delete the library called ``library`` and all its functions.
 
@@ -11339,7 +11359,22 @@ class FunctionCommands:
         """
         return self.execute_command("FUNCTION DELETE", library)
 
-    def function_flush(self, mode: str = "SYNC") -> Union[Awaitable[str], str]:
+    @overload
+    def function_flush(
+        self: SyncClientProtocol,
+        mode: Literal["SYNC", "ASYNC"] = "SYNC",
+    ) -> Literal[True]: ...
+
+    @overload
+    def function_flush(
+        self: AsyncClientProtocol,
+        mode: Literal["SYNC", "ASYNC"] = "SYNC",
+    ) -> Awaitable[Literal[True]]: ...
+
+    def function_flush(
+        self,
+        mode: Literal["SYNC", "ASYNC"] = "SYNC",
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Deletes all the libraries.
 
@@ -11347,9 +11382,28 @@ class FunctionCommands:
         """
         return self.execute_command("FUNCTION FLUSH", mode)
 
+    # TODO: function_list return type can be parsed into proper TypedDicts
+    # (FunctionListEntryT with FunctionListFunctionT nested dicts) once
+    # RESP2/RESP3 shape normalization is added to callbacks.
+    @overload
     def function_list(
-        self, library: Optional[str] = "*", withcode: Optional[bool] = False
-    ) -> Union[Awaitable[List], List]:
+        self: SyncClientProtocol,
+        library: str = "*",
+        withcode: bool = False,
+    ) -> list[FunctionListEntryT]: ...
+
+    @overload
+    def function_list(
+        self: AsyncClientProtocol,
+        library: str = "*",
+        withcode: bool = False,
+    ) -> Awaitable[list[FunctionListEntryT]]: ...
+
+    def function_list(
+        self,
+        library: str = "*",
+        withcode: bool = False,
+    ) -> list[FunctionListEntryT] | Awaitable[list[FunctionListEntryT]]:
         """
         Return information about the functions and libraries.
 
@@ -11357,19 +11411,36 @@ class FunctionCommands:
         :param withcode: cause the server to include the libraries source
             implementation in the reply
         """
-        args = ["LIBRARYNAME", library]
+        args: list[Any] = ["LIBRARYNAME", library]
         if withcode:
             args.append("WITHCODE")
         return self.execute_command("FUNCTION LIST", *args)
 
-    def _fcall(
-        self, command: str, function, numkeys: int, *keys_and_args: Optional[List]
-    ) -> Union[Awaitable[str], str]:
+    def _fcall(self, command: str, function: str, numkeys: int, *keys_and_args) -> Any:
         return self.execute_command(command, function, numkeys, *keys_and_args)
 
+    @overload
     def fcall(
-        self, function, numkeys: int, *keys_and_args: Optional[List]
-    ) -> Union[Awaitable[str], str]:
+        self: SyncClientProtocol,
+        function: str,
+        numkeys: int,
+        *keys_and_args: EncodableT,
+    ) -> Any: ...
+
+    @overload
+    def fcall(
+        self: AsyncClientProtocol,
+        function: str,
+        numkeys: int,
+        *keys_and_args: EncodableT,
+    ) -> Awaitable[Any]: ...
+
+    def fcall(
+        self,
+        function: str,
+        numkeys: int,
+        *keys_and_args: EncodableT,
+    ) -> Any | Awaitable[Any]:
         """
         Invoke a function.
 
@@ -11377,9 +11448,28 @@ class FunctionCommands:
         """
         return self._fcall("FCALL", function, numkeys, *keys_and_args)
 
+    @overload
     def fcall_ro(
-        self, function, numkeys: int, *keys_and_args: Optional[List]
-    ) -> Union[Awaitable[str], str]:
+        self: SyncClientProtocol,
+        function: str,
+        numkeys: int,
+        *keys_and_args: EncodableT,
+    ) -> Any: ...
+
+    @overload
+    def fcall_ro(
+        self: AsyncClientProtocol,
+        function: str,
+        numkeys: int,
+        *keys_and_args: EncodableT,
+    ) -> Awaitable[Any]: ...
+
+    def fcall_ro(
+        self,
+        function: str,
+        numkeys: int,
+        *keys_and_args: EncodableT,
+    ) -> Any | Awaitable[Any]:
         """
         This is a read-only variant of the FCALL command that cannot
         execute commands that modify data.
@@ -11388,7 +11478,13 @@ class FunctionCommands:
         """
         return self._fcall("FCALL_RO", function, numkeys, *keys_and_args)
 
-    def function_dump(self) -> Union[Awaitable[str], str]:
+    @overload
+    def function_dump(self: SyncClientProtocol) -> bytes: ...
+
+    @overload
+    def function_dump(self: AsyncClientProtocol) -> Awaitable[bytes]: ...
+
+    def function_dump(self) -> bytes | Awaitable[bytes]:
         """
         Return the serialized payload of loaded libraries.
 
@@ -11401,9 +11497,25 @@ class FunctionCommands:
 
         return self.execute_command("FUNCTION DUMP", **options)
 
+    @overload
     def function_restore(
-        self, payload: str, policy: Optional[str] = "APPEND"
-    ) -> Union[Awaitable[str], str]:
+        self: SyncClientProtocol,
+        payload: bytes,
+        policy: Literal["FLUSH", "APPEND", "REPLACE"] = "APPEND",
+    ) -> Literal[True]: ...
+
+    @overload
+    def function_restore(
+        self: AsyncClientProtocol,
+        payload: bytes,
+        policy: Literal["FLUSH", "APPEND", "REPLACE"] = "APPEND",
+    ) -> Awaitable[Literal[True]]: ...
+
+    def function_restore(
+        self,
+        payload: bytes,
+        policy: Literal["FLUSH", "APPEND", "REPLACE"] = "APPEND",
+    ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Restore libraries from the serialized ``payload``.
         You can use the optional policy argument to provide a policy
@@ -11413,7 +11525,13 @@ class FunctionCommands:
         """
         return self.execute_command("FUNCTION RESTORE", payload, policy)
 
-    def function_kill(self) -> Union[Awaitable[str], str]:
+    @overload
+    def function_kill(self: SyncClientProtocol) -> StringTypeT: ...
+
+    @overload
+    def function_kill(self: AsyncClientProtocol) -> Awaitable[StringTypeT]: ...
+
+    def function_kill(self) -> StringTypeT | Awaitable[StringTypeT]:
         """
         Kill a function that is currently executing.
 
@@ -11421,7 +11539,22 @@ class FunctionCommands:
         """
         return self.execute_command("FUNCTION KILL")
 
-    def function_stats(self) -> Union[Awaitable[List], List]:
+    # TODO: function_stats return type can be parsed into proper TypedDicts
+    # (FunctionStatsRunningScriptT, FunctionStatsEnginesT) once
+    # RESP2/RESP3 shape normalization is added to callbacks.
+    @overload
+    def function_stats(
+        self: SyncClientProtocol,
+    ) -> FunctionStatsT: ...
+
+    @overload
+    def function_stats(
+        self: AsyncClientProtocol,
+    ) -> Awaitable[FunctionStatsT]: ...
+
+    def function_stats(
+        self,
+    ) -> FunctionStatsT | Awaitable[FunctionStatsT]:
         """
         Return information about the function that's currently running
         and information about the available execution engines.

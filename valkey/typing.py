@@ -112,6 +112,27 @@ ExceptionMappingT = Mapping[str, Union[Type[Exception], Mapping[str, Type[Except
 GeoSearchEntryT = list[StringTypeT | float | int | tuple[float, float]]
 GeoSearchReplyT = list[StringTypeT] | list[GeoSearchEntryT]
 
+FunctionListFunctionT = (
+    list[StringTypeT | None | list[StringTypeT]]
+    | dict[StringTypeT, StringTypeT | None | list[StringTypeT]]
+)
+FunctionListEntryT = (
+    list[StringTypeT | FunctionListFunctionT]
+    | dict[StringTypeT, StringTypeT | FunctionListFunctionT]
+)
+
+FunctionStatsRunningScriptT = (
+    list[StringTypeT | int] | dict[StringTypeT, StringTypeT | int] | None
+)
+FunctionStatsEnginesT = (
+    list[StringTypeT | list[StringTypeT | int]]
+    | dict[StringTypeT, dict[StringTypeT, int]]
+)
+FunctionStatsT = (
+    list[StringTypeT | FunctionStatsRunningScriptT | FunctionStatsEnginesT]
+    | dict[StringTypeT, FunctionStatsRunningScriptT | FunctionStatsEnginesT]
+)
+
 
 class CommandsProtocol(Protocol):
     connection_pool: Union["AsyncConnectionPool", "ConnectionPool"]
