@@ -25,6 +25,7 @@ from typing import (
     Union,
     cast,
 )
+from typing import Literal
 
 from valkey._cache import (
     DEFAULT_ALLOW_LIST,
@@ -112,6 +113,8 @@ class Valkey(
     configuration, an instance will either use a ConnectionPool, or
     Connection object to talk to valkey.
     """
+
+    _is_async_client: Literal[True] = True
 
     response_callbacks: MutableMapping[Union[str, bytes], ResponseCallbackT]
 

@@ -4,7 +4,7 @@ import sys
 import threading
 import time
 from collections import OrderedDict
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 from valkey._parsers import CommandsParser, Encoder
 from valkey._parsers.helpers import parse_scan
@@ -446,6 +446,8 @@ class AbstractValkeyCluster:
 
 
 class ValkeyCluster(AbstractValkeyCluster, ValkeyClusterCommands):
+    _is_async_client: Literal[False] = False
+
     @classmethod
     def from_url(cls, url, **kwargs):
         """

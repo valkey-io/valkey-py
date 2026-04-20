@@ -4,7 +4,7 @@ import threading
 import time
 import warnings
 from itertools import chain
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Type, Union
 
 from valkey._cache import (
     DEFAULT_ALLOW_LIST,
@@ -103,6 +103,8 @@ class Valkey(ValkeyModuleCommands, CoreCommands, SentinelCommands):
 
     It is not safe to pass PubSub or Pipeline objects between threads.
     """
+
+    _is_async_client: Literal[False] = False
 
     @classmethod
     def from_url(cls, url: str, **kwargs) -> "Valkey":

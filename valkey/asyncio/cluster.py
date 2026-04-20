@@ -18,6 +18,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from typing import Literal
 
 from valkey._cache import (
     DEFAULT_ALLOW_LIST,
@@ -102,6 +103,8 @@ class ClusterParser(DefaultParser):
 
 
 class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCommands):
+    _is_async_client: Literal[True] = True
+
     """
     Create a new ValkeyCluster client.
 
