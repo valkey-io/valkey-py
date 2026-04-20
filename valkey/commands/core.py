@@ -1436,7 +1436,7 @@ class ManagementCommands(CommandsProtocol):
         self: SyncClientProtocol,
         name: KeyT,
         value: EncodableT,
-        *args: list[KeyT | EncodableT],
+        *args: KeyT | EncodableT,
         **kwargs,
     ) -> Literal[True]: ...
 
@@ -1445,7 +1445,7 @@ class ManagementCommands(CommandsProtocol):
         self: AsyncClientProtocol,
         name: KeyT,
         value: EncodableT,
-        *args: list[KeyT | EncodableT],
+        *args: KeyT | EncodableT,
         **kwargs,
     ) -> Awaitable[Literal[True]]: ...
 
@@ -1453,7 +1453,7 @@ class ManagementCommands(CommandsProtocol):
         self,
         name: KeyT,
         value: EncodableT,
-        *args: list[KeyT | EncodableT],
+        *args: KeyT | EncodableT,
         **kwargs,
     ) -> Literal[True] | Awaitable[Literal[True]]:
         """Set config item ``name`` with ``value``
