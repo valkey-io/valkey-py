@@ -1375,16 +1375,16 @@ class ManagementCommands(CommandsProtocol):
 
     @overload
     def command_getkeysandflags(
-        self: SyncClientProtocol, *args: list[str]
+        self: SyncClientProtocol, *args: str
     ) -> list[list[StringTypeT | list[StringTypeT]]]: ...
 
     @overload
     def command_getkeysandflags(
-        self: AsyncClientProtocol, *args: list[str]
+        self: AsyncClientProtocol, *args: str
     ) -> Awaitable[list[list[StringTypeT | list[StringTypeT]]]]: ...
 
     def command_getkeysandflags(
-        self, *args: list[str]
+        self, *args: str
     ) -> (
         list[list[StringTypeT | list[StringTypeT]]]
         | Awaitable[list[list[StringTypeT | list[StringTypeT]]]]
@@ -1409,7 +1409,7 @@ class ManagementCommands(CommandsProtocol):
     def config_get(
         self: SyncClientProtocol,
         pattern: PatternT = "*",
-        *args: list[PatternT],
+        *args: PatternT,
         **kwargs,
     ) -> dict[str, str]: ...
 
@@ -1417,12 +1417,12 @@ class ManagementCommands(CommandsProtocol):
     def config_get(
         self: AsyncClientProtocol,
         pattern: PatternT = "*",
-        *args: list[PatternT],
+        *args: PatternT,
         **kwargs,
     ) -> Awaitable[dict[str, str]]: ...
 
     def config_get(
-        self, pattern: PatternT = "*", *args: list[PatternT], **kwargs
+        self, pattern: PatternT = "*", *args: PatternT, **kwargs
     ) -> dict[str, str] | Awaitable[dict[str, str]]:
         """
         Return a dictionary of configuration based on the ``pattern``
@@ -1684,19 +1684,19 @@ class ManagementCommands(CommandsProtocol):
 
     @overload
     def info(
-        self: SyncClientProtocol, section: str | None = None, *args: list[str], **kwargs
+        self: SyncClientProtocol, section: str | None = None, *args: str, **kwargs
     ) -> InfoData: ...
 
     @overload
     def info(
         self: AsyncClientProtocol,
         section: str | None = None,
-        *args: list[str],
+        *args: str,
         **kwargs,
     ) -> Awaitable[InfoData]: ...
 
     def info(
-        self, section: str | None = None, *args: list[str], **kwargs
+        self, section: str | None = None, *args: str, **kwargs
     ) -> InfoData | Awaitable[InfoData]:
         """
         Returns a dictionary containing information about the Valkey server
