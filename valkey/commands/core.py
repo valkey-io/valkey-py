@@ -7238,7 +7238,7 @@ class StreamCommands(CommandsProtocol):
     @overload
     def xread(
         self: SyncClientProtocol,
-        streams: Mapping[AnyKeyT, AnyStreamIdT],
+        streams: Mapping[AnyKeyT, StreamIdT],
         count: int | None = None,
         block: int | None = None,
     ) -> StreamReadResp2T | StreamReadResp3T: ...
@@ -7246,14 +7246,14 @@ class StreamCommands(CommandsProtocol):
     @overload
     def xread(
         self: AsyncClientProtocol,
-        streams: Mapping[AnyKeyT, AnyStreamIdT],
+        streams: Mapping[AnyKeyT, StreamIdT],
         count: int | None = None,
         block: int | None = None,
     ) -> Awaitable[StreamReadResp2T | StreamReadResp3T]: ...
 
     def xread(
         self,
-        streams: Mapping[AnyKeyT, AnyStreamIdT],
+        streams: Mapping[AnyKeyT, StreamIdT],
         count: int | None = None,
         block: int | None = None,
     ) -> (
@@ -7298,7 +7298,7 @@ class StreamCommands(CommandsProtocol):
         self: SyncClientProtocol,
         groupname: GroupT,
         consumername: ConsumerT,
-        streams: Mapping[AnyKeyT, AnyStreamIdT],
+        streams: Mapping[AnyKeyT, StreamIdT],
         count: int | None = None,
         block: int | None = None,
         noack: bool = False,
@@ -7309,7 +7309,7 @@ class StreamCommands(CommandsProtocol):
         self: AsyncClientProtocol,
         groupname: GroupT,
         consumername: ConsumerT,
-        streams: Mapping[AnyKeyT, AnyStreamIdT],
+        streams: Mapping[AnyKeyT, StreamIdT],
         count: int | None = None,
         block: int | None = None,
         noack: bool = False,
@@ -7319,7 +7319,7 @@ class StreamCommands(CommandsProtocol):
         self,
         groupname: GroupT,
         consumername: ConsumerT,
-        streams: Mapping[AnyKeyT, AnyStreamIdT],
+        streams: Mapping[AnyKeyT, StreamIdT],
         count: int | None = None,
         block: int | None = None,
         noack: bool = False,
