@@ -13,6 +13,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     Mapping,
     MutableMapping,
     Optional,
@@ -25,7 +26,6 @@ from typing import (
     Union,
     cast,
 )
-from typing import Literal
 
 from valkey._cache import (
     DEFAULT_ALLOW_LIST,

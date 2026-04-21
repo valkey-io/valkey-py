@@ -11,6 +11,7 @@ from typing import (
     Dict,
     Generator,
     List,
+    Literal,
     Mapping,
     Optional,
     Tuple,
@@ -18,7 +19,6 @@ from typing import (
     TypeVar,
     Union,
 )
-from typing import Literal
 
 from valkey._cache import (
     DEFAULT_ALLOW_LIST,

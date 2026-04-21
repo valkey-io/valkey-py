@@ -16,7 +16,6 @@ from typing import (
     Literal,
     Mapping,
     NoReturn,
-    Optional,
     Sequence,
     TypeVar,
     Union,
@@ -31,16 +30,18 @@ from valkey.typing import (
     AnyEncodableT,
     AnyFieldT,
     AnyKeyT,
-    AnyStreamIdT,
     AsyncClientProtocol,
     BitfieldOffsetT,
     BlockingPopResult,
+    BZPopResultT,
     ChannelT,
     CommandsProtocol,
     ConsumerT,
     EncodableT,
     ExpiryT,
     FieldT,
+    FunctionListEntryT,
+    FunctionStatsT,
     GeoSearchReplyT,
     GroupT,
     InfoData,
@@ -49,8 +50,6 @@ from valkey.typing import (
     LCSIdxData,
     MemoryStatsData,
     PatternT,
-    FunctionListEntryT,
-    FunctionStatsT,
     ResponseT,
     ScriptTextT,
     StreamEntryT,
@@ -59,10 +58,9 @@ from valkey.typing import (
     StreamReadResp3T,
     StringTypeT,
     SyncClientProtocol,
-    BZPopResultT,
     TimeoutSecT,
-    XPendingResult,
     XPendingRangeEntry,
+    XPendingResult,
     ZMPopResultT,
     ZPopResultT,
     ZScoreBoundT,
@@ -8490,7 +8488,9 @@ class SortedSetCommands(CommandsProtocol):
         # Need to support ``desc`` also when using old redis version
         # because it was supported in 3.5.3 (of redis-py)
         if not byscore and not bylex and (offset is None and num is None) and desc:
-            return self.zrevrange(name, start, end, withscores, score_cast_func)  # type: ignore[misc]
+            return self.zrevrange(  # type: ignore[misc]
+                name, start, end, withscores, score_cast_func
+            )
 
         return self._zrange(
             "ZRANGE",

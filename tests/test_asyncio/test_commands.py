@@ -14,9 +14,7 @@ from unittest import mock
 
 import pytest
 import pytest_asyncio
-from valkey import __version__ as VALKEY_VERSION
 import valkey.asyncio as valkey
-from valkey.typing import KeyT, StreamIdT, StringTypeT
 from packaging.version import Version
 from tests.conftest import (
     assert_geo_is_close,
@@ -28,6 +26,7 @@ from tests.conftest import (
     skip_if_server_version_lt,
     skip_unless_arch_bits,
 )
+from valkey import __version__ as VALKEY_VERSION
 from valkey import exceptions
 from valkey._parsers.helpers import (
     _ValkeyCallbacks,
@@ -36,6 +35,7 @@ from valkey._parsers.helpers import (
     parse_info,
 )
 from valkey.client import EMPTY_RESPONSE, NEVER_DECODE
+from valkey.typing import KeyT, StreamIdT, StringTypeT
 
 if sys.version_info >= (3, 11, 3):
     from asyncio import timeout as async_timeout
@@ -514,7 +514,9 @@ class TestValkeyCommands:
             info = await replica.info("replication")
             assert info["role"] in ("slave", "replica")
             expected_host = info["master_host"]
-            expected_port = int(info["master_port"])  # type: ignore[arg-type] # TODO: fix
+            expected_port = int(
+                info["master_port"]  # type: ignore[arg-type] # TODO: fix
+            )
 
             with pytest.raises(valkey.RedirectError) as exc_get:
                 await replica.get(key)
@@ -566,10 +568,16 @@ class TestValkeyCommands:
     @pytest.mark.onlynoncluster
     async def test_config_resetstat(self, r: valkey.Valkey):
         await r.ping()
-        prior_commands_processed = int((await r.info())["total_commands_processed"])  # type: ignore[arg-type] # TODO: fix
+        # TODO: fix
+        prior_commands_processed = int(
+            (await r.info())["total_commands_processed"]  # type: ignore[arg-type]
+        )
         assert prior_commands_processed >= 1
         await r.config_resetstat()
-        reset_commands_processed = int((await r.info())["total_commands_processed"])  # type: ignore[arg-type] # TODO: fix
+        # TODO: fix
+        reset_commands_processed = int(
+            (await r.info())["total_commands_processed"]  # type: ignore[arg-type]
+        )
         assert reset_commands_processed < prior_commands_processed
 
     async def test_config_set(self, r: valkey.Valkey):
