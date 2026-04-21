@@ -5077,8 +5077,23 @@ class ListCommands(CommandsProtocol):
         desc: bool = False,
         alpha: bool = False,
         store: None = None,
-        groups: bool = False,
+        groups: Literal[False] = False,
     ) -> list[StringTypeT]: ...
+
+    @overload
+    def sort(
+        self: SyncClientProtocol,
+        name: KeyT,
+        start: int | None = None,
+        num: int | None = None,
+        by: KeyT | None = None,
+        get: KeyT | Sequence[KeyT] | None = None,
+        desc: bool = False,
+        alpha: bool = False,
+        store: None = None,
+        *,
+        groups: Literal[True],
+    ) -> list[tuple[StringTypeT, ...]]: ...
 
     @overload
     def sort(
@@ -5120,8 +5135,23 @@ class ListCommands(CommandsProtocol):
         desc: bool = False,
         alpha: bool = False,
         store: None = None,
-        groups: bool = False,
+        groups: Literal[False] = False,
     ) -> Awaitable[list[StringTypeT]]: ...
+
+    @overload
+    def sort(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        start: int | None = None,
+        num: int | None = None,
+        by: KeyT | None = None,
+        get: KeyT | Sequence[KeyT] | None = None,
+        desc: bool = False,
+        alpha: bool = False,
+        store: None = None,
+        *,
+        groups: Literal[True],
+    ) -> Awaitable[list[tuple[StringTypeT, ...]]]: ...
 
     @overload
     def sort(
@@ -5163,7 +5193,13 @@ class ListCommands(CommandsProtocol):
         alpha: bool = False,
         store: KeyT | None = None,
         groups: bool = False,
-    ) -> list[StringTypeT] | int | Awaitable[list[StringTypeT]] | Awaitable[int]:
+    ) -> (
+        list[StringTypeT]
+        | list[tuple[StringTypeT, ...]]
+        | int
+        | Awaitable[list[StringTypeT] | list[tuple[StringTypeT, ...]]]
+        | Awaitable[int]
+    ):
         """
         Sort and return the list, set or sorted set at ``name``.
 
