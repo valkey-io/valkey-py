@@ -10573,28 +10573,11 @@ class GeoCommands(CommandsProtocol):
         withhash: bool = False,
         count: int | None = None,
         sort: str | None = None,
-        store: KeyT = ...,
+        *,
+        store: KeyT,
         store_dist: None = None,
         any: bool = False,
     ) -> int: ...
-
-    @overload
-    def georadius(
-        self: AsyncClientProtocol,
-        name: KeyT,
-        longitude: float,
-        latitude: float,
-        radius: float,
-        unit: str | None = None,
-        withdist: bool = False,
-        withcoord: bool = False,
-        withhash: bool = False,
-        count: int | None = None,
-        sort: str | None = None,
-        store: KeyT = ...,
-        store_dist: None = None,
-        any: bool = False,
-    ) -> Awaitable[int]: ...
 
     @overload
     def georadius(
@@ -10610,9 +10593,47 @@ class GeoCommands(CommandsProtocol):
         count: int | None = None,
         sort: str | None = None,
         store: None = None,
-        store_dist: KeyT = ...,
+        *,
+        store_dist: KeyT,
         any: bool = False,
     ) -> int: ...
+
+    @overload
+    def georadius(
+        self: SyncClientProtocol,
+        name: KeyT,
+        longitude: float,
+        latitude: float,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        store: None = None,
+        store_dist: None = None,
+        any: bool = False,
+    ) -> GeoSearchReplyT: ...
+
+    @overload
+    def georadius(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        longitude: float,
+        latitude: float,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        *,
+        store: KeyT,
+        store_dist: None = None,
+        any: bool = False,
+    ) -> Awaitable[int]: ...
 
     @overload
     def georadius(
@@ -10628,27 +10649,10 @@ class GeoCommands(CommandsProtocol):
         count: int | None = None,
         sort: str | None = None,
         store: None = None,
-        store_dist: KeyT = ...,
+        *,
+        store_dist: KeyT,
         any: bool = False,
     ) -> Awaitable[int]: ...
-
-    @overload
-    def georadius(
-        self: SyncClientProtocol,
-        name: KeyT,
-        longitude: float,
-        latitude: float,
-        radius: float,
-        unit: str | None = None,
-        withdist: bool = False,
-        withcoord: bool = False,
-        withhash: bool = False,
-        count: int | None = None,
-        sort: str | None = None,
-        store: KeyT | None = None,
-        store_dist: KeyT | None = None,
-        any: bool = False,
-    ) -> GeoSearchReplyT | int: ...
 
     @overload
     def georadius(
@@ -10663,10 +10667,10 @@ class GeoCommands(CommandsProtocol):
         withhash: bool = False,
         count: int | None = None,
         sort: str | None = None,
-        store: KeyT | None = None,
-        store_dist: KeyT | None = None,
+        store: None = None,
+        store_dist: None = None,
         any: bool = False,
-    ) -> Awaitable[GeoSearchReplyT | int]: ...
+    ) -> Awaitable[GeoSearchReplyT]: ...
 
     def georadius(
         self,
@@ -10743,27 +10747,11 @@ class GeoCommands(CommandsProtocol):
         withhash: bool = False,
         count: int | None = None,
         sort: str | None = None,
-        store: KeyT = ...,
+        *,
+        store: KeyT,
         store_dist: None = None,
         any: bool = False,
     ) -> int: ...
-
-    @overload
-    def georadiusbymember(
-        self: AsyncClientProtocol,
-        name: KeyT,
-        member: FieldT,
-        radius: float,
-        unit: str | None = None,
-        withdist: bool = False,
-        withcoord: bool = False,
-        withhash: bool = False,
-        count: int | None = None,
-        sort: str | None = None,
-        store: KeyT = ...,
-        store_dist: None = None,
-        any: bool = False,
-    ) -> Awaitable[int]: ...
 
     @overload
     def georadiusbymember(
@@ -10778,9 +10766,45 @@ class GeoCommands(CommandsProtocol):
         count: int | None = None,
         sort: str | None = None,
         store: None = None,
-        store_dist: KeyT = ...,
+        *,
+        store_dist: KeyT,
         any: bool = False,
     ) -> int: ...
+
+    @overload
+    def georadiusbymember(
+        self: SyncClientProtocol,
+        name: KeyT,
+        member: FieldT,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        store: None = None,
+        store_dist: None = None,
+        any: bool = False,
+    ) -> GeoSearchReplyT: ...
+
+    @overload
+    def georadiusbymember(
+        self: AsyncClientProtocol,
+        name: KeyT,
+        member: FieldT,
+        radius: float,
+        unit: str | None = None,
+        withdist: bool = False,
+        withcoord: bool = False,
+        withhash: bool = False,
+        count: int | None = None,
+        sort: str | None = None,
+        *,
+        store: KeyT,
+        store_dist: None = None,
+        any: bool = False,
+    ) -> Awaitable[int]: ...
 
     @overload
     def georadiusbymember(
@@ -10795,26 +10819,10 @@ class GeoCommands(CommandsProtocol):
         count: int | None = None,
         sort: str | None = None,
         store: None = None,
-        store_dist: KeyT = ...,
+        *,
+        store_dist: KeyT,
         any: bool = False,
     ) -> Awaitable[int]: ...
-
-    @overload
-    def georadiusbymember(
-        self: SyncClientProtocol,
-        name: KeyT,
-        member: FieldT,
-        radius: float,
-        unit: str | None = None,
-        withdist: bool = False,
-        withcoord: bool = False,
-        withhash: bool = False,
-        count: int | None = None,
-        sort: str | None = None,
-        store: KeyT | None = None,
-        store_dist: KeyT | None = None,
-        any: bool = False,
-    ) -> GeoSearchReplyT | int: ...
 
     @overload
     def georadiusbymember(
@@ -10828,10 +10836,10 @@ class GeoCommands(CommandsProtocol):
         withhash: bool = False,
         count: int | None = None,
         sort: str | None = None,
-        store: KeyT | None = None,
-        store_dist: KeyT | None = None,
+        store: None = None,
+        store_dist: None = None,
         any: bool = False,
-    ) -> Awaitable[GeoSearchReplyT | int]: ...
+    ) -> Awaitable[GeoSearchReplyT]: ...
 
     def georadiusbymember(
         self,
