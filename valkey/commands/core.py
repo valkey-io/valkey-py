@@ -9,6 +9,7 @@ from typing import (
     AsyncIterator,
     Awaitable,
     Callable,
+    Generic,
     Iterable,
     Iterator,
     List,
@@ -2373,16 +2374,19 @@ class AsyncManagementCommands(ManagementCommands):
         raise ValkeyError("SHUTDOWN seems to have failed.")
 
 
-class BitFieldOperation:
+_BitFieldAsyncT = TypeVar("_BitFieldAsyncT", Literal[True], Literal[False])
+
+
+class BitFieldOperation(Generic[_BitFieldAsyncT]):
     """
     Command builder for BITFIELD commands.
     """
 
     def __init__(
         self,
-        client: Union["Valkey", "AsyncValkey"],
+        client: "Valkey | AsyncValkey",
         key: str,
-        default_overflow: Union[str, None] = None,
+        default_overflow: str | None = None,
     ):
         self.client = client
         self.key = key
@@ -2400,7 +2404,7 @@ class BitFieldOperation:
         self._last_overflow = "WRAP"
         self.overflow(self._default_overflow or self._last_overflow)
 
-    def overflow(self, overflow: str):
+    def overflow(self, overflow: str) -> "BitFieldOperation[_BitFieldAsyncT]":
         """
         Update the overflow algorithm of successive INCRBY operations
         :param overflow: Overflow algorithm, one of WRAP, SAT, FAIL. See the
@@ -2418,8 +2422,8 @@ class BitFieldOperation:
         fmt: str,
         offset: BitfieldOffsetT,
         increment: int,
-        overflow: Union[str, None] = None,
-    ):
+        overflow: str | None = None,
+    ) -> "BitFieldOperation[_BitFieldAsyncT]":
         """
         Increment a bitfield by a given amount.
         :param fmt: format-string for the bitfield being updated, e.g. 'u8'
@@ -2439,7 +2443,9 @@ class BitFieldOperation:
         self.operations.append(("INCRBY", fmt, offset, increment))
         return self
 
-    def get(self, fmt: str, offset: BitfieldOffsetT):
+    def get(
+        self, fmt: str, offset: BitfieldOffsetT
+    ) -> "BitFieldOperation[_BitFieldAsyncT]":
         """
         Get the value of a given bitfield.
         :param fmt: format-string for the bitfield being read, e.g. 'u8' for
@@ -2452,7 +2458,9 @@ class BitFieldOperation:
         self.operations.append(("GET", fmt, offset))
         return self
 
-    def set(self, fmt: str, offset: BitfieldOffsetT, value: int):
+    def set(
+        self, fmt: str, offset: BitfieldOffsetT, value: int
+    ) -> "BitFieldOperation[_BitFieldAsyncT]":
         """
         Set the value of a given bitfield.
         :param fmt: format-string for the bitfield being read, e.g. 'u8' for
@@ -2473,7 +2481,15 @@ class BitFieldOperation:
             cmd.extend(ops)
         return cmd
 
-    def execute(self) -> list[int | None]:
+    @overload
+    def execute(self: "BitFieldOperation[Literal[False]]") -> list[int | None]: ...
+
+    @overload
+    def execute(
+        self: "BitFieldOperation[Literal[True]]",
+    ) -> Awaitable[list[int | None]]: ...
+
+    def execute(self) -> list[int | None] | Awaitable[list[int | None]]:
         """
         Execute the operation(s) in a single BITFIELD command. The return value
         is a list of values corresponding to each operation. If the client
@@ -2549,11 +2565,25 @@ class BasicKeyCommands(CommandsProtocol):
             params.append(mode)
         return self.execute_command("BITCOUNT", *params, keys=[key])
 
+    @overload
     def bitfield(
-        self: Union["Valkey", "AsyncValkey"],
+        self: SyncClientProtocol,
         key: KeyT,
-        default_overflow: Union[str, None] = None,
-    ) -> BitFieldOperation:
+        default_overflow: str | None = None,
+    ) -> BitFieldOperation[Literal[False]]: ...
+
+    @overload
+    def bitfield(
+        self: AsyncClientProtocol,
+        key: KeyT,
+        default_overflow: str | None = None,
+    ) -> BitFieldOperation[Literal[True]]: ...
+
+    def bitfield(
+        self,
+        key: KeyT,
+        default_overflow: str | None = None,
+    ) -> BitFieldOperation[Literal[False]] | BitFieldOperation[Literal[True]]:
         """
         Return a BitFieldOperation instance to conveniently construct one or
         more bitfield operations on ``key``.
