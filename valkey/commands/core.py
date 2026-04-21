@@ -9622,7 +9622,7 @@ class HashCommands(CommandsProtocol):
         name: KeyT,
         key: FieldT | None = None,
         value: FieldT | None = None,
-        mapping: dict[FieldT, FieldT] | None = None,
+        mapping: Mapping[AnyEncodableT, EncodableT] | None = None,
         items: list[FieldT] | None = None,
     ) -> int: ...
 
@@ -9632,7 +9632,7 @@ class HashCommands(CommandsProtocol):
         name: KeyT,
         key: FieldT | None = None,
         value: FieldT | None = None,
-        mapping: dict[FieldT, FieldT] | None = None,
+        mapping: Mapping[AnyEncodableT, EncodableT] | None = None,
         items: list[FieldT] | None = None,
     ) -> Awaitable[int]: ...
 
@@ -9641,7 +9641,7 @@ class HashCommands(CommandsProtocol):
         name: KeyT,
         key: FieldT | None = None,
         value: FieldT | None = None,
-        mapping: dict[FieldT, FieldT] | None = None,
+        mapping: Mapping[AnyEncodableT, EncodableT] | None = None,
         items: list[FieldT] | None = None,
     ) -> int | Awaitable[int]:
         """
@@ -9694,7 +9694,7 @@ class HashCommands(CommandsProtocol):
         name: KeyT,
         key: FieldT | None = None,
         value: FieldT | None = None,
-        mapping: dict[FieldT, FieldT] | None = None,
+        mapping: Mapping[AnyEncodableT, EncodableT] | None = None,
         items: list[FieldT] | None = None,
         ex: ExpiryT | None = None,
         px: ExpiryT | None = None,
@@ -9713,7 +9713,7 @@ class HashCommands(CommandsProtocol):
         name: KeyT,
         key: FieldT | None = None,
         value: FieldT | None = None,
-        mapping: dict[FieldT, FieldT] | None = None,
+        mapping: Mapping[AnyEncodableT, EncodableT] | None = None,
         items: list[FieldT] | None = None,
         ex: ExpiryT | None = None,
         px: ExpiryT | None = None,
@@ -9731,7 +9731,7 @@ class HashCommands(CommandsProtocol):
         name: KeyT,
         key: FieldT | None = None,
         value: FieldT | None = None,
-        mapping: dict[FieldT, FieldT] | None = None,
+        mapping: Mapping[AnyEncodableT, EncodableT] | None = None,
         items: list[FieldT] | None = None,
         ex: ExpiryT | None = None,
         px: ExpiryT | None = None,
@@ -9804,16 +9804,20 @@ class HashCommands(CommandsProtocol):
 
     @overload
     def hmset(
-        self: SyncClientProtocol, name: KeyT, mapping: dict[FieldT, FieldT]
+        self: SyncClientProtocol,
+        name: KeyT,
+        mapping: Mapping[AnyEncodableT, EncodableT],
     ) -> Literal[True]: ...
 
     @overload
     def hmset(
-        self: AsyncClientProtocol, name: KeyT, mapping: dict[FieldT, FieldT]
+        self: AsyncClientProtocol,
+        name: KeyT,
+        mapping: Mapping[AnyEncodableT, EncodableT],
     ) -> Awaitable[Literal[True]]: ...
 
     def hmset(
-        self, name: KeyT, mapping: dict[FieldT, FieldT]
+        self, name: KeyT, mapping: Mapping[AnyEncodableT, EncodableT]
     ) -> Literal[True] | Awaitable[Literal[True]]:
         """
         Set key to value within hash ``name`` for each corresponding
