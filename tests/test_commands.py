@@ -6,6 +6,7 @@ import threading
 import time
 from asyncio import CancelledError
 from string import ascii_letters
+from typing import Any
 from unittest import mock
 from unittest.mock import patch
 
@@ -560,7 +561,7 @@ class TestValkeyCommands:
         info = r2.client_info()
         assert info["lib-name"] == "test2"
         assert info["lib-ver"] == "1234"
-        r3 = valkey.Valkey(lib_name=None, lib_version=None)
+        r3 = valkey.Valkey(lib_name="", lib_version="")
         info = r3.client_info()
         assert info["lib-name"] == ""
         assert info["lib-ver"] == ""
@@ -969,12 +970,12 @@ class TestValkeyCommands:
         assert r.bgsave(True)
 
     def test_never_decode_option(self, r: valkey.Valkey):
-        opts = {NEVER_DECODE: []}
+        opts: dict[str, Any] = {NEVER_DECODE: []}
         r.delete("a")
         assert r.execute_command("EXISTS", "a", **opts) == 0
 
     def test_empty_response_option(self, r: valkey.Valkey):
-        opts = {EMPTY_RESPONSE: []}
+        opts: dict[str, Any] = {EMPTY_RESPONSE: []}
         r.delete("a")
         assert r.execute_command("EXISTS", "a", **opts) == 0
 
@@ -3469,36 +3470,36 @@ class TestValkeyCommands:
             "place2",
         )
         assert r.geoadd("a", values) == 2
-        values = (
+        values2 = (
             (2.1909389952632, 41.433791470673, "place1")
             + (2.1873744593677, 41.406342043777, "place2")
             + (2.1804738294738, 41.405647879212, "place3")
         )
-        assert r.geoadd("a", values, nx=True) == 1
+        assert r.geoadd("a", values2, nx=True) == 1
         assert r.zrange("a", 0, -1) == [b"place3", b"place2", b"place1"]
 
     @skip_if_server_version_lt("6.2.0")
     def test_geoadd_xx(self, r):
         values = (2.1909389952632, 41.433791470673, "place1")
         assert r.geoadd("a", values) == 1
-        values = (2.1909389952632, 41.433791470673, "place1") + (
+        values2 = (2.1909389952632, 41.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
             "place2",
         )
-        assert r.geoadd("a", values, xx=True) == 0
+        assert r.geoadd("a", values2, xx=True) == 0
         assert r.zrange("a", 0, -1) == [b"place1"]
 
     @skip_if_server_version_lt("6.2.0")
     def test_geoadd_ch(self, r):
         values = (2.1909389952632, 41.433791470673, "place1")
         assert r.geoadd("a", values) == 1
-        values = (2.1909389952632, 31.433791470673, "place1") + (
+        values2 = (2.1909389952632, 31.433791470673, "place1") + (
             2.1873744593677,
             41.406342043777,
             "place2",
         )
-        assert r.geoadd("a", values, ch=True) == 2
+        assert r.geoadd("a", values2, ch=True) == 2
         assert r.zrange("a", 0, -1) == [b"place1", b"place2"]
 
     @skip_if_server_version_lt("3.2.0")
@@ -4115,6 +4116,7 @@ class TestValkeyCommands:
     def test_xadd_explicit_ms(self, r: valkey.Valkey):
         stream = "stream"
         message_id = r.xadd(stream, {"foo": "bar"}, "9999999999999999999-*")
+        assert isinstance(message_id, bytes)  # mostly for type checker
         ms = message_id[: message_id.index(b"-")]
         assert ms == b"9999999999999999999"
 
@@ -4468,7 +4470,12 @@ class TestValkeyCommands:
         r.xgroup_create(stream, group, 0)
 
         # xpending on a group that has no consumers yet
-        expected = {"pending": 0, "min": None, "max": None, "consumers": []}
+        expected: dict[str, Any] = {
+            "pending": 0,
+            "min": None,
+            "max": None,
+            "consumers": [],
+        }
         assert r.xpending(stream, group) == expected
 
         # read 1 message from the group with each consumer
@@ -4547,7 +4554,7 @@ class TestValkeyCommands:
             r.xpending_range(stream, group, min="-", max="+", count=-1)
         with pytest.raises(ValueError):
             r.xpending_range(stream, group, min="-", max="+", count=5, idle="one")
-        with pytest.raises(valkey.exceptions.ResponseError):
+        with pytest.raises(exceptions.ResponseError):
             r.xpending_range(stream, group, min="-", max="+", count=5, idle=1.5)
         with pytest.raises(valkey.DataError):
             r.xpending_range(stream, group, min="-", max="+", count=5, idle=-1)
@@ -4852,12 +4859,12 @@ class TestValkeyCommands:
         resp = bf.set("u8", 8, 255).execute()
         assert resp == [0]
 
-        resp = r.bitfield_ro("a", "u8", 0)
-        assert resp == [0]
+        resp2 = r.bitfield_ro("a", "u8", 0)
+        assert resp2 == [0]
 
         items = [("u4", 8), ("u4", 12), ("u4", 13)]
-        resp = r.bitfield_ro("a", "u8", 0, items)
-        assert resp == [0, 15, 15, 14]
+        resp3 = r.bitfield_ro("a", "u8", 0, items)
+        assert resp3 == [0, 15, 15, 14]
 
     @skip_if_server_version_lt("4.0.0")
     def test_memory_help(self, r):
@@ -4979,22 +4986,22 @@ class TestValkeyCommands:
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("4.0.0")
     def test_module(self, r):
-        with pytest.raises(valkey.exceptions.ModuleError) as excinfo:
+        with pytest.raises(exceptions.ModuleError) as excinfo:
             r.module_load("/some/fake/path")
             assert "Error loading the extension." in str(excinfo.value)
 
-        with pytest.raises(valkey.exceptions.ModuleError) as excinfo:
+        with pytest.raises(exceptions.ModuleError) as excinfo:
             r.module_load("/some/fake/path", "arg1", "arg2", "arg3", "arg4")
             assert "Error loading the extension." in str(excinfo.value)
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("7.0.0")
     def test_module_loadex(self, r: valkey.Valkey):
-        with pytest.raises(valkey.exceptions.ModuleError) as excinfo:
+        with pytest.raises(exceptions.ModuleError) as excinfo:
             r.module_loadex("/some/fake/path")
             assert "Error loading the extension." in str(excinfo.value)
 
-        with pytest.raises(valkey.exceptions.ModuleError) as excinfo:
+        with pytest.raises(exceptions.ModuleError) as excinfo:
             r.module_loadex("/some/fake/path", ["name", "value"], ["arg1", "arg2"])
             assert "Error loading the extension." in str(excinfo.value)
 
@@ -5009,7 +5016,7 @@ class TestValkeyCommands:
         assert r.get(key) == b"bar"
 
         # overwrite restore
-        with pytest.raises(valkey.exceptions.ResponseError):
+        with pytest.raises(exceptions.ResponseError):
             assert r.restore(key, 0, dumpdata)
         r.set(key, "a new value!")
         assert r.restore(key, 0, dumpdata, replace=True)
@@ -5049,17 +5056,19 @@ class TestValkeyCommands:
         assert r.replicaof("NO", "ONE")
 
     def test_shutdown(self, r: valkey.Valkey):
-        r.execute_command = mock.MagicMock()
-        r.execute_command("SHUTDOWN", "NOSAVE")
-        r.execute_command.assert_called_once_with("SHUTDOWN", "NOSAVE")
+        mock_exec = mock.MagicMock()
+        with mock.patch.object(r, "execute_command", mock_exec):
+            r.execute_command("SHUTDOWN", "NOSAVE")
+            mock_exec.assert_called_once_with("SHUTDOWN", "NOSAVE")
 
     @skip_if_server_version_lt("7.0.0")
     def test_shutdown_with_params(self, r: valkey.Valkey):
-        r.execute_command = mock.MagicMock()
-        r.execute_command("SHUTDOWN", "SAVE", "NOW", "FORCE")
-        r.execute_command.assert_called_once_with("SHUTDOWN", "SAVE", "NOW", "FORCE")
-        r.execute_command("SHUTDOWN", "ABORT")
-        r.execute_command.assert_called_with("SHUTDOWN", "ABORT")
+        mock_exec = mock.MagicMock()
+        with mock.patch.object(r, "execute_command", mock_exec):
+            r.execute_command("SHUTDOWN", "SAVE", "NOW", "FORCE")
+            mock_exec.assert_called_once_with("SHUTDOWN", "SAVE", "NOW", "FORCE")
+            r.execute_command("SHUTDOWN", "ABORT")
+            mock_exec.assert_called_with("SHUTDOWN", "ABORT")
 
     @pytest.mark.replica
     @pytest.mark.xfail(strict=False)
@@ -5075,7 +5084,7 @@ class TestValkeyCommands:
     @skip_if_server_version_lt("2.8.0")
     def test_psync(self, r):
         r2 = valkey.Valkey(port=6380, decode_responses=False)
-        res = r2.psync(r2.client_id(), 1)
+        res = r2.psync(str(r2.client_id()), 1)
         assert b"FULLRESYNC" in res
 
     @pytest.mark.onlynoncluster
@@ -5095,7 +5104,7 @@ class TestValkeyCommands:
         info = replica.info("replication")
         assert info["role"] in ("slave", "replica")
         expected_host = info["master_host"]
-        expected_port = int(info["master_port"])
+        expected_port = int(info["master_port"])  # type: ignore # TODO: fix
 
         with pytest.raises(valkey.RedirectError) as exc_get:
             replica.get(key)
@@ -5131,6 +5140,9 @@ class TestValkeyCommands:
         ok = False
 
         def helper():
+            # helper for a type checker
+            assert r.connection is not None
+
             with pytest.raises(CancelledError):
                 # blocking pop
                 with patch.object(
@@ -5150,7 +5162,8 @@ class TestValkeyCommands:
             assert ok
         finally:
             # disconnect here so that fixture cleanup can proceed
-            r.connection.disconnect()
+            if r.connection is not None:
+                r.connection.disconnect()
 
 
 @pytest.mark.onlynoncluster

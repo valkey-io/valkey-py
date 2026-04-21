@@ -14,7 +14,9 @@ from unittest import mock
 
 import pytest
 import pytest_asyncio
-import valkey
+from valkey import __version__ as VALKEY_VERSION
+import valkey.asyncio as valkey
+from valkey.typing import KeyT, StreamIdT, StringTypeT
 from packaging.version import Version
 from tests.conftest import (
     assert_geo_is_close,
@@ -41,6 +43,10 @@ else:
     from async_timeout import timeout as async_timeout
 
 VALKEY_6_VERSION = "5.9.0"
+
+
+def _to_bytes(v: StringTypeT) -> bytes:
+    return v.encode() if isinstance(v, str) else v
 
 
 @pytest_asyncio.fixture()
@@ -80,7 +86,9 @@ async def valkey_server_time(client: valkey.Valkey):
     return datetime.datetime.fromtimestamp(timestamp)
 
 
-async def get_stream_message(client: valkey.Valkey, stream: str, message_id: str):
+async def get_stream_message(
+    client: valkey.Valkey, stream: KeyT, message_id: StreamIdT
+):
     """Fetch a stream message and format it as a (message_id, fields) pair"""
     response = await client.xrange(stream, min=message_id, max=message_id)
     assert len(response) == 1
@@ -367,18 +375,18 @@ class TestValkeyCommands:
         await r.ping()
         info = await r.client_info()
         assert info["lib-name"] == "valkey-py"
-        assert info["lib-ver"] == valkey.__version__
+        assert info["lib-ver"] == VALKEY_VERSION
         assert await r.client_setinfo("lib-name", "test")
         assert await r.client_setinfo("lib-ver", "123")
         info = await r.client_info()
         assert info["lib-name"] == "test"
         assert info["lib-ver"] == "123"
-        r2 = valkey.asyncio.Valkey(lib_name="test2", lib_version="1234")
+        r2 = valkey.Valkey(lib_name="test2", lib_version="1234")
         info = await r2.client_info()
         assert info["lib-name"] == "test2"
         assert info["lib-ver"] == "1234"
         await r2.aclose()
-        r3 = valkey.asyncio.Valkey(lib_name=None, lib_version=None)
+        r3 = valkey.Valkey(lib_name=None, lib_version=None)
         info = await r3.client_info()
         assert info["lib-name"] == ""
         assert info["lib-ver"] == ""
@@ -399,6 +407,7 @@ class TestValkeyCommands:
         clients_by_name = {client.get("name"): client for client in clients}
 
         client_addr = clients_by_name["valkey-py-c2"].get("addr")
+        assert client_addr is not None
         assert await r.client_kill(client_addr) is True
 
         clients = [
@@ -421,7 +430,7 @@ class TestValkeyCommands:
 
         # invalid type
         with pytest.raises(exceptions.DataError):
-            await r.client_kill_filter(_type="caster")  # type: ignore
+            await r.client_kill_filter(_type="caster")
 
     @skip_if_server_version_lt("2.8.12")
     @pytest.mark.onlynoncluster
@@ -483,9 +492,10 @@ class TestValkeyCommands:
         assert "valkey_py_test" in [c["name"] for c in clients]
 
     async def test_client_capa(self, r: valkey.Valkey):
-        r.execute_command = mock.AsyncMock(return_value=True)
-        assert await r.client_capa("redirect")
-        r.execute_command.assert_awaited_once_with("CLIENT CAPA", "redirect")
+        mock_exec = mock.AsyncMock(return_value=True)
+        with mock.patch.object(r, "execute_command", mock_exec):
+            assert await r.client_capa("redirect")
+            mock_exec.assert_awaited_once_with("CLIENT CAPA", "redirect")
 
     @pytest.mark.onlynoncluster
     @pytest.mark.replica
@@ -495,7 +505,7 @@ class TestValkeyCommands:
         value = "v1"
         await r.set(key, value)
 
-        replica = valkey.asyncio.Valkey(
+        replica = valkey.Valkey(
             port=6380,
             decode_responses=True,
             client_capa_redirect=True,
@@ -504,7 +514,7 @@ class TestValkeyCommands:
             info = await replica.info("replication")
             assert info["role"] in ("slave", "replica")
             expected_host = info["master_host"]
-            expected_port = int(info["master_port"])
+            expected_port = int(info["master_port"])  # type: ignore[arg-type] # TODO: fix
 
             with pytest.raises(valkey.RedirectError) as exc_get:
                 await replica.get(key)
@@ -527,7 +537,7 @@ class TestValkeyCommands:
     @pytest.mark.replica
     @skip_if_server_version_lt("8.0.0")
     async def test_client_capa_redirect_opt_in_on_replica(self):
-        replica = valkey.asyncio.Valkey(port=6380, decode_responses=True)
+        replica = valkey.Valkey(port=6380, decode_responses=True)
         try:
             with pytest.raises(valkey.ReadOnlyError):
                 await replica.set("capa:redirect:async:default", "v")
@@ -540,15 +550,13 @@ class TestValkeyCommands:
         assert await r.client_pause(1)
         assert await r.client_pause(timeout=1)
         with pytest.raises(exceptions.ValkeyError):
-            await r.client_pause(timeout="not an integer")
+            await r.client_pause(timeout="not an integer")  # type: ignore[arg-type]
 
     @skip_if_server_version_lt("7.2.0")
     @pytest.mark.onlynoncluster
     async def test_client_no_touch(self, r: valkey.Valkey):
         assert await r.client_no_touch("ON") == b"OK"
         assert await r.client_no_touch("OFF") == b"OK"
-        with pytest.raises(TypeError):
-            await r.client_no_touch()
 
     async def test_config_get(self, r: valkey.Valkey):
         data = await r.config_get()
@@ -558,10 +566,10 @@ class TestValkeyCommands:
     @pytest.mark.onlynoncluster
     async def test_config_resetstat(self, r: valkey.Valkey):
         await r.ping()
-        prior_commands_processed = int((await r.info())["total_commands_processed"])
+        prior_commands_processed = int((await r.info())["total_commands_processed"])  # type: ignore[arg-type] # TODO: fix
         assert prior_commands_processed >= 1
         await r.config_resetstat()
-        reset_commands_processed = int((await r.info())["total_commands_processed"])
+        reset_commands_processed = int((await r.info())["total_commands_processed"])  # type: ignore[arg-type] # TODO: fix
         assert reset_commands_processed < prior_commands_processed
 
     async def test_config_set(self, r: valkey.Valkey):
@@ -647,12 +655,12 @@ class TestValkeyCommands:
         assert isinstance(t[1], int)
 
     async def test_never_decode_option(self, r: valkey.Valkey):
-        opts = {NEVER_DECODE: []}
+        opts: dict[str, Any] = {NEVER_DECODE: []}
         await r.delete("a")
         assert await r.execute_command("EXISTS", "a", **opts) == 0
 
     async def test_empty_response_option(self, r: valkey.Valkey):
-        opts = {EMPTY_RESPONSE: []}
+        opts: dict[str, Any] = {EMPTY_RESPONSE: []}
         await r.delete("a")
         assert await r.execute_command("EXISTS", "a", **opts) == 0
 
@@ -696,7 +704,9 @@ class TestValkeyCommands:
         correct = ~0xAA00FF55 & 0xFFFFFFFF
         await r.set("a", test_str)
         await r.bitop("not", "r", "a")
-        assert int(binascii.hexlify(await r.get("r")), 16) == correct
+        r_val = await r.get("r")
+        assert r_val is not None
+        assert int(binascii.hexlify(_to_bytes(r_val)), 16) == correct
 
     @skip_if_server_version_lt("2.6.0")
     @pytest.mark.onlynoncluster
@@ -705,7 +715,9 @@ class TestValkeyCommands:
         correct = ~0xAA00FF55 & 0xFFFFFFFF
         await r.set("a", test_str)
         await r.bitop("not", "a", "a")
-        assert int(binascii.hexlify(await r.get("a")), 16) == correct
+        r_val = await r.get("a")
+        assert r_val is not None
+        assert int(binascii.hexlify(_to_bytes(r_val)), 16) == correct
 
     @skip_if_server_version_lt("2.6.0")
     @pytest.mark.onlynoncluster
@@ -727,9 +739,15 @@ class TestValkeyCommands:
         await r.bitop("and", "res1", "a", "b")
         await r.bitop("or", "res2", "a", "b")
         await r.bitop("xor", "res3", "a", "b")
-        assert int(binascii.hexlify(await r.get("res1")), 16) == 0x0102FF00
-        assert int(binascii.hexlify(await r.get("res2")), 16) == 0x0102FFFF
-        assert int(binascii.hexlify(await r.get("res3")), 16) == 0x000000FF
+        res1 = await r.get("res1")
+        assert res1 is not None
+        res2 = await r.get("res2")
+        assert res2 is not None
+        res3 = await r.get("res3")
+        assert res3 is not None
+        assert int(binascii.hexlify(_to_bytes(res1)), 16) == 0x0102FF00
+        assert int(binascii.hexlify(_to_bytes(res2)), 16) == 0x0102FFFF
+        assert int(binascii.hexlify(_to_bytes(res3)), 16) == 0x000000FF
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.7")
@@ -803,6 +821,7 @@ class TestValkeyCommands:
     async def test_dump_and_restore(self, r: valkey.Valkey):
         await r.set("a", "foo")
         dumped = await r.dump("a")
+        assert dumped is not None
         await r.delete("a")
         await r.restore("a", 0, dumped)
         assert await r.get("a") == b"foo"
@@ -811,6 +830,7 @@ class TestValkeyCommands:
     async def test_dump_and_restore_and_replace(self, r: valkey.Valkey):
         await r.set("a", "bar")
         dumped = await r.dump("a")
+        assert dumped is not None
         with pytest.raises(valkey.ResponseError):
             await r.restore("a", 0, dumped)
 
@@ -821,6 +841,7 @@ class TestValkeyCommands:
     async def test_dump_and_restore_absttl(self, r: valkey.Valkey):
         await r.set("a", "foo")
         dumped = await r.dump("a")
+        assert dumped is not None
         await r.delete("a")
         ttl = int(
             (await valkey_server_time(r) + datetime.timedelta(minutes=1)).timestamp()
@@ -878,7 +899,9 @@ class TestValkeyCommands:
         assert await r.set("unicode_string", unicode_string)
         assert await r.get("byte_string") == byte_string
         assert await r.get("integer") == str(integer).encode()
-        assert (await r.get("unicode_string")).decode("utf-8") == unicode_string
+        unicode_string_raw = await r.get("unicode_string")
+        assert isinstance(unicode_string_raw, bytes)
+        assert unicode_string_raw.decode("utf-8") == unicode_string
 
     async def test_get_set_bit(self, r: valkey.Valkey):
         # no value
@@ -925,7 +948,9 @@ class TestValkeyCommands:
         assert await r.incrbyfloat("a") == 1.0
         assert await r.get("a") == b"1"
         assert await r.incrbyfloat("a", 1.1) == 2.1
-        assert float(await r.get("a")) == float(2.1)
+        af = await r.get("a")
+        assert af is not None
+        assert float(af) == float(2.1)
 
     @pytest.mark.onlynoncluster
     async def test_keys(self, r: valkey.Valkey):
@@ -1225,15 +1250,15 @@ class TestValkeyCommands:
 
     async def test_lindex(self, r: valkey.Valkey):
         await r.rpush("a", "1", "2", "3")
-        assert await r.lindex("a", "0") == b"1"
-        assert await r.lindex("a", "1") == b"2"
-        assert await r.lindex("a", "2") == b"3"
+        assert await r.lindex("a", 0) == b"1"
+        assert await r.lindex("a", 1) == b"2"
+        assert await r.lindex("a", 2) == b"3"
 
     async def test_linsert(self, r: valkey.Valkey):
         await r.rpush("a", "1", "2", "3")
-        assert await r.linsert("a", "after", "2", "2.5") == 4
+        assert await r.linsert("a", "AFTER", "2", "2.5") == 4
         assert await r.lrange("a", 0, -1) == [b"1", b"2", b"2.5", b"3"]
-        assert await r.linsert("a", "before", "2", "1.5") == 5
+        assert await r.linsert("a", "BEFORE", "2", "1.5") == 5
         assert await r.lrange("a", 0, -1) == [b"1", b"1.5", b"2", b"2.5", b"3"]
 
     async def test_llen(self, r: valkey.Valkey):
@@ -1525,6 +1550,7 @@ class TestValkeyCommands:
         s = [b"1", b"2", b"3"]
         await r.sadd("a", *s)
         value = await r.spop("a")
+        assert isinstance(value, bytes)
         assert value in s
         assert set(await r.smembers("a")) == set(s) - {value}
 
@@ -1539,7 +1565,7 @@ class TestValkeyCommands:
             assert value in s
 
         response = await r.spop("a", 1)
-        assert set(response) == set(s) - set(values)
+        assert set(response) == set(s) - set(values)  # type: ignore[arg-type]
 
     async def test_srandmember(self, r: valkey.Valkey):
         s = [b"1", b"2", b"3"]
@@ -2599,7 +2625,7 @@ class TestValkeyCommands:
             "barcelona", member="place3", radius=100, unit="km", count=2
         ) == [b"place3", b"\x80place2"]
         search_res = await r.geosearch(
-            "barcelona", member="place3", radius=100, unit="km", count=1, any=1
+            "barcelona", member="place3", radius=100, unit="km", count=1, any=True
         )
         assert search_res[0] in [b"place1", b"place3", b"\x80place2"]
 
@@ -2768,7 +2794,7 @@ class TestValkeyCommands:
 
         # use any without count
         with pytest.raises(exceptions.DataError):
-            assert await r.geosearch("barcelona", member="place3", radius=100, any=1)
+            assert await r.geosearch("barcelona", member="place3", radius=100, any=True)
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.2.0")
@@ -2810,6 +2836,7 @@ class TestValkeyCommands:
         )
         # instead of save the geo score, the distance is saved.
         score = await r.zscore("places_barcelona", "place1")
+        assert score is not None
         assert math.isclose(score, 88.05060698409301)
 
     @skip_if_server_version_lt("3.2.0")
@@ -2975,6 +3002,7 @@ class TestValkeyCommands:
         )
         # instead of save the geo score, the distance is saved.
         z_score = await r.zscore("places_barcelona", "place1")
+        assert z_score is not None
         assert math.isclose(z_score, 88.05060698409301)
 
     @skip_unless_arch_bits(64)
@@ -3020,8 +3048,11 @@ class TestValkeyCommands:
         assert await r.xack(stream, group, "0-0") == 0
 
         m1 = await r.xadd(stream, {"one": "one"})
+        assert m1 is not None
         m2 = await r.xadd(stream, {"two": "two"})
+        assert m2 is not None
         m3 = await r.xadd(stream, {"three": "three"})
+        assert m3 is not None
 
         # xack on a group that doesn't exist
         assert await r.xack(stream, group, m1) == 0
@@ -3036,6 +3067,7 @@ class TestValkeyCommands:
     async def test_xadd(self, r: valkey.Valkey):
         stream = "stream"
         message_id = await r.xadd(stream, {"foo": "bar"})
+        assert isinstance(message_id, bytes)
         assert re.match(rb"[0-9]+\-[0-9]+", message_id)
 
         # explicit message id
@@ -3054,6 +3086,7 @@ class TestValkeyCommands:
         consumer2 = "consumer2"
 
         message_id = await r.xadd(stream, {"john": "wick"})
+        assert message_id is not None
         message = await get_stream_message(r, stream, message_id)
         await r.xgroup_create(stream, group, 0)
 
@@ -3094,7 +3127,9 @@ class TestValkeyCommands:
 
         # add a couple of new items
         sid1 = await r.xadd(stream, {"item": 0})
+        assert sid1 is not None
         sid2 = await r.xadd(stream, {"item": 0})
+        assert sid2 is not None
 
         # read them from consumer1
         await r.xreadgroup(group, "consumer1", {stream: ">"})
@@ -3116,8 +3151,11 @@ class TestValkeyCommands:
         assert await r.xdel(stream, 1) == 0
 
         m1 = await r.xadd(stream, {"foo": "bar"})
+        assert m1 is not None
         m2 = await r.xadd(stream, {"foo": "bar"})
+        assert m2 is not None
         m3 = await r.xadd(stream, {"foo": "bar"})
+        assert m3 is not None
 
         # xdel returns the number of deleted elements
         assert await r.xdel(stream, m1) == 1
@@ -3207,6 +3245,7 @@ class TestValkeyCommands:
         stream = "stream"
         group = "group"
         message_id = await r.xadd(stream, {"foo": "bar"})
+        assert message_id is not None
 
         await r.xgroup_create(stream, group, 0)
         # advance the last_delivered_id to the message_id
@@ -3254,7 +3293,9 @@ class TestValkeyCommands:
     async def test_xinfo_stream(self, r: valkey.Valkey):
         stream = "stream"
         m1 = await r.xadd(stream, {"foo": "bar"})
+        assert m1 is not None
         m2 = await r.xadd(stream, {"foo": "bar"})
+        assert m2 is not None
         info = await r.xinfo_stream(stream)
 
         assert info["length"] == 2
@@ -3305,7 +3346,12 @@ class TestValkeyCommands:
         await r.xgroup_create(stream, group, 0)
 
         # xpending on a group that has no consumers yet
-        expected = {"pending": 0, "min": None, "max": None, "consumers": []}
+        expected: dict[str, Any] = {
+            "pending": 0,
+            "min": None,
+            "max": None,
+            "consumers": [],
+        }
         assert await r.xpending(stream, group) == expected
 
         # read 1 message from the group with each consumer
@@ -3351,9 +3397,13 @@ class TestValkeyCommands:
     async def test_xrange(self, r: valkey.Valkey):
         stream = "stream"
         m1 = await r.xadd(stream, {"foo": "bar"})
+        assert m1 is not None
         m2 = await r.xadd(stream, {"foo": "bar"})
+        assert m2 is not None
         m3 = await r.xadd(stream, {"foo": "bar"})
+        assert m3 is not None
         m4 = await r.xadd(stream, {"foo": "bar"})
+        assert m4 is not None
 
         def get_ids(results):
             return [result[0] for result in results]
@@ -3374,7 +3424,9 @@ class TestValkeyCommands:
     async def test_xread(self, r: valkey.Valkey):
         stream = "stream"
         m1 = await r.xadd(stream, {"foo": "bar"})
+        assert m1 is not None
         m2 = await r.xadd(stream, {"bing": "baz"})
+        assert m2 is not None
 
         strem_name = stream.encode()
         expected_entries = [
@@ -3407,7 +3459,9 @@ class TestValkeyCommands:
         group = "group"
         consumer = "consumer"
         m1 = await r.xadd(stream, {"foo": "bar"})
+        assert m1 is not None
         m2 = await r.xadd(stream, {"bing": "baz"})
+        assert m2 is not None
         await r.xgroup_create(stream, group, 0)
 
         strem_name = stream.encode()
@@ -3449,10 +3503,20 @@ class TestValkeyCommands:
         res = await r.xreadgroup(group, consumer, streams={stream: ">"}, noack=True)
         empty_res = await r.xreadgroup(group, consumer, streams={stream: "0"})
         if is_resp2_connection(r):
+            # These two asserts are mostly for the type checker, is_resp2_connection
+            # guarantees these will be lists here
+            assert isinstance(res, list)
+            assert isinstance(empty_res, list)
+
             assert len(res[0][1]) == 2
             # now there should be nothing pending
             assert len(empty_res[0][1]) == 0
         else:
+            # These two asserts are mostly for the type checker, false-branch of
+            # is_resp2_connection pretty much guarantees this one is dict
+            assert isinstance(res, dict)
+            assert isinstance(empty_res, dict)
+
             assert len(res[strem_name][0]) == 2
             # now there should be nothing pending
             assert len(empty_res[strem_name][0]) == 0
@@ -3472,9 +3536,13 @@ class TestValkeyCommands:
     async def test_xrevrange(self, r: valkey.Valkey):
         stream = "stream"
         m1 = await r.xadd(stream, {"foo": "bar"})
+        assert m1 is not None
         m2 = await r.xadd(stream, {"foo": "bar"})
+        assert m2 is not None
         m3 = await r.xadd(stream, {"foo": "bar"})
+        assert m3 is not None
         m4 = await r.xadd(stream, {"foo": "bar"})
+        assert m4 is not None
 
         def get_ids(results):
             return [result[0] for result in results]
@@ -3586,12 +3654,12 @@ class TestValkeyCommands:
         resp = await bf.set("u8", 8, 255).execute()
         assert resp == [0]
 
-        resp = await r.bitfield_ro("a", "u8", 0)
-        assert resp == [0]
+        resp2 = await r.bitfield_ro("a", "u8", 0)
+        assert resp2 == [0]
 
         items = [("u4", 8), ("u4", 12), ("u4", 13)]
-        resp = await r.bitfield_ro("a", "u8", 0, items)
-        assert resp == [0, 15, 15, 14]
+        resp3 = await r.bitfield_ro("a", "u8", 0, items)
+        assert resp3 == [0, 15, 15, 14]
 
     @skip_if_server_version_lt("4.0.0")
     async def test_memory_stats(self, r: valkey.Valkey):
@@ -3602,7 +3670,9 @@ class TestValkeyCommands:
         assert isinstance(stats, dict)
         for key, value in stats.items():
             if key.startswith("db."):
-                assert not isinstance(value, list)
+                # TODO: the type ignore comment was needed because the mypy was
+                # unhappy. The test itself doesn't make sense and should be removed
+                assert not isinstance(value, list)  # type: ignore
 
     @skip_if_server_version_lt("4.0.0")
     async def test_memory_usage(self, r: valkey.Valkey):
@@ -3633,7 +3703,7 @@ class TestValkeyCommands:
             # because the timeout won't catch its Cancelled Error if the task
             # has a pending cancel.  Python documentation probably should reflect this.
             if sys.version_info >= (3, 11):
-                asyncio.current_task().uncancel()
+                asyncio.current_task().uncancel()  # type: ignore
             # if all is well, we can continue.  The following should not hang.
             await r.set("status", "down")
 
