@@ -92,7 +92,7 @@ class ACLCommands(CommandsProtocol):
 
     @overload
     def acl_cat(
-        self: AsyncClientProtocol, category: str | None, **kwargs
+        self: AsyncClientProtocol, category: str | None = None, **kwargs
     ) -> Awaitable[list[StringTypeT]]: ...
 
     def acl_cat(
