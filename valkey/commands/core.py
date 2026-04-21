@@ -5833,8 +5833,8 @@ class AsyncScanCommands(ScanCommands):
                 break
 
     @overload
-    async def hscan_iter(
-        self,
+    def hscan_iter(
+        self: AsyncClientProtocol,
         name: KeyT,
         match: PatternT | None = None,
         count: int | None = None,
@@ -5842,8 +5842,8 @@ class AsyncScanCommands(ScanCommands):
     ) -> AsyncIterator[tuple[StringTypeT, StringTypeT]]: ...
 
     @overload
-    async def hscan_iter(
-        self,
+    def hscan_iter(
+        self: AsyncClientProtocol,
         name: KeyT,
         match: PatternT | None = None,
         count: int | None = None,
@@ -5852,8 +5852,8 @@ class AsyncScanCommands(ScanCommands):
     ) -> AsyncIterator[StringTypeT]: ...
 
     @overload
-    async def hscan_iter(
-        self,
+    def hscan_iter(
+        self: AsyncClientProtocol,
         name: KeyT,
         match: PatternT | None = None,
         count: int | None = None,
@@ -5894,16 +5894,16 @@ class AsyncScanCommands(ScanCommands):
                 break
 
     @overload
-    async def zscan_iter(
-        self,
+    def zscan_iter(
+        self: AsyncClientProtocol,
         name: KeyT,
         match: PatternT | None = None,
         count: int | None = None,
     ) -> AsyncIterator[tuple[StringTypeT, float]]: ...
 
     @overload
-    async def zscan_iter(
-        self,
+    def zscan_iter(
+        self: AsyncClientProtocol,
         name: KeyT,
         match: PatternT | None = None,
         count: int | None = None,
@@ -5912,8 +5912,8 @@ class AsyncScanCommands(ScanCommands):
     ) -> AsyncIterator[tuple[StringTypeT, _ScoreCastReturnT]]: ...
 
     @overload
-    async def zscan_iter(
-        self,
+    def zscan_iter(
+        self: AsyncClientProtocol,
         name: KeyT,
         match: PatternT | None,
         count: int | None,
