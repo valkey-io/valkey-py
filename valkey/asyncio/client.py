@@ -379,7 +379,7 @@ class Valkey(
                     self.connection = await self.connection_pool.get_connection("_")
         return self
 
-    def set_response_callback(self, command: str, callback: ResponseCallbackT):
+    def set_response_callback(self, command: str, callback: Callable):
         """Set a custom Response Callback"""
         self.response_callbacks[command] = callback
 
