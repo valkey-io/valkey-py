@@ -559,6 +559,8 @@ class TestValkeyCommands:
     async def test_client_no_touch(self, r: valkey.Valkey):
         assert await r.client_no_touch("ON") == b"OK"
         assert await r.client_no_touch("OFF") == b"OK"
+        with pytest.raises(TypeError):
+            await r.client_no_touch()  # type: ignore[call-arg]
 
     async def test_config_get(self, r: valkey.Valkey):
         data = await r.config_get()
