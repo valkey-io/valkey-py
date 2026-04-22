@@ -200,7 +200,7 @@ def skip_ifmodversion_lt(min_version: str, module_name: str):
             check = version < mv
             return pytest.mark.skipif(check, reason="Valkey module version")
 
-    raise AttributeError(f"No valkey module named {module_name}")
+    return pytest.mark.skipif(True, reason=f"No valkey module named {module_name}")
 
 
 def skip_if_nocryptography() -> _TestDecorator:
