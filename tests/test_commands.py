@@ -561,7 +561,10 @@ class TestValkeyCommands:
         info = r2.client_info()
         assert info["lib-name"] == "test2"
         assert info["lib-ver"] == "1234"
-        r3 = valkey.Valkey(lib_name="", lib_version="")
+        r3 = valkey.Valkey(
+            lib_name=None,
+            lib_version=None,
+        )  # type: ignore[arg-type]
         info = r3.client_info()
         assert info["lib-name"] == ""
         assert info["lib-ver"] == ""
