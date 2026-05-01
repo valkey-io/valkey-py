@@ -108,7 +108,7 @@ class TestResponseCallbacks:
             callbacks.update(_ValkeyCallbacksRESP3)
         assert r.response_callbacks == callbacks
         assert id(r.response_callbacks) != id(_ValkeyCallbacks)
-        r.set_response_callback("GET", lambda x: "static")
+        r.set_response_callback("GET", lambda response, **kwargs: "static")
         await r.set("a", "foo")
         assert await r.get("a") == "static"
 

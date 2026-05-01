@@ -89,11 +89,11 @@ if TYPE_CHECKING:
 
 
 class ResponseCallbackProtocol(Protocol):
-    def __call__(self, response: Any, **kwargs): ...
+    def __call__(self, response: Any, **kwargs) -> Any: ...
 
 
 class AsyncResponseCallbackProtocol(Protocol):
-    async def __call__(self, response: Any, **kwargs): ...
+    async def __call__(self, response: Any, **kwargs) -> Any: ...
 
 
 ResponseCallbackT = Union[ResponseCallbackProtocol, AsyncResponseCallbackProtocol]
@@ -379,7 +379,7 @@ class Valkey(
                     self.connection = await self.connection_pool.get_connection("_")
         return self
 
-    def set_response_callback(self, command: str, callback: Callable):
+    def set_response_callback(self, command: str, callback: ResponseCallbackT):
         """Set a custom Response Callback"""
         self.response_callbacks[command] = callback
 
