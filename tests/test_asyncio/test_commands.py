@@ -1568,14 +1568,14 @@ class TestValkeyCommands:
     async def test_spop_multi_value(self, r: valkey.Valkey):
         s = [b"1", b"2", b"3"]
         await r.sadd("a", *s)
-        values = await r.spop("a", 2)
+        values: list[bytes] = await r.spop("a", 2)  # type: ignore[assignment]
         assert len(values) == 2
 
         for value in values:
             assert value in s
 
         response = await r.spop("a", 1)
-        assert set(response) == set(s) - set(values)  # type: ignore[arg-type]
+        assert set(response) == set(s) - set(values)
 
     async def test_srandmember(self, r: valkey.Valkey):
         s = [b"1", b"2", b"3"]
