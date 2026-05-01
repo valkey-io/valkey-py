@@ -209,7 +209,7 @@ class Valkey(ValkeyModuleCommands, CoreCommands, SentinelCommands):
         single_connection_client=False,
         health_check_interval=0,
         client_name=None,
-        lib_name: str | None ="valkey-py",
+        lib_name: str | None = "valkey-py",
         lib_version: str | None = get_lib_version(),
         username=None,
         retry=None,

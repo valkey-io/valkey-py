@@ -3,7 +3,6 @@
 from datetime import datetime, timedelta
 from typing import (
     TYPE_CHECKING,
-    Any,
     Awaitable,
     Iterable,
     Literal,
