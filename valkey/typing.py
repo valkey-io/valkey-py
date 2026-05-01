@@ -84,8 +84,8 @@ class XPendingConsumer(TypedDict):
 
 class XPendingResult(TypedDict):
     pending: int
-    min: StringTypeT
-    max: StringTypeT
+    min: StringTypeT | None
+    max: StringTypeT | None
     consumers: list[XPendingConsumer]
 
 
