@@ -1489,6 +1489,8 @@ class NodesManager:
 class ClusterPipeline(
     AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCommands
 ):
+    _is_async_client: Literal[True] = True
+
     """
     Create a new ClusterPipeline object.
 
