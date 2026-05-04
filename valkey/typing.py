@@ -133,7 +133,7 @@ FunctionStatsT = (
 
 
 class CommandsProtocol(Protocol):
-    def execute_command(self, *args, **options): ...
+    def execute_command(self, *args, **options) -> ResponseT: ...
 
 
 class ClusterCommandsProtocol(CommandsProtocol, Protocol):
