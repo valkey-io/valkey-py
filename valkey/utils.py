@@ -63,7 +63,7 @@ def dict_merge(*dicts: Mapping[str, Any]) -> Dict[str, Any]:
     *dicts : `dict`
         dictionaries to merge
     """
-    merged = {}
+    merged: dict[str, Any] = {}
 
     for d in dicts:
         merged.update(d)

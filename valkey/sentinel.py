@@ -189,8 +189,7 @@ class SentinelConnectionPool(ConnectionPool):
         check = not self.is_master or (
             self.is_master and self.master_address == (connection.host, connection.port)
         )
-        parent = super()
-        return check and parent.owns_connection(connection)
+        return check and super().owns_connection(connection)
 
     def get_master_address(self):
         return self.proxy.get_master_address()

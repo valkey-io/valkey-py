@@ -4,7 +4,7 @@ import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict, defaultdict
 from enum import Enum
-from typing import List, Sequence, Union
+from typing import Any, List, Sequence, Union
 
 from valkey.typing import KeyT, ResponseT
 
@@ -223,9 +223,9 @@ class _LocalCache(AbstractCache):
         self.max_size = max_size
         self.ttl = ttl
         self.eviction_policy = eviction_policy
-        self.cache = OrderedDict()
-        self.key_commands_map = defaultdict(set)
-        self.commands_ttl_list = []
+        self.cache: OrderedDict[str | Sequence[str], dict[str, Any]] = OrderedDict()
+        self.key_commands_map: defaultdict[KeyT, set] = defaultdict(set)
+        self.commands_ttl_list: list[str | Sequence[str]] = []
 
     def set(
         self,
@@ -252,7 +252,7 @@ class _LocalCache(AbstractCache):
         self._update_key_commands_map(keys_in_command, command)
         self.commands_ttl_list.append(command)
 
-    def get(self, command: Union[str, Sequence[str]]) -> ResponseT:
+    def get(self, command: Union[str, Sequence[str]]) -> ResponseT | None:
         """
         Get the response for a valkey command from the cache.
 
@@ -262,12 +262,14 @@ class _LocalCache(AbstractCache):
         Returns:
             ResponseT: The response associated with the command, or None if the command is not in the cache.  # noqa
         """
-        if command in self.cache:
-            if self._is_expired(command):
-                self.delete_command(command)
-                return
-            self._update_access(command)
-            return copy.deepcopy(self.cache[command]["response"])
+        if command not in self.cache:
+            return None
+
+        if self._is_expired(command):
+            self.delete_command(command)
+            return None
+        self._update_access(command)
+        return copy.deepcopy(self.cache[command]["response"])
 
     def delete_command(self, command: Union[str, Sequence[str]]):
         """
@@ -278,7 +280,9 @@ class _LocalCache(AbstractCache):
         """
         if command in self.cache:
             keys_in_command = self.cache[command].get("keys")
-            self._del_key_commands_map(keys_in_command, command)
+            self._del_key_commands_map(
+                keys_in_command, command  # type: ignore[arg-type]
+            )
             self.commands_ttl_list.remove(command)
             del self.cache[command]
 
