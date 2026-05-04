@@ -11,6 +11,7 @@ from typing import (
     Dict,
     Generator,
     List,
+    Literal,
     Mapping,
     Optional,
     Tuple,
@@ -102,6 +103,8 @@ class ClusterParser(DefaultParser):
 
 
 class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCommands):
+    _is_async_client: Literal[True] = True
+
     """
     Create a new ValkeyCluster client.
 
@@ -1486,6 +1489,8 @@ class NodesManager:
 class ClusterPipeline(
     AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCommands
 ):
+    _is_async_client: Literal[True] = True
+
     """
     Create a new ClusterPipeline object.
 

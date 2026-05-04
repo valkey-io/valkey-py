@@ -13,6 +13,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     Mapping,
     MutableMapping,
     Optional,
@@ -88,11 +89,11 @@ if TYPE_CHECKING:
 
 
 class ResponseCallbackProtocol(Protocol):
-    def __call__(self, response: Any, **kwargs): ...
+    def __call__(self, response: Any, **kwargs) -> Any: ...
 
 
 class AsyncResponseCallbackProtocol(Protocol):
-    async def __call__(self, response: Any, **kwargs): ...
+    async def __call__(self, response: Any, **kwargs) -> Any: ...
 
 
 ResponseCallbackT = Union[ResponseCallbackProtocol, AsyncResponseCallbackProtocol]
@@ -112,6 +113,8 @@ class Valkey(
     configuration, an instance will either use a ConnectionPool, or
     Connection object to talk to valkey.
     """
+
+    _is_async_client: Literal[True] = True
 
     response_callbacks: MutableMapping[Union[str, bytes], ResponseCallbackT]
 

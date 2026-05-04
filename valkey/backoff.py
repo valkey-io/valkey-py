@@ -98,10 +98,10 @@ class DecorrelatedJitterBackoff(AbstractBackoff):
         """
         self._cap = cap
         self._base = base
-        self._previous_backoff = 0
+        self._previous_backoff = 0.0
 
     def reset(self) -> None:
-        self._previous_backoff = 0
+        self._previous_backoff = 0.0
 
     def compute(self, failures: int) -> float:
         max_backoff = max(self._base, self._previous_backoff * 3)
