@@ -63,7 +63,7 @@ type-check = [
     'libvalkey',
 ]
 docs = [
-    'sphinx>=9.0,<10.0',
+    'sphinx >=8.0,<8.2',
     'docutils',
     'nbsphinx',
     'sphinx-gallery',
@@ -77,7 +77,7 @@ docs = [
 libvalkey = ["libvalkey>=4.0.1"]
 ocsp = [
     "cryptography>=43.0.0",
-    "pyopenssl==23.2.1",
+    "pyopenssl>=23.2.0",
     "requests>=2.31.0",
 ]
 
