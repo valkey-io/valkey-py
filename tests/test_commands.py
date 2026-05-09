@@ -332,11 +332,17 @@ class TestValkeyCommands:
         assert set(acl["keys"]) == {"~cache:*", "~objects:*"}
         assert len(acl["passwords"]) == 2
         assert set(acl["channels"]) == {"&message:*"}
-        assert_resp_response(
+        assert_resp_response_in(
             r,
             acl["selectors"],
-            [["commands", "-@all +set", "keys", "%W~app*", "channels", ""]],
-            [{"commands": "-@all +set", "keys": "%W~app*", "channels": ""}],
+            [
+                [["commands", "-@all +set", "keys", "%W~app*", "channels", ""]],
+                [["commands", "-@all +set", "keys", "%W~app*", "channels", "", "databases", "alldbs"]],
+            ],
+            [
+                [{"commands": "-@all +set", "keys": "%W~app*", "channels": ""}],
+                [{"commands": "-@all +set", "keys": "%W~app*", "channels": "", "databases": "alldbs"}],
+            ],
         )
 
     @skip_if_server_version_lt("6.0.0")
