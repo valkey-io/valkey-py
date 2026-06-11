@@ -335,8 +335,26 @@ class TestValkeyCommands:
         assert_resp_response(
             r,
             acl["selectors"],
-            [["commands", "-@all +set", "keys", "%W~app*", "channels", ""]],
-            [{"commands": "-@all +set", "keys": "%W~app*", "channels": ""}],
+            [
+                [
+                    "commands",
+                    "-@all +set",
+                    "keys",
+                    "%W~app*",
+                    "channels",
+                    "",
+                    "databases",
+                    "alldbs",
+                ]
+            ],
+            [
+                {
+                    "commands": "-@all +set",
+                    "keys": "%W~app*",
+                    "channels": "",
+                    "databases": "alldbs",
+                }
+            ],
         )
 
     @skip_if_server_version_lt("6.0.0")
