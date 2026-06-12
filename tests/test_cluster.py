@@ -1167,7 +1167,7 @@ class TestClusterValkeyCommands:
         ]
         for x in cluster_shards:
             assert_resp_response(
-                r, list(x.keys()), ["slots", "nodes"], [b"slots", b"nodes"]
+                r, list(x.keys()), ["slots", "nodes"], [b"slots", b"nodes", b"id"]
             )
             try:
                 x["nodes"]
