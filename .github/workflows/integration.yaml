@@ -28,6 +28,7 @@ jobs:
    dependency-audit:
      name: Dependency audit
      runs-on: ubuntu-latest
+     timeout-minutes: 5
      steps:
        - uses: actions/checkout@v6
        - uses: pypa/gh-action-pip-audit@v1.1.0
@@ -39,6 +40,7 @@ jobs:
    lint:
      name: Code linters
      runs-on: ubuntu-latest
+     timeout-minutes: 5
      steps:
        - uses: actions/checkout@v6
        - uses: actions/setup-python@v6
@@ -55,6 +57,7 @@ jobs:
     outputs:
       current_date: ${{ steps.date.outputs.current_date }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Set current date
         id: date
@@ -170,6 +173,7 @@ jobs:
    build_and_test_package:
     name: Validate building and installing the package
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [run-tests, get-date, populate-cache]
     strategy:
       fail-fast: false
@@ -198,6 +202,7 @@ jobs:
    install_package_from_commit:
     name: Install package from commit hash
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
