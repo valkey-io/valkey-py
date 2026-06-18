@@ -196,6 +196,51 @@ class TestConnectionPool:
             expected = "path=/abc,db=1,client_name=test-client"
             assert expected in repr(pool)
 
+    async def test_min_connections(self):
+        pool = valkey.ConnectionPool(
+            connection_class=DummyConnection,
+            min_connections=5,
+        )
+        assert pool.min_connections == 5
+        assert len(pool._available_connections) == 5
+        await pool.disconnect(inuse_connections=True)
+
+    async def test_min_connections_default(self):
+        pool = valkey.ConnectionPool(
+            connection_class=DummyConnection,
+        )
+        assert pool.min_connections == 0
+        assert len(pool._available_connections) == 0
+        await pool.disconnect(inuse_connections=True)
+
+    async def test_min_connections_greater_than_max_raises(self):
+        with pytest.raises(ValueError):
+            valkey.ConnectionPool(
+                connection_class=DummyConnection,
+                min_connections=20,
+                max_connections=10,
+            )
+
+    async def test_min_connections_negative_raises(self):
+        with pytest.raises(ValueError):
+            valkey.ConnectionPool(
+                connection_class=DummyConnection,
+                min_connections=-1,
+            )
+
+    async def test_min_connections_initialize(self):
+        pool = valkey.ConnectionPool(
+            connection_class=DummyConnection,
+            min_connections=3,
+        )
+        assert not pool._initialized
+        await pool.initialize()
+        assert pool._initialized
+        # Calling initialize again is a no-op
+        await pool.initialize()
+        assert pool._initialized
+        await pool.disconnect(inuse_connections=True)
+
 
 class TestBlockingConnectionPool:
     @asynccontextmanager
