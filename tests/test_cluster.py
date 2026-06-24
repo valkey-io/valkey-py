@@ -1183,6 +1183,12 @@ class TestClusterValkeyCommands:
         myshardid = r.cluster_myshardid()
         assert isinstance(myshardid, str)
         assert len(myshardid) > 0
+        
+    def test_parse_cluster_myshardid_handles_decoded_input(self):
+        from valkey.cluster import parse_cluster_myshardid
+        assert parse_cluster_myshardid(b"abc123") == "abc123"
+        # decode_responses=True -> input is already str, must not raise
+        assert parse_cluster_myshardid("abc123") == "abc123"    
 
     def test_cluster_addslots(self, r):
         node = r.get_random_node()
