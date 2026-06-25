@@ -6,6 +6,7 @@ exclude =
     .git,
     .venv*,
     build,
+    benchmarks/*,
     docs/*,
     dist,
     docker,
