@@ -1,14 +1,6 @@
-USE_UVLOOP             ?= 0
 PROTOCOL               ?= 2
 CLUSTER_URL            ?= valkey://localhost:16379/0
 ADDITIONAL_PYTEST_ARGS ?=
-
-ifeq ($(USE_UVLOOP), 1)
-	UVLOOP_ARG          := --uvloop
-	UVLOOP_REPORT_INFIX := -uvloop
-else
-	UVLOOP_ARG          := --no-uvloop
-endif
 
 .PHONY: devenv stop-devenv build-docs linters standalone-tests cluster-tests all-tests clean package
 
@@ -65,8 +57,8 @@ standalone-tests: .check-virtualenv
 		--cov-report=xml:coverage_valkey.xml \
 		-W always \
 		-m 'not onlycluster' \
-		--junit-xml=standalone$(UVLOOP_REPORT_INFIX)-results.xml \
-		$(UVLOOP_ARG) $(ADDITIONAL_PYTEST_ARGS)
+		--junit-xml=standalone-results.xml \
+		$(ADDITIONAL_PYTEST_ARGS)
 
 cluster-tests: .check-virtualenv
 	pytest \
@@ -76,8 +68,8 @@ cluster-tests: .check-virtualenv
 		-W always \
 		-m 'not onlynoncluster and not valkeymod' \
 		--valkey-url=$(CLUSTER_URL) \
-		--junit-xml=cluster$(UVLOOP_REPORT_INFIX)-results.xml \
-		$(UVLOOP_ARG) $(ADDITIONAL_PYTEST_ARGS)
+		--junit-xml=cluster-results.xml \
+		$(ADDITIONAL_PYTEST_ARGS)
 
 package: .check-virtualenv
 	hatchling build

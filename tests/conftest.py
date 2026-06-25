@@ -1,4 +1,3 @@
-import argparse
 import math
 import time
 from collections.abc import Callable
@@ -60,10 +59,6 @@ def pytest_addoption(parser):
     )
 
     parser.addoption(
-        "--uvloop", action=argparse.BooleanOptionalAction, help="Run tests with uvloop"
-    )
-
-    parser.addoption(
         "--sentinels",
         action="store",
         default="localhost:26379,localhost:26380,localhost:26381",
@@ -114,16 +109,6 @@ def pytest_sessionstart(session):
     if cluster_enabled:
         cluster_nodes = session.config.getoption("--valkey-cluster-nodes")
         wait_for_cluster_creation(valkey_url, cluster_nodes)
-
-    use_uvloop = session.config.getoption("--uvloop")
-
-    if use_uvloop:
-        try:
-            import uvloop
-
-            uvloop.install()
-        except ImportError as e:
-            raise RuntimeError("Cannot import uvloop, make sure it is installed") from e
 
 
 def wait_for_cluster_creation(valkey_url, cluster_nodes, timeout=60):
