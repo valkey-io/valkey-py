@@ -4,7 +4,6 @@ import time
 
 import aiovalkey_cluster
 import avalkey
-import uvloop
 
 import valkey.asyncio as valkeypy
 
@@ -49,7 +48,7 @@ async def run(client):
             )
 
 
-async def main(loop):
+async def main():
     arc = avalkey.StrictValkeyCluster(
         host=host,
         port=port,
@@ -63,7 +62,7 @@ async def main(loop):
         max_idle_time=count,
         idle_check_interval=count,
     )
-    print(f"{loop} {await warmup(arc)} avalkey")
+    print(f"{await warmup(arc)} avalkey")
     print(await run(arc))
     arc.connection_pool.disconnect()
 
@@ -74,7 +73,7 @@ async def main(loop):
         idle_connection_timeout=count,
         pool_maxsize=2**31,
     )
-    print(f"{loop} {await warmup(aiorc)} aiovalkey-cluster")
+    print(f"{await warmup(aiorc)} aiovalkey-cluster")
     print(await run(aiorc))
     aiorc.close()
     await aiorc.wait_closed()
@@ -88,7 +87,7 @@ async def main(loop):
         decode_responses=False,
         max_connections=2**31,
     ) as rca:
-        print(f"{loop} {await warmup(rca)} valkeypy")
+        print(f"{await warmup(rca)} valkeypy")
         print(await run(rca))
 
 
@@ -100,8 +99,4 @@ if __name__ == "__main__":
     count = 10000
     size = 256
 
-    asyncio.run(main("asyncio"))
-
-    uvloop.install()
-
-    asyncio.run(main("uvloop"))
+    asyncio.run(main())
