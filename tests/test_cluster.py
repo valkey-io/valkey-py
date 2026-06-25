@@ -1189,7 +1189,7 @@ class TestClusterValkeyCommands:
 
         assert parse_cluster_myshardid(b"abc123") == "abc123"
         # decode_responses=True -> input is already str, must not raise
-        assert parse_cluster_myshardid("abc123") == "abc123"    
+        assert parse_cluster_myshardid("abc123") == "abc123"
 
     def test_cluster_addslots(self, r):
         node = r.get_random_node()
