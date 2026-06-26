@@ -122,7 +122,6 @@ sqlite_cache = true
 # in the modules listed below.
 ignore_errors = true
 module = [
-    "valkey.client",
     "valkey.cluster",
     "valkey.connection",
     "valkey.commands.*",
