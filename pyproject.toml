@@ -36,6 +36,7 @@ requires-python = ">=3.10"
 
 dependencies = [
     'async-timeout>=4.0.3; python_full_version<"3.11.3"',
+    'typing-extensions>=4.0.0; python_version < "3.11"',
 ]
 
 [dependency-groups]

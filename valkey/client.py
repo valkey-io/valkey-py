@@ -1,10 +1,27 @@
 import copy
 import re
+import sys
 import threading
 import time
 import warnings
 from itertools import chain
-from typing import Any, Callable, Dict, List, Literal, Optional, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Literal,
+    Optional,
+    Type,
+    TypedDict,
+    Union,
+)
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 from valkey._cache import (
     DEFAULT_ALLOW_LIST,
@@ -639,6 +656,15 @@ class Valkey(ValkeyModuleCommands, CoreCommands, SentinelCommands):
 StrictValkey = Valkey
 
 
+class _MonitorNextCommandReturnValue(TypedDict):
+    time: float
+    db: int
+    client_port: str
+    client_address: str
+    command: str
+    client_type: str
+
+
 class Monitor:
     """
     Monitor is useful for handling the MONITOR command to the valkey server.
@@ -649,11 +675,11 @@ class Monitor:
     monitor_re = re.compile(r"\[(\d+) (.*?)\] (.*)")
     command_re = re.compile(r'"(.*?)(?<!\\)"')
 
-    def __init__(self, connection_pool):
+    def __init__(self, connection_pool: ConnectionPool) -> None:
         self.connection_pool = connection_pool
         self.connection = self.connection_pool.get_connection("MONITOR")
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         self.connection.send_command("MONITOR")
         # check that monitor returns 'OK', but don't return it to user
         response = self.connection.read_response()
@@ -661,18 +687,18 @@ class Monitor:
             raise ValkeyError(f"MONITOR failed: {response}")
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *_: Any) -> None:
         self.connection.disconnect()
         self.connection_pool.release(self.connection)
 
-    def next_command(self):
+    def next_command(self) -> _MonitorNextCommandReturnValue:
         """Parse the response from a monitor command"""
         response = self.connection.read_response()
         if isinstance(response, bytes):
             response = self.connection.encoder.decode(response, force=True)
         command_time, command_data = response.split(" ", 1)
         m = self.monitor_re.match(command_data)
-        db_id, client_info, command = m.groups()
+        db_id, client_info, command = m.groups()  # type: ignore[union-attr]
         command = " ".join(self.command_re.findall(command))
         # Valkey escapes double quotes because each piece of the command
         # string is surrounded by double quotes. We don't have that
@@ -700,7 +726,7 @@ class Monitor:
             "command": command,
         }
 
-    def listen(self):
+    def listen(self) -> Generator[_MonitorNextCommandReturnValue, None, None]:
         """Listen for commands coming to the server."""
         while True:
             yield self.next_command()
