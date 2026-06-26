@@ -401,9 +401,7 @@ class Valkey(ValkeyModuleCommands, CoreCommands, SentinelCommands):
             self.connection_pool, self.response_callbacks, transaction, shard_hint
         )
 
-    def transaction(
-        self, func: Callable[["Pipeline"], None], *watches, **kwargs
-    ) -> None:
+    def transaction(self, func: Callable[["Pipeline"], Any], *watches, **kwargs) -> Any:
         """
         Convenience method for executing the callable `func` as a transaction
         while watching all keys specified in `watches`. The 'func' callable
@@ -736,11 +734,10 @@ class PubSub:
         self.subscribed_event = threading.Event()
         # we need to know the encoding options for this connection in order
         # to lookup channel and pattern names for callback handlers.
-        self.encoder = encoder
+        self.encoder = encoder or self.connection_pool.get_encoder()
         self.push_handler_func = push_handler_func
-        if self.encoder is None:
-            self.encoder = self.connection_pool.get_encoder()
         self.health_check_response_b = self.encoder.encode(self.HEALTH_CHECK_MESSAGE)
+        self.health_check_response: list[str] | list[bytes]
         if self.encoder.decode_responses:
             self.health_check_response = ["pong", self.HEALTH_CHECK_MESSAGE]
         else:
@@ -771,12 +768,12 @@ class PubSub:
             self.connection_pool.release(self.connection)
             self.connection = None
         self.health_check_response_counter = 0
-        self.channels = {}
-        self.pending_unsubscribe_channels = set()
-        self.shard_channels = {}
-        self.pending_unsubscribe_shard_channels = set()
-        self.patterns = {}
-        self.pending_unsubscribe_patterns = set()
+        self.channels = {}  # type: ignore[var-annotated]
+        self.pending_unsubscribe_channels = set()  # type: ignore[var-annotated]
+        self.shard_channels = {}  # type: ignore[var-annotated]
+        self.pending_unsubscribe_shard_channels = set()  # type: ignore[var-annotated]
+        self.patterns = {}  # type: ignore[var-annotated]
+        self.pending_unsubscribe_patterns = set()  # type: ignore[var-annotated]
         self.subscribed_event.clear()
 
     def close(self) -> None:
@@ -841,8 +838,8 @@ class PubSub:
         ttl = 10
         conn = self.connection
         while self.health_check_response_counter > 0 and ttl > 0:
-            if self._execute(conn, conn.can_read, timeout=conn.socket_timeout):
-                response = self._execute(conn, conn.read_response)
+            if self._execute(conn, conn.can_read, timeout=conn.socket_timeout):  # type: ignore[attr-defined]  # noqa: E501
+                response = self._execute(conn, conn.read_response)  # type: ignore[attr-defined]  # noqa: E501
                 if self.is_health_check_response(response):
                     self.health_check_response_counter -= 1
                 else:
@@ -1208,7 +1205,7 @@ class PubSubWorkerThread(threading.Thread):
         sleep_time: float,
         daemon: bool = False,
         exception_handler: Union[
-            Callable[[Exception, "PubSub", "PubSubWorkerThread"], None], None
+            Callable[[BaseException, "PubSub", "PubSubWorkerThread"], None], None
         ] = None,
     ):
         super().__init__()
@@ -1290,9 +1287,9 @@ class Pipeline(Valkey):
         """Pipeline instances should always evaluate to True"""
         return True
 
-    def reset(self) -> None:
-        self.command_stack = []
-        self.scripts = set()
+    def reset(self) -> None:  # type: ignore[override]
+        self.command_stack = []  # type: ignore[var-annotated]
+        self.scripts = set()  # type: ignore[var-annotated]
         # make sure to reset the connection state in the event that we were
         # watching something
         if self.watching and self.connection:
@@ -1440,11 +1437,11 @@ class Pipeline(Valkey):
             raise WatchError("Watched variable changed.")
 
         # put any parse errors into the response
-        for i, e in errors:
-            response.insert(i, e)
+        for i, error in errors:
+            response.insert(i, error)
 
         if len(response) != len(commands):
-            self.connection.disconnect()
+            self.connection.disconnect()  # type: ignore[union-attr]
             raise ResponseError(
                 "Wrong number of response items from pipeline execution"
             )
@@ -1581,6 +1578,6 @@ class Pipeline(Valkey):
             raise ValkeyError("Cannot issue a WATCH after a MULTI")
         return self.execute_command("WATCH", *names)
 
-    def unwatch(self) -> bool:
+    def unwatch(self) -> bool:  # type: ignore[override]
         """Unwatches all previously specified keys"""
         return self.watching and self.execute_command("UNWATCH") or True
