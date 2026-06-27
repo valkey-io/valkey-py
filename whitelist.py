@@ -16,3 +16,5 @@ traceback  # unused variable (/data/repos/valkey/valkey-py/valkey/asyncio/utils.
 AsyncConnectionPool  # unused import (//data/repos/valkey/valkey-py/valkey/typing.py:9)
 AsyncValkey  # unused import (//data/repos/valkey/valkey-py/valkey/commands/core.py:49)
 TargetNodesT  # unused import (//data/repos/valkey/valkey-py/valkey/commands/cluster.py:46)
+AsyncClusterPipeline  # unused import (valkey/utils.py:42)
+AsyncValkeyCluster  # unused import (valkey/utils.py:43)

@@ -1,7 +1,16 @@
+import contextlib
 import logging
-from contextlib import contextmanager
 from functools import wraps
-from typing import Any, Dict, Mapping, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    Iterator,
+    Mapping,
+    TypeVar,
+    overload,
+)
 
 try:
     import libvalkey  # noqa
@@ -27,8 +36,16 @@ except ImportError:
 
 from importlib import metadata
 
+if TYPE_CHECKING:
+    from valkey.asyncio.client import Pipeline as AsyncPipeline
+    from valkey.asyncio.client import Valkey as AsyncValkey
+    from valkey.asyncio.cluster import ClusterPipeline as AsyncClusterPipeline
+    from valkey.asyncio.cluster import ValkeyCluster as AsyncValkeyCluster
+    from valkey.client import Pipeline, Valkey
+    from valkey.cluster import ClusterPipeline, ValkeyCluster
 
-def from_url(url, **kwargs):
+
+def from_url(url: str, **kwargs: dict[str, Any]) -> "Valkey":
     """
     Returns an active Valkey client generated from the given database URL.
 
@@ -40,24 +57,57 @@ def from_url(url, **kwargs):
     return Valkey.from_url(url, **kwargs)
 
 
-@contextmanager
-def pipeline(valkey_obj):
+@overload
+@contextlib.contextmanager
+def pipeline(valkey_obj: "Valkey") -> Iterator["Pipeline"]: ...
+
+
+@overload
+@contextlib.contextmanager
+def pipeline(valkey_obj: "ValkeyCluster") -> Iterator["ClusterPipeline"]: ...
+
+
+@overload
+@contextlib.contextmanager
+def pipeline(valkey_obj: "AsyncValkey") -> Iterator["AsyncPipeline"]: ...
+
+
+@overload
+@contextlib.contextmanager
+def pipeline(valkey_obj: "AsyncValkeyCluster") -> Iterator["AsyncClusterPipeline"]: ...
+
+
+@contextlib.contextmanager
+def pipeline(
+    valkey_obj: "Valkey | ValkeyCluster | AsyncValkey | AsyncValkeyCluster",
+) -> "Iterator[Pipeline | ClusterPipeline | AsyncPipeline | AsyncClusterPipeline]":
     p = valkey_obj.pipeline()
     yield p
     p.execute()
 
 
-def str_if_bytes(value: Union[str, bytes]) -> str:
+T = TypeVar("T")
+
+
+@overload
+def str_if_bytes(value: bytes) -> str: ...
+
+
+@overload
+def str_if_bytes(value: T) -> T: ...
+
+
+def str_if_bytes(value: bytes | T) -> str | T:
     return (
         value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value
     )
 
 
-def safe_str(value):
+def safe_str(value: Any) -> str:
     return str(str_if_bytes(value))
 
 
-def dict_merge(*dicts: Mapping[str, Any]) -> Dict[str, Any]:
+def dict_merge(*dicts: Mapping[str, Any]) -> dict[str, Any]:
     """
     Merge all provided dicts into 1 dict.
     *dicts : `dict`
@@ -71,11 +121,10 @@ def dict_merge(*dicts: Mapping[str, Any]) -> Dict[str, Any]:
     return merged
 
 
-def list_keys_to_dict(key_list, callback):
-    return dict.fromkeys(key_list, callback)
+list_keys_to_dict = dict.fromkeys
 
 
-def merge_result(command, res):
+def merge_result(command: Any, res: dict[Any, Iterable[T]]) -> list[T]:
     """
     Merge all items in `res` into a list.
 
@@ -93,7 +142,12 @@ def merge_result(command, res):
     return list(result)
 
 
-def warn_deprecated(name, reason="", version="", stacklevel=2):
+def warn_deprecated(
+    name: str,
+    reason: str = "",
+    version: str = "",
+    stacklevel: int = 2,
+) -> None:
     import warnings
 
     msg = f"Call to deprecated {name}."
@@ -104,14 +158,18 @@ def warn_deprecated(name, reason="", version="", stacklevel=2):
     warnings.warn(msg, category=DeprecationWarning, stacklevel=stacklevel)
 
 
-def deprecated_function(reason="", version="", name=None):
+def deprecated_function(
+    reason: str = "",
+    version: str = "",
+    name: str | None = None,
+) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Decorator to mark a function as deprecated.
     """
 
-    def decorator(func):
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: dict[str, Any]) -> T:
             warn_deprecated(name or func.__name__, reason, version, stacklevel=3)
             return func(*args, **kwargs)
 
@@ -120,7 +178,7 @@ def deprecated_function(reason="", version="", name=None):
     return decorator
 
 
-def _set_info_logger():
+def _set_info_logger() -> None:
     """
     Set up a logger that log info logs to stdout.
     (This is used by the default push response handler)
@@ -133,7 +191,7 @@ def _set_info_logger():
         logger.addHandler(handler)
 
 
-def get_lib_version():
+def get_lib_version() -> str:
     try:
         libver = metadata.version("valkey")
     except metadata.PackageNotFoundError:
