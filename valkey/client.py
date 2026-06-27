@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import re
 import sys
@@ -1227,13 +1229,13 @@ class PubSub:
 class PubSubWorkerThread(threading.Thread):
     def __init__(
         self,
-        pubsub,
+        pubsub: PubSub,
         sleep_time: float,
         daemon: bool = False,
         exception_handler: Union[
-            Callable[[BaseException, "PubSub", "PubSubWorkerThread"], None], None
+            Callable[[BaseException, PubSub, PubSubWorkerThread], None], None
         ] = None,
-    ):
+    ) -> None:
         super().__init__()
         self.daemon = daemon
         self.pubsub = pubsub
