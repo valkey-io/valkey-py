@@ -77,31 +77,34 @@ EMPTY_RESPONSE = "EMPTY_RESPONSE"
 NEVER_DECODE = "NEVER_DECODE"
 
 
-class CaseInsensitiveDict(dict):
+class CaseInsensitiveDict:
     "Case insensitive dict implementation. Assumes string keys only."
 
-    def __init__(self, data: Dict[str, str]) -> None:
-        for k, v in data.items():
-            self[k.upper()] = v
+    def __init__(self, data: dict[str, Callable[[Any], Any]]) -> None:
+        self.__data: dict[str, Callable[[Any], Any]] = {
+            k.upper(): v for k, v in data.items()
+        }
 
-    def __contains__(self, k):
-        return super().__contains__(k.upper())
+    def __contains__(self, k: str) -> bool:
+        return k.upper() in self.__data
 
-    def __delitem__(self, k):
-        super().__delitem__(k.upper())
+    def __delitem__(self, k: str) -> None:
+        del self.__data[k.upper()]
 
-    def __getitem__(self, k):
-        return super().__getitem__(k.upper())
+    def __getitem__(self, k: str) -> Callable[[Any], Any]:
+        return self.__data[k.upper()]
 
-    def get(self, k, default=None):
-        return super().get(k.upper(), default)
+    def get(self, k: str, default: Any = None) -> Any:
+        return self.__data.get(k.upper(), default)
 
-    def __setitem__(self, k, v):
-        super().__setitem__(k.upper(), v)
+    def __setitem__(self, k: str, v: Callable[[Any], Any]) -> None:
+        self.__data[k.upper()] = v
 
-    def update(self, data):
-        data = CaseInsensitiveDict(data)
-        super().update(data)
+    def update(self, data: dict[str, Callable[[Any], Any]]) -> None:
+        self.__data.update({k.upper(): v for k, v in data.items()})
+
+    def __eq__(self, other: Any) -> bool:
+        return self.__data.__eq__(other)
 
 
 class AbstractValkey:
