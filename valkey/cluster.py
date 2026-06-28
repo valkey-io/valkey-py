@@ -119,7 +119,7 @@ def parse_cluster_shards(resp, **options):
     return shards
 
 
-def parse_cluster_myshardid(resp, **options):
+def parse_cluster_myshardid(resp: str | bytes, **options: Any) -> str:
     """
     Parse CLUSTER MYSHARDID response.
     """
