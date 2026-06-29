@@ -8,7 +8,7 @@ Generic Client
 This is the client used to connect directly to a standard Valkey node.
 
 Standalone replica redirect capability
-=====================================
+======================================
 
 Valkey 8.0 adds ``CLIENT CAPA redirect`` for standalone primary/replica
 deployments. In valkey-py, this is exposed as the opt-in
