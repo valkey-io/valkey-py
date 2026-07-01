@@ -92,6 +92,22 @@ READ_COMMANDS = frozenset(
         "ZCOUNT",
         "ZRANGE",
         "ZSCORE",
+        # Search module read commands (safe for replica execution)
+        "FT.SEARCH",
+        "FT.AGGREGATE",
+        "FT.INFO",
+        "FT._LIST",
+        "FT.EXPLAIN",
+        "FT.EXPLAINCLI",
+        "FT.PROFILE",
+        "FT.TAGVALS",
+        "FT.SUGGET",
+        "FT.SUGLEN",
+        "FT.SYNDUMP",
+        "FT.SPELLCHECK",
+        "FT.DICTDUMP",
+        "FT.GET",
+        "FT.MGET",
     ]
 )
 
