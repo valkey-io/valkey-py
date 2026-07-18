@@ -1179,8 +1179,10 @@ class TestClusterValkeyCommands:
                     assert attribute in attributes
 
     @skip_if_server_version_lt("7.2.0")
-    def test_cluster_myshardid(self, r):
-        myshardid = r.cluster_myshardid()
+    @pytest.mark.parametrize("client_fixture_name", ("r", "decoded_r"))
+    def test_cluster_myshardid(self, client_fixture_name, request):
+        client: ValkeyCluster = request.getfixturevalue(client_fixture_name)
+        myshardid = client.cluster_myshardid()
         assert isinstance(myshardid, str)
         assert len(myshardid) > 0
 
