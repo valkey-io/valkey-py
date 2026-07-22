@@ -335,41 +335,55 @@ class AbstractValkeyCluster:
         ),
     )
 
-    SEARCH_COMMANDS = (
+    # Search commands that modify state (must always go to a primary node)
+    SEARCH_WRITE_COMMANDS = (
         [
             "FT.CREATE",
-            "FT.SEARCH",
-            "FT.AGGREGATE",
-            "FT.EXPLAIN",
-            "FT.EXPLAINCLI",
-            "FT,PROFILE",
             "FT.ALTER",
             "FT.DROPINDEX",
+            "FT.DROP",
             "FT.ALIASADD",
             "FT.ALIASUPDATE",
             "FT.ALIASDEL",
-            "FT.TAGVALS",
             "FT.SUGADD",
-            "FT.SUGGET",
             "FT.SUGDEL",
-            "FT.SUGLEN",
             "FT.SYNUPDATE",
-            "FT.SYNDUMP",
-            "FT.SPELLCHECK",
             "FT.DICTADD",
             "FT.DICTDEL",
-            "FT.DICTDUMP",
-            "FT.INFO",
-            "FT._LIST",
-            "FT.CONFIG",
             "FT.ADD",
             "FT.DEL",
-            "FT.DROP",
-            "FT.GET",
-            "FT.MGET",
+            "FT.CONFIG",
             "FT.SYNADD",
         ],
     )
+
+    # Search commands that are read-only (safe for replica execution).
+    # When read_from_replicas is enabled, these commands can be routed to
+    # replica nodes for load distribution. In valkey-search cluster mode,
+    # the coordinator on the receiving node handles cross-shard fanout
+    # regardless of whether the node is a primary or replica.
+    SEARCH_READ_COMMANDS = (
+        [
+            "FT.SEARCH",
+            "FT.AGGREGATE",
+            "FT.INFO",
+            "FT._LIST",
+            "FT.EXPLAIN",
+            "FT.EXPLAINCLI",
+            "FT.PROFILE",
+            "FT.TAGVALS",
+            "FT.SUGGET",
+            "FT.SUGLEN",
+            "FT.SYNDUMP",
+            "FT.SPELLCHECK",
+            "FT.DICTDUMP",
+            "FT.GET",
+            "FT.MGET",
+        ],
+    )
+
+    # Combined list for backward compatibility
+    SEARCH_COMMANDS = (SEARCH_WRITE_COMMANDS[0] + SEARCH_READ_COMMANDS[0],)
 
     CLUSTER_COMMANDS_RESPONSE_CALLBACKS = {
         "CLUSTER SLOTS": parse_cluster_slots,
@@ -911,7 +925,16 @@ class ValkeyCluster(AbstractValkeyCluster, ValkeyClusterCommands):
         elif command_flag == self.__class__.DEFAULT_NODE:
             # return the cluster's default node
             return [self.nodes_manager.default_node]
-        elif command in self.__class__.SEARCH_COMMANDS[0]:
+        elif command in self.__class__.SEARCH_WRITE_COMMANDS[0]:
+            # Search write commands must always go to a primary
+            return [self.nodes_manager.default_node]
+        elif command in self.__class__.SEARCH_READ_COMMANDS[0]:
+            # Search read commands (FT.SEARCH, FT.AGGREGATE, etc.) can be
+            # routed to replicas when read_from_replicas is enabled.
+            # In valkey-search cluster mode with the coordinator, the receiving
+            # node handles cross-shard fanout regardless of primary/replica role.
+            if self.read_from_replicas:
+                return [random.choice(self.get_nodes())]
             return [self.nodes_manager.default_node]
         else:
             # get the node that holds the key's slot
