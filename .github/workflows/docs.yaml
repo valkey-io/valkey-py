@@ -27,7 +27,7 @@ jobs:
      timeout-minutes: 5
      steps:
        - uses: actions/checkout@v7
-       - uses: actions/setup-python@v6
+       - uses: actions/setup-python@v7
          with:
            # Set the python version to 3.12 to keep imghdr for sphinx.
            # TODO: update sphinx to remove imghdr dependency
