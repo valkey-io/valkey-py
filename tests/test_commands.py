@@ -33,6 +33,7 @@ from .conftest import (
     skip_if_server_version_gte,
     skip_if_server_version_lt,
     skip_unless_arch_bits,
+    wait_for_condition,
 )
 
 
@@ -987,7 +988,11 @@ class TestValkeyCommands:
 
     def test_bgsave(self, r):
         assert r.bgsave()
-        time.sleep(0.3)
+        # Wait for the first bgsave to finish
+        wait_for_condition(
+            lambda: r.info("persistence")["rdb_bgsave_in_progress"] == 0,
+            timeout=10,
+        )
         assert r.bgsave(True)
 
     def test_never_decode_option(self, r: valkey.Valkey):
