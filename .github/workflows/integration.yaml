@@ -43,7 +43,7 @@ jobs:
      timeout-minutes: 5
      steps:
        - uses: actions/checkout@v7
-       - uses: actions/setup-python@v6
+       - uses: actions/setup-python@v7
          with:
            python-version: 3.13
            cache: 'pip'
@@ -90,7 +90,7 @@ jobs:
      name: Test type annotations
      steps:
        - uses: actions/checkout@v7
-       - uses: actions/setup-python@v6
+       - uses: actions/setup-python@v7
          with:
            python-version: '3.14'
            cache: 'pip'
@@ -129,7 +129,7 @@ jobs:
      name: Python ${{ matrix.python-version }} RESP${{ matrix.protocol-version }} ${{matrix.test-type}}-${{matrix.connection-type}} tests
      steps:
        - uses: actions/checkout@v7
-       - uses: actions/setup-python@v6
+       - uses: actions/setup-python@v7
          with:
            python-version: ${{ matrix.python-version }}
            cache: 'pip'
@@ -181,7 +181,7 @@ jobs:
         extension: ['tar.gz', 'whl']
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: 3.13
 
@@ -217,7 +217,7 @@ jobs:
           - 'pypy-3.11'
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
