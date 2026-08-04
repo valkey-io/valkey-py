@@ -50,6 +50,7 @@ from .conftest import (
     skip_if_version_is_one_of,
     skip_unless_arch_bits,
     wait_for_command,
+    wait_for_condition,
 )
 
 default_host = "127.0.0.1"
@@ -1455,7 +1456,11 @@ class TestClusterValkeyCommands:
 
     def test_bgsave(self, r):
         assert r.bgsave()
-        sleep(0.3)
+        # Wait for the first bgsave to finish
+        wait_for_condition(
+            lambda: r.info("persistence")["rdb_bgsave_in_progress"] == 0,
+            timeout=10,
+        )
         assert r.bgsave(True)
 
     def test_info(self, r):
