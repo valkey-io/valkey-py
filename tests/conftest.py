@@ -438,6 +438,19 @@ def wait_for_command(client, monitor, command, key=None):
             return None
 
 
+def wait_for_condition(
+    predicate: Callable[[], object], timeout: float = 10, interval: float = 0.1
+) -> None:
+    """Poll ``predicate`` until it returns a truthy value or ``timeout`` seconds
+    elapse. Raises AssertionError on timeout."""
+    deadline = time.monotonic() + timeout
+    while True:
+        if predicate():
+            return
+        assert time.monotonic() < deadline, "timed out waiting for condition"
+        time.sleep(interval)
+
+
 def is_resp2_connection(r):
     if isinstance(r, valkey.Valkey) or isinstance(r, valkey.asyncio.Valkey):
         protocol = r.connection_pool.connection_kwargs.get("protocol")
