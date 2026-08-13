@@ -2668,6 +2668,72 @@ class TestNodesManager:
                 "startup_nodes could not agree on a valid slots cache"
             ), str(ex.value)
 
+    def test_init_slots_cache_concurrent_node_mutation(self):
+        """
+        Test that initialize() tolerates the node dict being mutated while it
+        is iterating.
+
+        With dynamic_startup_nodes (the default) initialize() ends with
+        `self.startup_nodes = tmp_nodes_cache`, so startup_nodes and
+        nodes_cache become the same dict. A MOVED redirect handled on another
+        thread then inserts into the very dict this loop is walking, raising
+        "RuntimeError: dictionary changed size during iteration".
+
+        The loop only advances past its first startup node when that node is
+        unreachable, which is the state a failover leaves behind.
+        """
+        cluster_slots = [
+            [0, 8191, ["127.0.0.1", 7000]],
+            [8192, 16383, ["127.0.0.1", 7001]],
+        ]
+        failed_over = []
+
+        with patch.object(
+            NodesManager, "create_valkey_node", autospec=True
+        ) as create_valkey_node:
+
+            def create_mocked_valkey_node(nodes_manager, host, port, **kwargs):
+                r_node = Valkey(host=host, port=port)
+
+                def execute_command(*args, **kwargs):
+                    if args[0] == "CLUSTER SLOTS":
+                        if failed_over and port == 7000:
+                            # Stand in for _update_moved_slots() inserting a
+                            # redirected node from another thread, while this
+                            # node is the one that just failed over.
+                            node = ClusterNode("127.0.0.2", port)
+                            nodes_manager.nodes_cache[node.name] = node
+                            raise ConnectionError(f"{host}:{port} is down")
+                        return cluster_slots
+                    elif args[0] == "INFO":
+                        return {"cluster_enabled": True}
+                    elif args[1] == "cluster-require-full-coverage":
+                        return {"cluster-require-full-coverage": "yes"}
+                    else:
+                        return None
+
+                r_node.execute_command = execute_command
+                return r_node
+
+            create_valkey_node.side_effect = create_mocked_valkey_node
+
+            rc = ValkeyCluster(
+                startup_nodes=[
+                    ClusterNode("127.0.0.1", 7000),
+                    ClusterNode("127.0.0.1", 7001),
+                ]
+            )
+            n_manager = rc.nodes_manager
+            # dynamic_startup_nodes aliases the two dicts to one object
+            assert n_manager.startup_nodes is n_manager.nodes_cache
+
+            failed_over.append(True)
+            # Must not raise RuntimeError; the second startup node still
+            # serves a full slots cache.
+            n_manager.initialize()
+
+        assert len(n_manager.slots_cache) == VALKEY_CLUSTER_HASH_SLOTS
+
     def test_cluster_one_instance(self):
         """
         If the cluster exists of only 1 node then there is some hacks that must
