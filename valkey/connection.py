@@ -318,26 +318,14 @@ class AbstractConnection:
         if self._sock is not None:
             return
         try:
-            sock = self.retry.call_with_retry(
-                lambda: self._connect(), lambda error: self.disconnect(error)
+            self.retry.call_with_retry(
+                lambda: self._connect_with_handshake(),
+                lambda error: self.disconnect(error),
             )
         except socket.timeout:
             raise TimeoutError("Timeout connecting to server")
         except OSError as e:
             raise ConnectionError(self._error_message(e))
-
-        self._sock = sock
-        try:
-            if self.valkey_connect_func is None:
-                # Use the default on_connect function
-                self.on_connect()
-            else:
-                # Use the passed function valkey_connect_func
-                self.valkey_connect_func(self)
-        except ValkeyError:
-            # clean up after any error in on_connect
-            self.disconnect()
-            raise
 
         # run any user callbacks. right now the only internal callback
         # is for pubsub channel/pattern resubscription
@@ -347,6 +335,32 @@ class AbstractConnection:
             callback = ref()
             if callback:
                 callback(self)
+
+    def _connect_with_handshake(self):
+        """
+        Establish the socket connection and perform the initial handshake
+        (authentication, protocol negotiation, etc.) as a single retryable unit.
+
+        By combining the socket connect and on_connect handshake into one
+        callable, the retry logic covers both steps.  Previously only the
+        socket connect was retried, so a ConnectionError raised inside
+        on_connect (e.g. during PubSub reconnection) would escape the retry
+        scope and crash the caller.
+        """
+        sock = self._connect()
+        self._sock = sock
+        try:
+            if self.valkey_connect_func is None:
+                # Use the default on_connect function
+                self.on_connect()
+            else:
+                # Use the passed function valkey_connect_func
+                self.valkey_connect_func(self)
+        except ValkeyError:
+            # clean up after any error in on_connect so that the next
+            # retry attempt starts from a clean state
+            self.disconnect()
+            raise
 
     @abstractmethod
     def _connect(self):
