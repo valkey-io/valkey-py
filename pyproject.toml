@@ -117,9 +117,12 @@ packages = ["valkey"]
 sqlite_cache = true
 
 [[tool.mypy.overrides]]
-# The goal is to eliminate the `tool.mypy.overrides` section.
+# The goal is to eliminate the `tool.mypy.overrides` sections.
 # This will be accomplished by resolving type annotation issues
 # in the modules listed below.
+#
+# Type checking may be re-enabled for specific submodules
+# in a second "overrides" section, below.
 ignore_errors = true
 module = [
     "valkey.client",
@@ -128,4 +131,16 @@ module = [
     "valkey.commands.*",
     "valkey.asyncio.*",
     "valkey._parsers.*",
+]
+
+
+[[tool.mypy.overrides]]
+# This config section re-enables type-checking for submodules.
+# For example, if all submodules in "valkey.x.*" are disabled above,
+# this section might re-enable type-checking for "valkey.x.foo"
+# as type annotations are added, corrected, and tested
+# in "valkey.x.*", submodule by submodule.
+ignore_errors = false
+module = [
+    "valkey._parsers.encoders",
 ]
