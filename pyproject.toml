@@ -40,21 +40,17 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    'black[jupyter]',
     'cachetools',
-    'flake8-isort',
-    'flake8',
-    'flynt',
     'hatchling',
     'mock',
     'packaging>=20.4',
+    'prek',
     'pytest',
     'pytest-asyncio',
     'pytest-cov',
     'pytest-timeout',
     'ujson>=4.2.0',
     'uvloop; implementation_name != "pypy"',
-    'vulture>=2.3.0',
 ]
 type-check = [
     'mypy',
@@ -128,4 +124,17 @@ module = [
     "valkey.commands.*",
     "valkey.asyncio.*",
     "valkey._parsers.*",
+]
+
+[tool.black]
+target-version = [
+    "py37",
+]
+
+[tool.vulture]
+make_whitelist = true
+min_confidence = 80
+paths = [
+    "valkey",
+    "whitelist.py",
 ]

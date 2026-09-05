@@ -1,0 +1,71 @@
+# To execute the fixers in this file, run this command:
+#
+#   prek run -a
+#
+# To update the hook versions in this file, run this command:
+#
+#   prek auto-update --freeze --cooldown-days 20
+#
+
+default_language_version:
+  python: "python3.14"
+
+repos:
+  - repo: "meta"
+    hooks:
+      - id: "check-hooks-apply"
+      - id: "check-useless-excludes"
+
+  - repo: "https://github.com/pre-commit/pre-commit-hooks"
+    rev: "3e8a8703264a2f4a69428a0aa4dcb512790b2c8c"  # frozen: v6.0.0
+    hooks:
+      - id: "check-added-large-files"
+      - id: "check-merge-conflict"
+      - id: "check-yaml"
+# TODO: ENABLE end-of-file-fixer LATER
+#      - id: "end-of-file-fixer"
+      - id: "mixed-line-ending"
+        args:
+          - "--fix=lf"
+# TODO: ENABLE trailing-whitespace LATER
+#      - id: "trailing-whitespace"
+
+# TODO: ENABLE pyupgrade LATER
+#  - repo: "https://github.com/asottile/pyupgrade"
+#    rev: "75992aaa40730136014f34227e0135f63fc951b4"  # frozen: v3.21.2
+#    hooks:
+#      - id: "pyupgrade"
+#        name: "Enforce Python 3.10+ idioms"
+#        args: ["--py310-plus"]
+
+  - repo: "https://github.com/ikamensh/flynt/"
+    rev: "97be693bf18bc2f050667dd282d243e2824b81e2"  # frozen: 1.0.6
+    hooks:
+    -   id: "flynt"
+
+  - repo: "https://github.com/psf/black-pre-commit-mirror"
+    rev: "4160603246a6b365d4a2af661c6d71b0a0f50478"  # frozen: 26.5.1
+    hooks:
+      - id: "black-jupyter"
+
+  - repo: "https://github.com/pycqa/isort"
+    rev: "dac090ce4d9ee313d086e2e89ab1acb8c2664fa1"  # frozen: 9.0.0a3
+    hooks:
+      - id: "isort"
+
+  - repo: "https://github.com/pycqa/flake8"
+    rev: "c48217e1fc006c2dddd14df54e83b67da15de5cd"  # frozen: 7.3.0
+    hooks:
+      - id: "flake8"
+
+  - repo: "https://github.com/python-jsonschema/check-jsonschema"
+    rev: "f805888065fdb6162e1f800e50bb9460cbd223d6"  # frozen: 0.37.2
+    hooks:
+      - id: "check-readthedocs"
+      - id: "check-dependabot"
+      - id: "check-github-workflows"
+
+  - repo: "https://github.com/jendrikseipp/vulture"
+    rev: "b0f67ba0044693aa9ec0d38fe460590facc98004"  # frozen: v2.16
+    hooks:
+      - id: "vulture"
