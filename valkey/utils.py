@@ -1,7 +1,6 @@
 import logging
-from contextlib import contextmanager
 from functools import wraps
-from typing import Any, Dict, Mapping, Union
+from typing import Any, Callable, Iterable, TypeVar, overload
 
 try:
     import libvalkey  # noqa
@@ -27,37 +26,28 @@ except ImportError:
 
 from importlib import metadata
 
-
-def from_url(url, **kwargs):
-    """
-    Returns an active Valkey client generated from the given database URL.
-
-    Will attempt to extract the database id from the path url fragment, if
-    none is provided.
-    """
-    from valkey.client import Valkey
-
-    return Valkey.from_url(url, **kwargs)
+T = TypeVar("T")
 
 
-@contextmanager
-def pipeline(valkey_obj):
-    p = valkey_obj.pipeline()
-    yield p
-    p.execute()
+@overload
+def str_if_bytes(value: bytes) -> str: ...
 
 
-def str_if_bytes(value: Union[str, bytes]) -> str:
+@overload
+def str_if_bytes(value: T) -> T: ...
+
+
+def str_if_bytes(value: bytes | T) -> str | T:
     return (
         value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value
     )
 
 
-def safe_str(value):
+def safe_str(value: Any) -> str:
     return str(str_if_bytes(value))
 
 
-def dict_merge(*dicts: Mapping[str, Any]) -> Dict[str, Any]:
+def dict_merge(*dicts: dict[str, Any]) -> dict[str, Any]:
     """
     Merge all provided dicts into 1 dict.
     *dicts : `dict`
@@ -71,11 +61,7 @@ def dict_merge(*dicts: Mapping[str, Any]) -> Dict[str, Any]:
     return merged
 
 
-def list_keys_to_dict(key_list, callback):
-    return dict.fromkeys(key_list, callback)
-
-
-def merge_result(command, res):
+def merge_result(command: Any, res: dict[Any, Iterable[T]]) -> list[T]:
     """
     Merge all items in `res` into a list.
 
@@ -93,7 +79,12 @@ def merge_result(command, res):
     return list(result)
 
 
-def warn_deprecated(name, reason="", version="", stacklevel=2):
+def warn_deprecated(
+    name: str,
+    reason: str = "",
+    version: str = "",
+    stacklevel: int = 2,
+) -> None:
     import warnings
 
     msg = f"Call to deprecated {name}."
@@ -104,14 +95,18 @@ def warn_deprecated(name, reason="", version="", stacklevel=2):
     warnings.warn(msg, category=DeprecationWarning, stacklevel=stacklevel)
 
 
-def deprecated_function(reason="", version="", name=None):
+def deprecated_function(
+    reason: str = "",
+    version: str = "",
+    name: str | None = None,
+) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Decorator to mark a function as deprecated.
     """
 
-    def decorator(func):
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: dict[str, Any]) -> T:
             warn_deprecated(name or func.__name__, reason, version, stacklevel=3)
             return func(*args, **kwargs)
 
@@ -120,7 +115,7 @@ def deprecated_function(reason="", version="", name=None):
     return decorator
 
 
-def _set_info_logger():
+def _set_info_logger() -> None:
     """
     Set up a logger that log info logs to stdout.
     (This is used by the default push response handler)
@@ -133,7 +128,7 @@ def _set_info_logger():
         logger.addHandler(handler)
 
 
-def get_lib_version():
+def get_lib_version() -> str:
     try:
         libver = metadata.version("valkey")
     except metadata.PackageNotFoundError:

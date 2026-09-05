@@ -33,7 +33,6 @@ from valkey.sentinel import (
     SentinelManagedConnection,
     SentinelManagedSSLConnection,
 )
-from valkey.utils import from_url
 
 
 def int_or_str(value):
@@ -50,6 +49,8 @@ Redis = Valkey
 StrictRedis = StrictValkey
 RedisCluster = ValkeyCluster
 RedisError = ValkeyError
+
+from_url = Valkey.from_url
 
 
 __all__ = [
