@@ -36,7 +36,6 @@ from valkey.retry import Retry
 from valkey.utils import (
     LIBVALKEY_AVAILABLE,
     dict_merge,
-    list_keys_to_dict,
     merge_result,
     safe_str,
     str_if_bytes,
@@ -217,7 +216,7 @@ class AbstractValkeyCluster:
     NODE_FLAGS = {PRIMARIES, REPLICAS, ALL_NODES, RANDOM, DEFAULT_NODE}
 
     COMMAND_FLAGS = dict_merge(
-        list_keys_to_dict(
+        dict.fromkeys(
             [
                 "ACL CAT",
                 "ACL DELUSER",
@@ -305,7 +304,7 @@ class AbstractValkeyCluster:
             ],
             DEFAULT_NODE,
         ),
-        list_keys_to_dict(
+        dict.fromkeys(
             [
                 "FLUSHALL",
                 "FLUSHDB",
@@ -322,8 +321,8 @@ class AbstractValkeyCluster:
             ],
             PRIMARIES,
         ),
-        list_keys_to_dict(["FUNCTION DUMP"], RANDOM),
-        list_keys_to_dict(
+        dict.fromkeys(["FUNCTION DUMP"], RANDOM),
+        dict.fromkeys(
             [
                 "CLUSTER COUNTKEYSINSLOT",
                 "CLUSTER DELSLOTS",
@@ -378,14 +377,12 @@ class AbstractValkeyCluster:
     }
 
     RESULT_CALLBACKS = dict_merge(
-        list_keys_to_dict(["PUBSUB NUMSUB", "PUBSUB SHARDNUMSUB"], parse_pubsub_numsub),
-        list_keys_to_dict(
-            ["PUBSUB NUMPAT"], lambda command, res: sum(list(res.values()))
-        ),
-        list_keys_to_dict(
+        dict.fromkeys(["PUBSUB NUMSUB", "PUBSUB SHARDNUMSUB"], parse_pubsub_numsub),
+        dict.fromkeys(["PUBSUB NUMPAT"], lambda command, res: sum(list(res.values()))),
+        dict.fromkeys(
             ["KEYS", "PUBSUB CHANNELS", "PUBSUB SHARDCHANNELS"], merge_result
         ),
-        list_keys_to_dict(
+        dict.fromkeys(
             [
                 "PING",
                 "CONFIG SET",
@@ -401,21 +398,19 @@ class AbstractValkeyCluster:
             ],
             lambda command, res: all(res.values()) if isinstance(res, dict) else res,
         ),
-        list_keys_to_dict(
+        dict.fromkeys(
             ["DBSIZE", "WAIT"],
             lambda command, res: sum(res.values()) if isinstance(res, dict) else res,
         ),
-        list_keys_to_dict(
+        dict.fromkeys(
             ["CLIENT UNBLOCK"], lambda command, res: 1 if sum(res.values()) > 0 else 0
         ),
-        list_keys_to_dict(["SCAN"], parse_scan_result),
-        list_keys_to_dict(
-            ["SCRIPT LOAD"], lambda command, res: list(res.values()).pop()
-        ),
-        list_keys_to_dict(
+        dict.fromkeys(["SCAN"], parse_scan_result),
+        dict.fromkeys(["SCRIPT LOAD"], lambda command, res: list(res.values()).pop()),
+        dict.fromkeys(
             ["SCRIPT EXISTS"], lambda command, res: [all(k) for k in zip(*res.values())]
         ),
-        list_keys_to_dict(["SCRIPT FLUSH"], lambda command, res: all(res.values())),
+        dict.fromkeys(["SCRIPT FLUSH"], lambda command, res: all(res.values())),
     )
 
     ERRORS_ALLOW_RETRY = (ConnectionError, TimeoutError, ClusterDownError)
