@@ -960,11 +960,15 @@ class UnixDomainSocketConnection(AbstractConnection):
         return pieces
 
     async def _connect(self):
+        # Connect only: the handshake (on_connect or valkey_connect_func) is
+        # run by connect() once this returns. Calling on_connect() here as well
+        # made every UDS connection run the default handshake twice, and ran it
+        # even when the caller supplied valkey_connect_func, which is supposed
+        # to replace the default handshake entirely.
         async with async_timeout(self.socket_connect_timeout):
             reader, writer = await asyncio.open_unix_connection(path=self.path)
         self._reader = reader
         self._writer = writer
-        await self.on_connect()
 
     def _host_error(self) -> str:
         return self.path
