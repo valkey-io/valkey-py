@@ -218,15 +218,13 @@ class AbstractConnection:
         self._connect_callbacks: List[weakref.WeakMethod[ConnectCallbackT]] = []
         self._buffer_cutoff = 6000
         try:
-            p = int(protocol)
-        except TypeError:
-            p = DEFAULT_RESP_VERSION
+            p = int(protocol) if protocol is not None else DEFAULT_RESP_VERSION
         except ValueError:
             raise ConnectionError("protocol must be an integer")
-        finally:
+        else:
             if p < 2 or p > 3:
                 raise ConnectionError("protocol must be either 2 or 3")
-            self.protocol = protocol
+            self.protocol = p
         self.client_capa_redirect = client_capa_redirect
         if cache_enabled:
             _cache = _LocalCache(cache_max_size, cache_ttl, cache_policy)

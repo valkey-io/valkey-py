@@ -14,6 +14,7 @@ from valkey._parsers import (
 )
 from valkey.asyncio import ConnectionPool, Valkey
 from valkey.asyncio.connection import (
+    DEFAULT_RESP_VERSION,
     Connection,
     SSLConnection,
     UnixDomainSocketConnection,
@@ -162,6 +163,21 @@ async def test_connect_without_retry_on_os_error():
         with pytest.raises(ConnectionError):
             await conn.connect()
         assert _connect.call_count == 1
+
+
+async def test_protocol_invalid_value_raises_connection_error():
+    """An invalid protocol must surface the documented ConnectionError, not
+    an UnboundLocalError from the validation block after the except raised."""
+    with pytest.raises(ConnectionError):
+        Connection(protocol="abc")
+    with pytest.raises(ConnectionError):
+        Connection(protocol=4)
+
+
+def test_protocol_is_normalized():
+    assert Connection().protocol == DEFAULT_RESP_VERSION
+    assert Connection(protocol=None).protocol == DEFAULT_RESP_VERSION
+    assert Connection(protocol="3").protocol == 3
 
 
 async def test_connect_timeout_error_without_retry():
