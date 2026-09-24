@@ -102,7 +102,7 @@ class LockNotOwnedError(LockError):
     pass
 
 
-class ChildDeadlockedError(Exception):
+class ChildDeadlockedError(ValkeyError):
     "Error indicating that a child process is deadlocked after a fork()"
 
     pass
@@ -117,7 +117,7 @@ class AuthenticationWrongNumberOfArgsError(ResponseError):
     pass
 
 
-class ValkeyClusterException(Exception):
+class ValkeyClusterException(ValkeyError):
     """
     Base exception for the ValkeyCluster client
     """
