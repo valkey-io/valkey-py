@@ -383,7 +383,11 @@ class AbstractConnection:
                 self._parser.on_connect(self)
             if len(auth_args) == 1:
                 auth_args = ("default", auth_args[0])
-            self.send_command("HELLO", self.protocol, "AUTH", *auth_args)
+            # avoid checking health here -- PING will fail if we try
+            # to check the health prior to the AUTH
+            self.send_command(
+                "HELLO", self.protocol, "AUTH", *auth_args, check_health=False
+            )
             response = self.read_response()
             # if response.get(b"proto") != self.protocol and response.get(
             #     "proto"
