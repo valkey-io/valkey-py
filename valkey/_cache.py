@@ -243,6 +243,10 @@ class _LocalCache(AbstractCache):
         """
         if len(self.cache) >= self.max_size:
             self._evict()
+        if command in self.cache:
+            # Re-caching an existing command must not leave a duplicate
+            # TTL-tracking entry behind.
+            self.commands_ttl_list.remove(command)
         self.cache[command] = {
             _RESPONSE: response,
             _KEYS: keys_in_command,
@@ -339,15 +343,18 @@ class _LocalCache(AbstractCache):
         if self._is_expired(self.commands_ttl_list[0]):
             self.delete_command(self.commands_ttl_list[0])
         elif self.eviction_policy == EvictionPolicy.LRU:
-            self.cache.popitem(last=False)
+            # delete_command also retires the bookkeeping entries
+            # (commands_ttl_list, key_commands_map); popping from the cache
+            # directly leaves them behind and desyncs the structures.
+            self.delete_command(next(iter(self.cache)))
         elif self.eviction_policy == EvictionPolicy.LFU:
             min_access_command = min(
                 self.cache, key=lambda k: self.cache[k].get("access_count", 0)
             )
-            self.cache.pop(min_access_command)
+            self.delete_command(min_access_command)
         elif self.eviction_policy == EvictionPolicy.RANDOM:
             random_command = random.choice(list(self.cache.keys()))
-            self.cache.pop(random_command)
+            self.delete_command(random_command)
 
     def _update_key_commands_map(
         self, keys: List[KeyT], command: Union[str, Sequence[str]]
