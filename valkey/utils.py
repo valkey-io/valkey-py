@@ -82,8 +82,11 @@ def pipeline(
     valkey_obj: "Valkey | ValkeyCluster | AsyncValkey | AsyncValkeyCluster",
 ) -> "Iterator[Pipeline | ClusterPipeline | AsyncPipeline | AsyncClusterPipeline]":
     p = valkey_obj.pipeline()
-    yield p
-    p.execute()
+    try:
+        yield p
+        p.execute()
+    finally:
+        p.reset()
 
 
 T = TypeVar("T")
