@@ -807,3 +807,22 @@ class TestHealthCheck:
             assert wait_for_message(p) is None
             m.assert_called_with("PING", p.HEALTH_CHECK_MESSAGE, check_health=False)
             self.assert_interval_advanced(p.connection)
+
+
+class TestCaseInsensitiveDictPop:
+    def test_pop_is_case_insensitive(self):
+        from valkey.client import CaseInsensitiveDict
+
+        d = CaseInsensitiveDict({"SET": 1})
+        assert "set" in d
+        # used to raise KeyError even though the key exists
+        assert d.pop("set") == 1
+        assert "SET" not in d
+
+    def test_pop_default_is_case_insensitive(self):
+        from valkey.client import CaseInsensitiveDict
+
+        d = CaseInsensitiveDict({"SET": 1})
+        # used to silently return the default even though the key exists
+        assert d.pop("SeT", None) == 1
+        assert d.pop("missing", "sentinel") == "sentinel"
