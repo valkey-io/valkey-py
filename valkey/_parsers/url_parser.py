@@ -88,10 +88,19 @@ def parse_url(url: str, async_connection: bool):
         # If there's a path argument, use it as the db argument if a
         # querystring value wasn't specified
         if parsed.path and "db" not in kwargs:
-            try:
-                kwargs["db"] = int(unquote(parsed.path).replace("/", ""))
-            except (AttributeError, ValueError):
-                pass
+            db_path = unquote(parsed.path).replace("/", "")
+            if db_path:
+                try:
+                    kwargs["db"] = int(db_path)
+                except ValueError:
+                    raise ValueError(
+                        f"invalid database in Valkey URL path: {parsed.path!r}"
+                    ) from None
+                if kwargs["db"] < 0:
+                    raise ValueError(
+                        f"database in Valkey URL path must be non-negative, "
+                        f"got {kwargs['db']}"
+                    )
 
         if parsed.scheme in ("valkeys", "rediss"):
             kwargs["connection_class"] = (

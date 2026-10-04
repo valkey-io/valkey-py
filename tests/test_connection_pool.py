@@ -807,3 +807,27 @@ class TestHealthCheck:
             assert wait_for_message(p) is None
             m.assert_called_with("PING", p.HEALTH_CHECK_MESSAGE, check_health=False)
             self.assert_interval_advanced(p.connection)
+
+
+@pytest.mark.parametrize("url", ["valkey://h:6379/abc", "valkey://h:6379/0/extra"])
+def test_from_url_invalid_db_path_raises(url):
+    # a non-integer path was silently ignored and the client silently
+    # connected to db 0
+    with pytest.raises(ValueError, match="invalid database"):
+        valkey.Valkey.from_url(url)
+
+
+def test_from_url_negative_db_raises():
+    with pytest.raises(ValueError, match="non-negative"):
+        valkey.Valkey.from_url("valkey://h:6379/-1")
+
+
+@pytest.mark.parametrize("url", ["valkey://h:6379", "valkey://h:6379/"])
+def test_from_url_without_db_still_defaults_to_zero(url):
+    client = valkey.Valkey.from_url(url)
+    assert client.connection_pool.connection_kwargs.get("db", 0) == 0
+
+
+def test_from_url_valid_db():
+    client = valkey.Valkey.from_url("valkey://h:6379/5")
+    assert client.connection_pool.connection_kwargs["db"] == 5
