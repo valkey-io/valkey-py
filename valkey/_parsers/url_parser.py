@@ -21,7 +21,7 @@ def to_bool(value) -> Optional[bool]:
     return bool(value)
 
 
-FALSE_STRINGS = ("0", "F", "FALSE", "N", "NO")
+FALSE_STRINGS = ("0", "F", "FALSE", "N", "NO", "OFF", "DISABLED")
 
 URL_QUERY_ARGUMENT_PARSERS: Mapping[str, Callable[..., object]] = MappingProxyType(
     {
