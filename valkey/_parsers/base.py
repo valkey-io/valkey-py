@@ -46,6 +46,21 @@ NO_AUTH_SET_ERROR = {
 }
 
 
+class _class_or_instance_method:
+    """Binds to the instance when called on one, otherwise to the class.
+
+    Connections that switch to RESP3 copy the cluster EXCEPTION_CLASSES onto the
+    new parser instance, so parse_error must read the instance attribute.
+    """
+
+    def __init__(self, func):
+        self.__func__ = func
+        self.__doc__ = func.__doc__
+
+    def __get__(self, instance, owner=None):
+        return self.__func__.__get__(owner if instance is None else instance)
+
+
 class BaseParser(ABC):
     EXCEPTION_CLASSES = {
         "ERR": {
@@ -76,13 +91,14 @@ class BaseParser(ABC):
         "NOPERM": NoPermissionError,
     }
 
-    @classmethod
-    def parse_error(cls, response):
+    @_class_or_instance_method
+    def parse_error(self_or_cls, response):
         "Parse an error response"
+        exception_classes = self_or_cls.EXCEPTION_CLASSES
         error_code = response.split(" ")[0]
-        if error_code in cls.EXCEPTION_CLASSES:
+        if error_code in exception_classes:
             response = response[len(error_code) + 1 :]
-            exception_class = cls.EXCEPTION_CLASSES[error_code]
+            exception_class = exception_classes[error_code]
             if isinstance(exception_class, dict):
                 exception_class = exception_class.get(response, ResponseError)
             return exception_class(response)
