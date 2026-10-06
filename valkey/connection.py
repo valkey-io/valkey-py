@@ -1072,7 +1072,9 @@ class ConnectionPool:
         )
 
     def reset(self) -> None:
-        self._lock = threading.Lock()
+        # Connection allocation can trigger garbage collection and a PubSub
+        # finalizer that releases a connection back into this same pool.
+        self._lock = threading.RLock()
         self._created_connections = 0
         self._available_connections: list[Connection] = []
         self._in_use_connections: set[Connection] = set()

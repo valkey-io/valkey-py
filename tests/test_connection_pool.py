@@ -1,5 +1,8 @@
 import os
 import re
+import subprocess
+import sys
+import textwrap
 import time
 from contextlib import closing
 from threading import Thread
@@ -29,6 +32,51 @@ class DummyConnection:
 
 
 class TestConnectionPool:
+    def test_pubsub_finalizer_during_connection_allocation(self):
+        # Run in a subprocess so a lock regression cannot hang the test runner.
+        script = textwrap.dedent("""
+            import gc
+            import valkey
+            from valkey.client import PubSub
+
+            class CollectingConnection(valkey.Connection):
+                collect = False
+
+                def __init__(self, **kwargs):
+                    if self.collect:
+                        gc.collect()
+                    super().__init__(**kwargs)
+
+                def connect(self):
+                    pass
+
+                def can_read(self):
+                    return False
+
+            gc.disable()
+            pool = valkey.ConnectionPool(connection_class=CollectingConnection)
+            pubsub = PubSub(pool)
+            connection = pool.get_connection('SUBSCRIBE')
+            pubsub.connection = connection
+            # A handler can retain its owning PubSub until cyclic GC runs.
+            pubsub.channels['channel'] = lambda message, owner=pubsub: None
+            del pubsub
+            pool.reset()
+            CollectingConnection.collect = True
+            new_connection = pool.get_connection('SUBSCRIBE')
+            assert connection in pool._available_connections
+            assert new_connection in pool._in_use_connections
+            pool.release(new_connection)
+            assert not pool._in_use_connections
+            """)
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+
     def get_pool(
         self,
         connection_kwargs=None,
