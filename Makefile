@@ -46,6 +46,10 @@ devenv: clean
 stop-devenv:
 	docker compose --profile all down
 
+update-devenv:
+	docker compose --profile all pull --ignore-buildable
+	docker compose --profile all build --pull
+
 build-docs docs: .check-virtualenv
 	pip install --group docs
 	make -C docs html
