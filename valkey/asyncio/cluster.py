@@ -832,9 +832,11 @@ class ValkeyCluster(AbstractValkey, AbstractValkeyCluster, AsyncValkeyClusterCom
             except (ConnectionError, TimeoutError):
                 # Connection retries are being handled in the node's
                 # Retry object.
-                # Remove the failed node from the startup nodes before we try
-                # to reinitialize the cluster
-                self.nodes_manager.startup_nodes.pop(target_node.name, None)
+                # Move the failed node to the end of the cached nodes so
+                # it is tried last when we reinitialize the cluster. It is
+                # never removed, so startup_nodes cannot drain to empty
+                # when every node is briefly unreachable.
+                self.nodes_manager.move_node_to_end_of_cached_nodes(target_node.name)
                 # Hard force of reinitialize of the node/slots setup
                 # and try again with the new setup
                 await self._reset_for_reinitialize()
@@ -1231,6 +1233,22 @@ class NodesManager:
                     continue
                 self._pending_node_disconnects[name] = old[name]
             old[name] = node
+
+    def move_node_to_end_of_cached_nodes(self, node_name: str) -> None:
+        """
+        Move a failing node to the end of startup_nodes and nodes_cache so
+        it is tried last during reinitialization and when selecting the
+        default node. If the node is not in the respective cache, nothing
+        is done. The last node in each cache is never removed, so the
+        client always keeps a seed to rediscover the cluster with.
+        """
+        if node_name in self.startup_nodes and len(self.startup_nodes) > 1:
+            node = self.startup_nodes.pop(node_name)
+            self.startup_nodes[node_name] = node
+
+        if node_name in self.nodes_cache and len(self.nodes_cache) > 1:
+            node = self.nodes_cache.pop(node_name)
+            self.nodes_cache[node_name] = node
 
     async def _close_pending_node_disconnects(self) -> None:
         if not self._pending_node_disconnects:
