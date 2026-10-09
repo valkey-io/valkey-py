@@ -200,7 +200,7 @@ def skip_ifmodversion_lt(min_version: str, module_name: str):
             check = version < mv
             return pytest.mark.skipif(check, reason="Valkey module version")
 
-    raise AttributeError(f"No valkey module named {module_name}")
+    return pytest.mark.skipif(True, reason=f"No valkey module named {module_name}")
 
 
 def skip_if_nocryptography() -> _TestDecorator:
@@ -436,6 +436,19 @@ def wait_for_command(client, monitor, command, key=None):
             return monitor_response
         if key in monitor_response["command"]:
             return None
+
+
+def wait_for_condition(
+    predicate: Callable[[], object], timeout: float = 10, interval: float = 0.1
+) -> None:
+    """Poll ``predicate`` until it returns a truthy value or ``timeout`` seconds
+    elapse. Raises AssertionError on timeout."""
+    deadline = time.monotonic() + timeout
+    while True:
+        if predicate():
+            return
+        assert time.monotonic() < deadline, "timed out waiting for condition"
+        time.sleep(interval)
 
 
 def is_resp2_connection(r):

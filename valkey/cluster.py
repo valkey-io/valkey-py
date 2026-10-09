@@ -1466,7 +1466,7 @@ class NodesManager:
         """
         return [
             node
-            for node in self.nodes_cache.values()
+            for node in list(self.nodes_cache.values())
             if node.server_type == server_type
         ]
 
@@ -1538,7 +1538,10 @@ class NodesManager:
         fully_covered = False
         kwargs = self.connection_kwargs
         exception = None
-        for startup_node in self.startup_nodes.values():
+        # Iterate over a snapshot: another thread handling a MOVED redirect or a
+        # node failure may insert into or pop from this dict while we are here,
+        # and with dynamic_startup_nodes it is the same object as nodes_cache.
+        for startup_node in list(self.startup_nodes.values()):
             try:
                 if startup_node.valkey_connection:
                     r = startup_node.valkey_connection
@@ -1547,7 +1550,7 @@ class NodesManager:
                     r = self.create_valkey_node(
                         startup_node.host, startup_node.port, **kwargs
                     )
-                    self.startup_nodes[startup_node.name].valkey_connection = r
+                    startup_node.valkey_connection = r
                 # Make sure cluster mode is enabled on this node
                 try:
                     cluster_slots = str_if_bytes(r.execute_command("CLUSTER SLOTS"))
@@ -1660,7 +1663,7 @@ class NodesManager:
 
     def close(self):
         self.default_node = None
-        for node in self.nodes_cache.values():
+        for node in list(self.nodes_cache.values()):
             if node.valkey_connection:
                 node.valkey_connection.close()
 
@@ -1682,15 +1685,15 @@ class NodesManager:
         return host, port
 
     def flush_cache(self):
-        for node in self.nodes_cache.values():
+        for node in list(self.nodes_cache.values()):
             node.flush_cache()
 
     def delete_command_from_cache(self, command):
-        for node in self.nodes_cache.values():
+        for node in list(self.nodes_cache.values()):
             node.delete_command_from_cache(command)
 
     def invalidate_key_from_cache(self, key):
-        for node in self.nodes_cache.values():
+        for node in list(self.nodes_cache.values()):
             node.invalidate_key_from_cache(key)
 
 
@@ -1700,7 +1703,7 @@ class ClusterPubSub(PubSub):
 
     IMPORTANT: before using ClusterPubSub, read about the known limitations
     with pubsub in Cluster mode and learn how to workaround them:
-    https://valkey-py-cluster.readthedocs.io/en/stable/pubsub.html
+    https://valkey-py.readthedocs.io/en/latest/clustering.html#known-pubsub-limitations
     """
 
     def __init__(

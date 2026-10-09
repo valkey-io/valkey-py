@@ -132,6 +132,24 @@ class TestCredentialsProvider:
 
         assert await r2.ping() is True
 
+    @pytest.mark.onlynoncluster
+    async def test_resp3_auth_with_health_check(
+        self, r_required_pass_teardown, create_valkey
+    ):
+        password = "password"
+        r = r_required_pass_teardown(password)
+        await init_required_pass(r, password)
+        assert await r.auth(password) is True
+
+        r2 = await create_valkey(
+            flushdb=False,
+            password=password,
+            protocol=3,
+            health_check_interval=10,
+        )
+
+        assert await r2.ping() is True
+
     async def test_user_and_pass_without_creds_provider(
         self, r_acl_teardown, create_valkey
     ):

@@ -591,9 +591,9 @@ class Valkey(
         Closes Valkey client connection
 
         :param close_connection_pool: decides whether to close the connection pool used
-        by this Valkey client, overriding Valkey.auto_close_connection_pool. By default,
-        let Valkey.auto_close_connection_pool decide whether to close the connection
-        pool.
+            by this Valkey client, overriding Valkey.auto_close_connection_pool.
+            By default, let Valkey.auto_close_connection_pool decide
+            whether to close the connection pool.
         """
         conn = self.connection
         if conn:

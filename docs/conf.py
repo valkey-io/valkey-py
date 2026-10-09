@@ -31,10 +31,21 @@ extensions = [
     "nbsphinx",
     "sphinx_gallery.load_style",
     "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.napoleon",
 ]
+
+# Allow cross-linking of types from the Valkey docs to the Python docs.
+# For example, functions with type annotations for `datetime.datetime`
+# will link to the Python docs.
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+}
+
+# Reflow parameters if they exceed a certain line length.
+maximum_signature_line_length = 88
 
 # Napoleon settings. We only accept Google-style docstrings.
 napoleon_google_docstring = True
@@ -55,7 +66,7 @@ typehints_defaults = "comma"
 templates_path = ["_templates"]
 
 # The suffix of source filenames.
-source_suffix = ".rst"
+source_suffix = {'.rst': 'restructuredtext'}
 
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'
@@ -157,7 +168,7 @@ html_theme_options = {
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "_static/valkey-cube-red-white-rgb.svg"
+html_logo = "_static/Valkey-logo.svg"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32

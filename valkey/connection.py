@@ -381,7 +381,11 @@ class AbstractConnection:
                 self._parser.on_connect(self)
             if len(auth_args) == 1:
                 auth_args = ("default", auth_args[0])
-            self.send_command("HELLO", self.protocol, "AUTH", *auth_args)
+            # avoid checking health here -- PING will fail if we try
+            # to check the health prior to the AUTH
+            self.send_command(
+                "HELLO", self.protocol, "AUTH", *auth_args, check_health=False
+            )
             response = self.read_response()
             # if response.get(b"proto") != self.protocol and response.get(
             #     "proto"
@@ -901,11 +905,20 @@ class SSLConnection(Connection):
             )
 
             #  need another socket
-            con = OpenSSL.SSL.Connection(staple_ctx, socket.socket())
-            con.request_ocsp()
-            con.connect((self.host, self.port))
-            con.do_handshake()
-            con.shutdown()
+            ocsp_socket = socket.socket()
+            try:
+                con = OpenSSL.SSL.Connection(staple_ctx, ocsp_socket)
+                con.request_ocsp()
+                con.connect((self.host, self.port))
+                con.do_handshake()
+                con.shutdown()
+            except Exception:
+                # sslsock must be closed to prevent a ResourceWarning.
+                sslsock.close()
+                raise
+            finally:
+                # Always close the OCSP socket to prevent a ResourceWarning.
+                ocsp_socket.close()
             return sslsock
 
         # pure ocsp validation
@@ -913,10 +926,15 @@ class SSLConnection(Connection):
             from .ocsp import OCSPVerifier
 
             o = OCSPVerifier(sslsock, self.host, self.port, self.ca_certs)
-            if o.is_valid():
-                return sslsock
-            else:
-                raise ConnectionError("ocsp validation error")
+            try:
+                # `o.is_valid()` may raise an exception, in addition to returning False.
+                if not o.is_valid():
+                    raise ConnectionError("ocsp validation error")
+            except Exception:
+                # sslsock must be closed to prevent a ResourceWarning.
+                sslsock.close()
+                raise
+
         return sslsock
 
 

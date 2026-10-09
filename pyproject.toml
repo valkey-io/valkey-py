@@ -57,10 +57,10 @@ dev = [
     'vulture>=2.3.0',
 ]
 docs = [
-    'sphinx>=5.0,<7.0',
-    'docutils<0.18',
+    'sphinx >=8.0,<8.2',
+    'docutils',
     'nbsphinx',
-    'sphinx_gallery',
+    'sphinx-gallery',
     'ipython',
     'sphinx-autodoc-typehints',
     'furo',
@@ -69,7 +69,11 @@ docs = [
 
 [project.optional-dependencies]
 libvalkey = ["libvalkey>=4.0.1"]
-ocsp = ["cryptography>=36.0.1", "pyopenssl==23.2.1", "requests>=2.31.0"]
+ocsp = [
+    "cryptography>=36.0.1",
+    "pyopenssl>=23.2.0",
+    "requests>=2.31.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/valkey-io/valkey-py"

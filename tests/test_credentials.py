@@ -108,6 +108,23 @@ class TestCredentialsProvider:
 
         assert r2.ping() is True
 
+    @pytest.mark.onlynoncluster
+    def test_resp3_auth_with_health_check(self, r, request):
+        password = "password"
+        init_required_pass(r, request, password)
+        assert r.auth(password) is True
+
+        r2 = _get_client(
+            valkey.Valkey,
+            request,
+            flushdb=False,
+            password=password,
+            protocol=3,
+            health_check_interval=10,
+        )
+
+        assert r2.ping() is True
+
     def test_user_and_pass_without_creds_provider(self, r, request):
         """
         Test backward compatibility with username and password

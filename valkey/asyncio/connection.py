@@ -328,7 +328,7 @@ class AbstractConnection:
                 # Use the passed function valkey_connect_func
                 (
                     await self.valkey_connect_func(self)
-                    if asyncio.iscoroutinefunction(self.valkey_connect_func)
+                    if inspect.iscoroutinefunction(self.valkey_connect_func)
                     else self.valkey_connect_func(self)
                 )
         except ValkeyError:
@@ -380,7 +380,11 @@ class AbstractConnection:
                 self._parser.on_connect(self)
             if len(auth_args) == 1:
                 auth_args = ["default", auth_args[0]]
-            await self.send_command("HELLO", self.protocol, "AUTH", *auth_args)
+            # avoid checking health here -- PING will fail if we try
+            # to check the health prior to the AUTH
+            await self.send_command(
+                "HELLO", self.protocol, "AUTH", *auth_args, check_health=False
+            )
             response = await self.read_response()
             if response.get(b"proto") != int(self.protocol) and response.get(
                 "proto"
