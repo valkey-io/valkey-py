@@ -1,2 +1,16 @@
 [run]
-source = valkey
+source =
+    valkey
+    tests
+
+relative_files = true
+parallel = true
+branch = true
+
+[paths]
+source =
+    valkey
+    */site-packages
+
+[report]
+skip_covered = true

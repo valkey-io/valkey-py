@@ -1,5 +1,6 @@
 import argparse
 import math
+import os
 import time
 from collections.abc import Callable
 from typing import TypeVar
@@ -17,8 +18,8 @@ from valkey.exceptions import ValkeyClusterException
 from valkey.retry import Retry
 
 VALKEY_INFO = {}
-default_valkey_url = "valkey://localhost:6379/0"
-default_protocol = "2"
+default_valkey_url = os.getenv("TARGET_VALKEY_URL", "valkey://localhost:6379/0")
+default_protocol = os.getenv("TARGET_RESP_PROTOCOL", "2")
 default_valkeymod_url = "valkey://localhost:6379"
 
 # default ssl client ignores verification for the purpose of testing
