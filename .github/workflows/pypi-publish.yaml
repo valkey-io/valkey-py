@@ -20,11 +20,10 @@ jobs:
       - name: install python
         uses: actions/setup-python@v7
         with:
-          python-version: 3.9
-      - name: Install dev tools
+          python-version: '3.13'
+      - name: Install publishing tools
         run: |
-          pip install --group dev
-          pip install twine
+          pip install hatchling twine
 
       - name: Build package
         run: |
