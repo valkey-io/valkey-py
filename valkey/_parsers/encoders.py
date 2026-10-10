@@ -1,4 +1,14 @@
+from __future__ import annotations
+
+import sys
+from typing import Any, Literal, overload
+
 from ..exceptions import DataError
+
+if sys.version_info >= (3, 11):
+    from typing import Never
+else:
+    from typing_extensions import Never
 
 
 class Encoder:
@@ -6,12 +16,33 @@ class Encoder:
 
     __slots__ = "encoding", "encoding_errors", "decode_responses"
 
-    def __init__(self, encoding, encoding_errors, decode_responses):
+    def __init__(
+        self,
+        encoding: str,
+        encoding_errors: (
+            Literal["ignore", "replace", "strict", "xmlcharrefreplace"] | str
+        ),
+        decode_responses: bool,
+    ) -> None:
         self.encoding = encoding
         self.encoding_errors = encoding_errors
         self.decode_responses = decode_responses
 
-    def encode(self, value):
+    @overload
+    def encode(self, value: memoryview[bytes]) -> memoryview[bytes]: ...
+
+    @overload
+    def encode(self, value: bool) -> Never: ...
+
+    @overload
+    def encode(self, value: bytes | int | float | str) -> bytes: ...
+
+    @overload
+    def encode(self, value: Any) -> Never: ...
+
+    def encode(
+        self, value: bytes | memoryview[bytes] | int | float | str
+    ) -> bytes | memoryview[bytes]:
         "Return a bytestring or bytes-like representation of the value"
         if isinstance(value, (bytes, memoryview)):
             return value
@@ -34,7 +65,25 @@ class Encoder:
             value = value.encode(self.encoding, self.encoding_errors)
         return value
 
-    def decode(self, value, force=False):
+    @overload
+    def decode(
+        self,
+        value: bytes | memoryview[bytes] | str,
+        force: Literal[True],
+    ) -> str: ...
+
+    @overload
+    def decode(
+        self,
+        value: bytes | memoryview[bytes] | str,
+        force: Literal[False],
+    ) -> bytes | memoryview[bytes] | str: ...
+
+    def decode(
+        self,
+        value: bytes | memoryview[bytes] | str,
+        force: bool = False,
+    ) -> Any:
         "Return a unicode string from the bytes-like representation"
         if self.decode_responses or force:
             if isinstance(value, memoryview):
