@@ -1,4 +1,4 @@
-from ._util import to_string
+from ._util import to_string, to_string_or_bytes
 from .document import Document
 
 
@@ -9,7 +9,8 @@ class Result:
     """
 
     def __init__(
-        self, res, hascontent, duration=0, has_payload=False, with_scores=False
+        self, res, hascontent, duration=0, has_payload=False, with_scores=False,
+        preserve_bytes=False, binary_fields=None
     ):
         """
         - **snippets**: An optional dictionary of the form
@@ -39,18 +40,19 @@ class Result:
 
             fields = {}
             if hascontent and res[i + fields_offset] is not None:
-                fields = (
-                    dict(
-                        dict(
-                            zip(
-                                map(to_string, res[i + fields_offset][::2]),
-                                map(to_string, res[i + fields_offset][1::2]),
-                            )
-                        )
+                field_names = list(map(to_string, res[i + fields_offset][::2]))
+                field_values = res[i + fields_offset][1::2]
+
+                # Process field values with binary preservation
+                processed_values = []
+                for field_name, field_value in zip(field_names, field_values):
+                    processed_value = to_string_or_bytes(
+                        field_value, preserve_bytes, binary_fields, field_name
                     )
-                    if hascontent
-                    else {}
-                )
+                    processed_values.append(processed_value)
+
+                fields = dict(zip(field_names, processed_values))
+
             try:
                 del fields["id"]
             except KeyError:
