@@ -312,7 +312,8 @@ class AbstractConnection:
             return
         try:
             await self.retry.call_with_retry(
-                lambda: self._connect(), lambda error: self.disconnect()
+                lambda: self._connect_with_handshake(),
+                lambda error: self.disconnect(),
             )
         except asyncio.CancelledError:
             raise  # in 3.7 and earlier, this is an Exception, not BaseException
@@ -323,6 +324,28 @@ class AbstractConnection:
         except Exception as exc:
             raise ConnectionError(exc) from exc
 
+        # run any user callbacks. right now the only internal callback
+        # is for pubsub channel/pattern resubscription
+        # first, remove any dead weakrefs
+        self._connect_callbacks = [ref for ref in self._connect_callbacks if ref()]
+        for ref in self._connect_callbacks:
+            callback = ref()
+            task = callback(self)
+            if task and inspect.isawaitable(task):
+                await task
+
+    async def _connect_with_handshake(self):
+        """
+        Establish the socket connection and perform the initial handshake
+        (authentication, protocol negotiation, etc.) as a single retryable unit.
+
+        By combining the socket connect and on_connect handshake into one
+        coroutine, the retry logic covers both steps.  Previously only the
+        socket connect was retried, so a ConnectionError raised inside
+        on_connect (e.g. during PubSub reconnection) would escape the retry
+        scope and crash the caller.
+        """
+        await self._connect()
         try:
             if not self.valkey_connect_func:
                 # Use the default on_connect function
@@ -335,19 +358,10 @@ class AbstractConnection:
                     else self.valkey_connect_func(self)
                 )
         except ValkeyError:
-            # clean up after any error in on_connect
+            # clean up after any error in on_connect so that the next
+            # retry attempt starts from a clean state
             await self.disconnect()
             raise
-
-        # run any user callbacks. right now the only internal callback
-        # is for pubsub channel/pattern resubscription
-        # first, remove any dead weakrefs
-        self._connect_callbacks = [ref for ref in self._connect_callbacks if ref()]
-        for ref in self._connect_callbacks:
-            callback = ref()
-            task = callback(self)
-            if task and inspect.isawaitable(task):
-                await task
 
     @abstractmethod
     async def _connect(self):
