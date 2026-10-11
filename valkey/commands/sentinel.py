@@ -61,7 +61,7 @@ class SentinelCommands:
         configuration will be published so that the other Sentinels will
         update their configurations).
         """
-        return self.execute_command("SENTINEL FAILOVER", new_master_name)
+        return self.execute_command("SENTINEL FAILOVER", new_master_name, once=True)
 
     def sentinel_ckquorum(self, new_master_name):
         """

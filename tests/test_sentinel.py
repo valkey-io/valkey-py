@@ -266,3 +266,18 @@ def test_auto_close_pool(cluster, sentinel, method_name):
 
     assert calls == 1
     pool.disconnect()
+
+
+@pytest.mark.onlynoncluster
+@pytest.mark.parametrize(
+    "primary_name, expected",
+    [
+        ("myprimary", ("SENTINEL FAILOVER", "myprimary")),
+    ],
+)
+def test_failover(cluster, sentinel, primary_name, expected):
+    with mock.patch.object(
+        SentinelTestClient, "execute_command", autospec=True, return_value=True
+    ) as execute_command:
+        assert sentinel.sentinel_failover(primary_name)
+    execute_command.assert_called_once_with(mock.ANY, *expected)
