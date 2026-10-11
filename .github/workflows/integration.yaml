@@ -120,6 +120,7 @@ jobs:
           - '3.14'
           - '3.15'
           - 'pypy-3.11'
+          - 'pypy-3.12'
          test-type: ['standalone', 'cluster']
          connection-type: ['libvalkey', 'plain']
          protocol-version: ['2','3']
@@ -213,6 +214,7 @@ jobs:
           - '3.14'
           - '3.15'
           - 'pypy-3.11'
+          - 'pypy-3.12'
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
