@@ -23,16 +23,16 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 dependencies = [
     'async-timeout>=4.0.3; python_full_version<"3.11.3"',
@@ -113,6 +113,7 @@ asyncio_mode = "auto"
 timeout = 30
 
 [tool.mypy]
+python_version = "3.11"
 packages = ["valkey"]
 sqlite_cache = true
 
