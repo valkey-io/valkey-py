@@ -23,6 +23,9 @@ concurrency:
 permissions:
   contents: read  #  to fetch code (actions/checkout)
 
+env:
+  UV_PYTHON_PREFERENCE: only-managed
+
 jobs:
 
    dependency-audit:
@@ -43,13 +46,17 @@ jobs:
      timeout-minutes: 5
      steps:
        - uses: actions/checkout@v7
-       - uses: actions/setup-python@v7
+       - uses: astral-sh/setup-uv@v10.3.0
          with:
-           python-version: 3.13
-           cache: 'pip'
+           version: '0.13.0'
+           python-version: '3.13'
+           activate-environment: true
+           no-project: true
+           enable-cache: true
+           cache-dependency-glob: pyproject.toml
        - name: run code linters
          run: |
-           pip install --group dev
+           uv pip install --group dev
            make linters
 
    get-date:
@@ -90,15 +97,19 @@ jobs:
      name: Test type annotations
      steps:
        - uses: actions/checkout@v7
-       - uses: actions/setup-python@v7
+       - uses: astral-sh/setup-uv@v10.3.0
          with:
+           version: '0.13.0'
            python-version: '3.15'
-           cache: 'pip'
+           activate-environment: true
+           no-project: true
+           enable-cache: true
+           cache-dependency-glob: pyproject.toml
 
        - name: Test type annotations
          run: |
-           pip install --group type-check
-           pip install .
+           uv pip install --group type-check
+           uv pip install .
            mypy
 
    run-tests:
@@ -119,8 +130,8 @@ jobs:
           - '3.13'
           - '3.14'
           - '3.15'
-          - 'pypy-3.11'
-          - 'pypy-3.12'
+          - 'pypy@3.11'
+          - 'pypy@3.12'
          test-type: ['standalone', 'cluster']
          connection-type: ['libvalkey', 'plain']
          protocol-version: ['2','3']
@@ -129,10 +140,14 @@ jobs:
      name: Python ${{ matrix.python-version }} RESP${{ matrix.protocol-version }} ${{matrix.test-type}}-${{matrix.connection-type}} tests
      steps:
        - uses: actions/checkout@v7
-       - uses: actions/setup-python@v7
+       - uses: astral-sh/setup-uv@v10.3.0
          with:
+           version: '0.13.0'
            python-version: ${{ matrix.python-version }}
-           cache: 'pip'
+           activate-environment: true
+           no-project: true
+           enable-cache: true
+           cache-dependency-glob: pyproject.toml
 
        - name: Cache docker images
          id: custom-cache
@@ -146,14 +161,14 @@ jobs:
 
        - name: run tests
          run: |
-           pip install --group dev
-           pip install .
+           uv pip install --group dev
+           uv pip install .
            if [ "${{matrix.connection-type}}" == "libvalkey" ]; then
-            pip install "libvalkey>=4.0.1"
+            uv pip install "libvalkey>=4.0.1"
            fi
            make devenv
            make ${{matrix.test-type}}-tests PROTOCOL=${{ matrix.protocol-version }}
-           if [[ "${{matrix.python-version}}" != pypy-* ]]; then
+           if [[ "${{matrix.python-version}}" != pypy@* ]]; then
             make ${{matrix.test-type}}-tests USE_UVLOOP=1 PROTOCOL=${{ matrix.protocol-version }}
            fi
 
@@ -181,9 +196,14 @@ jobs:
         extension: ['tar.gz', 'whl']
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: astral-sh/setup-uv@v10.3.0
         with:
-          python-version: 3.13
+          version: '0.13.0'
+          python-version: '3.13'
+          activate-environment: true
+          no-project: true
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
 
       - name: Cache docker images
         id: custom-cache
@@ -213,16 +233,17 @@ jobs:
           - '3.13'
           - '3.14'
           - '3.15'
-          - 'pypy-3.11'
-          - 'pypy-3.12'
+          - 'pypy@3.11'
+          - 'pypy@3.12'
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: astral-sh/setup-uv@v10.3.0
         with:
+          version: '0.13.0'
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-      - name: install from pip
-        env:
-          PIP_DISABLE_PIP_VERSION_CHECK: "1"
+          activate-environment: true
+          no-project: true
+          enable-cache: true
+          ignore-empty-workdir: true
+      - name: Install from commit
         run: |
-          pip install --quiet git+${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git@${GITHUB_SHA}
+          uv pip install --quiet git+${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git@${GITHUB_SHA}

@@ -19,6 +19,9 @@ concurrency:
 permissions:
   contents: read  #  to fetch code (actions/checkout)
 
+env:
+  UV_PYTHON_PREFERENCE: only-managed
+
 jobs:
 
    build-docs:
@@ -27,21 +30,25 @@ jobs:
      timeout-minutes: 5
      steps:
        - uses: actions/checkout@v7
-       - uses: actions/setup-python@v7
+       - uses: astral-sh/setup-uv@v10.3.0
          with:
+           version: '0.13.0'
            # Set the python version to 3.12 to keep imghdr for sphinx.
            # TODO: update sphinx to remove imghdr dependency
-           python-version: 3.12
-           cache: 'pip'
+           python-version: '3.12'
+           activate-environment: true
+           no-project: true
+           enable-cache: true
+           cache-dependency-glob: pyproject.toml
        - name: install deps
          run: |
            sudo apt-get update -yqq
            sudo apt-get install -yqq pandoc make
-       - name: run code linters
+       - name: Build docs
          run: |
-           pip install --group dev --group docs
-           pip install .
-           make build-docs
+           uv pip install --group dev --group docs
+           uv pip install .
+           make -C docs html
 
        - name: upload docs
          uses: actions/upload-artifact@v7
