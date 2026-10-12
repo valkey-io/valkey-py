@@ -17,10 +17,9 @@ DESTENV=${ROOT}/.venvforinstall
 if [ -d ${DESTENV} ]; then
     rm -rf ${DESTENV}
 fi
-python -m venv ${DESTENV}
+uv venv --python "$(command -v python)" ${DESTENV}
 source ${DESTENV}/bin/activate
-pip install --upgrade --quiet pip
-pip install --quiet --group dev
+uv pip install --quiet --group dev
 make devenv
 make package
 
@@ -37,7 +36,7 @@ cp -R ${ROOT}/tests ${TESTDIR}/tests
 cd ${TESTDIR}
 
 # install, run tests
-pip install ${PKG}
+uv pip install ${PKG}
 # Valkey tests
 pytest -m 'not onlycluster'
 # ValkeyCluster tests
