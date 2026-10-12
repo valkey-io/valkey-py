@@ -23,6 +23,7 @@ JSONCommands
 Jaeger
 Ludovico
 Magnocavallo
+Makefile
 McCurdy
 Mesoraca
 NOSCRIPT
@@ -80,8 +81,10 @@ booleans
 bysource
 charset
 configs
+conftest
 del
 dev
+devenv
 docstring
 docstrings
 eg
@@ -100,6 +103,7 @@ idx
 iff
 ini
 io
+isort
 json
 keyslot
 keyspace
@@ -114,13 +118,17 @@ mesoraca
 mget
 microservice
 microservices
+mixins
 mset
 multikey
 mykey
+mypy
+namespaces
 nonatomic
 observability
 opentelemetry
 oss
+parsers
 performant
 placeholderkv
 pmessage
@@ -132,6 +140,7 @@ punsubscribe
 py
 pypi
 pyproject
+pytest
 quickstart
 readonly
 readwrite
@@ -160,6 +169,7 @@ txt
 un
 unicode
 url
+uvloop
 valkey
 valkeymodules
 virtualenv

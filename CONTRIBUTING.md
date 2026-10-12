@@ -89,14 +89,15 @@ Here's how to get started with your code contribution:
 1.  Create your own fork of valkey-py
 2.  Do the changes in your fork
 3.
-    *Create a virtualenv and install the development dependencies from the dev group:*
+    *Use Python 3.11 or newer and pip 25.1 or newer. Create a virtualenv and install the development dependencies and project:*
 
         a.  python -m venv .venv
         b.  source .venv/bin/activate
         c.  pip install --group dev
+        d.  pip install -e .
 
-4.  If you need a development environment, run `make devenv`. Note: this relies on docker compose to build environments, and assumes that you have a version supporting [docker profiles](https://docs.docker.com/compose/profiles/).
-5.  While developing, make sure the tests pass by running `make tests`
+4.  If you need a development environment, run `make devenv`. This requires Docker and Docker Compose v2.20.2 or newer.
+5.  Run checks appropriate to your change; see [Testing](#testing).
 6.  If you like the change and think the project could use it, send a
     pull request
 
@@ -124,16 +125,31 @@ configuration](https://redis.io/topics/sentinel).
 
 ## Testing
 
-Call `make tests` to run all tests, or `make all-tests` to run linters
-tests as well. With the 'tests' and 'all-tests' targets, all Valkey and
-ValkeyCluster tests will be run.
+### Synchronous and asynchronous parity
+
+When adding commands or changing behavior that applies to both synchronous and
+asynchronous clients, update both implementations where needed. Check shared
+command mixins in `valkey/commands/` and corresponding implementations in
+`valkey/` and `valkey/asyncio/`, including async-specific overrides.
+
+Add or update tests in both `tests/` and `tests/test_asyncio/`, even when the
+implementation change is entirely in shared code. Bug fixes should cover the
+same failure case in both suites. Preserve intentional sync/async differences;
+if a change or test applies to only one client, explain why in the pull request.
+
+### Running tests
+
+`make tests` runs standalone and cluster tests. `make all-tests` adds linters,
+so there is no need to run both. Use individual targets for scoped verification;
+documentation-only changes do not require Python tests.
 
 It is possible to run only Valkey client tests (with cluster mode disabled) by
 using `make standalone-tests`; similarly, ValkeyCluster tests can be run by using
 `make cluster-tests`.
 
-Each run of tests starts and stops the various dockers required. Sometimes
-things get stuck, an `make clean` can help.
+Test targets require running services; they do not start or stop containers.
+Use `make devenv` to start the Docker Compose development environment. It first
+runs `make clean`, which removes build artifacts and stops/removes the containers.
 
 ## Documentation
 
@@ -155,26 +171,16 @@ development environment.
 
 To get a bash shell inside of a container:
 
-`$ docker run -it <service> /bin/bash`
+`$ docker compose exec <service> /bin/bash`
 
-Containers run a minimal Debian image that probably lacks tools you want
-to use. To install packages, first get a bash session (see previous tip)
-and then run:
+Containers may lack tools you want to use. For images using apt, get a bash
+session (see previous tip) and then run:
 
 `$ apt update && apt install <package>`
 
-You can see the logging output of a containers like this:
+You can see the logging output of a service like this:
 
-`$ docker logs -f <service>`
-
-### Troubleshooting
-
-If you get any errors when running `make dev` or `make test`, make sure
-that you are using supported versions of Docker.
-
-Please try at least versions of Docker.
-
--   Docker 19.03.12
+`$ docker compose logs -f <service>`
 
 ## How to Report a Bug
 
