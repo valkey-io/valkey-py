@@ -203,15 +203,19 @@ class _LocalCache(AbstractCache):
     Args:
         max_size (int): The maximum number of commands to be stored in the cache.
         ttl (int): The time-to-live for each command in seconds.
-        eviction_policy (EvictionPolicy): The eviction policy to use for removing commands when the cache is full.
+        eviction_policy (EvictionPolicy): The eviction policy to use for removing
+            commands when the cache is full.
 
     Attributes:
         max_size (int): The maximum number of commands to be stored in the cache.
         ttl (int): The time-to-live for each command in seconds.
         eviction_policy (EvictionPolicy): The eviction policy used for cache management.
-        cache (OrderedDict): The ordered dictionary to store commands and their metadata.
-        key_commands_map (defaultdict): A mapping of keys to the set of commands that use each key.
-        commands_ttl_list (list): A list to keep track of the commands in the order they were added.  # noqa
+        cache (OrderedDict): The ordered dictionary to store commands and their
+            metadata.
+        key_commands_map (defaultdict): A mapping of keys to the set of commands
+            that use each key.
+        commands_ttl_list (list): A list to keep track of the commands in the
+            order they were added.
     """
 
     def __init__(
@@ -260,7 +264,8 @@ class _LocalCache(AbstractCache):
             command (Union[str, Sequence[str]]): The valkey command.
 
         Returns:
-            ResponseT: The response associated with the command, or None if the command is not in the cache.  # noqa
+            ResponseT: The response associated with the command, or None if the
+                command is not in the cache.
         """
         if command not in self.cache:
             return None
@@ -281,7 +286,8 @@ class _LocalCache(AbstractCache):
         if command in self.cache:
             keys_in_command = self.cache[command].get("keys")
             self._del_key_commands_map(
-                keys_in_command, command  # type: ignore[arg-type]
+                keys_in_command,  # type: ignore[arg-type]
+                command,
             )
             self.commands_ttl_list.remove(command)
             del self.cache[command]

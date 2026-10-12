@@ -56,9 +56,8 @@ build-docs docs: .check-virtualenv
 
 linters: .check-virtualenv
 	docker compose --profile all build --check
-	flake8 tests valkey
-	black --target-version py37 --check --diff docs tests valkey
-	isort --check-only --diff tests valkey
+	ruff check tests valkey
+	ruff format --check --diff docs tests valkey
 	vulture valkey whitelist.py --min-confidence 80
 	flynt --fail-on-change --dry-run tests valkey
 

@@ -57,8 +57,12 @@ def strtobool(value: str) -> bool:
 class ResultSetColumnTypes:
     COLUMN_UNKNOWN = 0
     COLUMN_SCALAR = 1
-    COLUMN_NODE = 2  # Unused as of RedisGraph v2.1.0, retained for backwards compatibility. # noqa
-    COLUMN_RELATION = 3  # Unused as of RedisGraph v2.1.0, retained for backwards compatibility. # noqa
+    COLUMN_NODE = (
+        2  # Unused as of RedisGraph v2.1.0, retained for backwards compatibility. # noqa
+    )
+    COLUMN_RELATION = (
+        3  # Unused as of RedisGraph v2.1.0, retained for backwards compatibility. # noqa
+    )
 
 
 class ResultSetScalarTypes:

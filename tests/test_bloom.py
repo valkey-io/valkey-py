@@ -1,6 +1,7 @@
 from math import inf
 
 import pytest
+
 import valkey.commands.bf
 from valkey.exceptions import ValkeyError
 

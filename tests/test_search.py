@@ -5,6 +5,7 @@ import time
 from io import TextIOWrapper
 
 import pytest
+
 import valkey
 import valkey.commands.search
 import valkey.commands.search.aggregation as aggregations

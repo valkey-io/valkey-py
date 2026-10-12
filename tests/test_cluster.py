@@ -11,6 +11,7 @@ from time import sleep
 from unittest.mock import DEFAULT, Mock, call, patch
 
 import pytest
+
 import valkey
 from tests.test_pubsub import wait_for_message
 from valkey import Valkey

@@ -594,7 +594,7 @@ class ClusterManagementCommands(ManagementCommands):
                 "CLUSTER SETSLOT", slot_id, state, node_id, target_nodes=target_node
             )
         elif state.upper() == "STABLE":
-            raise ValkeyError('For "stable" state please use ' "cluster_setslot_stable")
+            raise ValkeyError('For "stable" state please use cluster_setslot_stable')
         else:
             raise ValkeyError(f"Invalid slot state: {state}")
 

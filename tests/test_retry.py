@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+
 from valkey.backoff import AbstractBackoff, ExponentialBackoff, NoBackoff
 from valkey.client import Valkey
 from valkey.connection import Connection, UnixDomainSocketConnection

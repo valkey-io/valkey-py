@@ -1,4 +1,5 @@
 import pytest
+
 import valkey
 from tests.conftest import skip_if_server_version_lt
 

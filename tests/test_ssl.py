@@ -3,6 +3,7 @@ import ssl
 from urllib.parse import urlparse
 
 import pytest
+
 import valkey
 from valkey.exceptions import ConnectionError, ValkeyError
 

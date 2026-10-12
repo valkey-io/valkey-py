@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+
 from tests.conftest import _get_client
 from valkey import Valkey
 from valkey.commands.graph import Edge, Node, Path
@@ -60,8 +61,7 @@ def test_graph_creation(client):
     graph.commit()
 
     query = (
-        'MATCH (p:person)-[v:visited {purpose:"pleasure"}]->(c:country) '
-        "RETURN p, v, c"
+        'MATCH (p:person)-[v:visited {purpose:"pleasure"}]->(c:country) RETURN p, v, c'
     )
 
     result = graph.query(query)

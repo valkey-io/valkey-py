@@ -14,8 +14,9 @@ from unittest import mock
 
 import pytest
 import pytest_asyncio
-import valkey.asyncio as valkey
 from packaging.version import Version
+
+import valkey.asyncio as valkey
 from tests.conftest import (
     assert_geo_is_close,
     assert_resp_response,

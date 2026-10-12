@@ -21,8 +21,10 @@ class Graph(GraphCommands):
         Create a new graph.
         """
         warnings.warn(
-            DeprecationWarning("RedisGraph support is deprecated as of Redis Stack 7.2 \
-                (https://redis.com/blog/redisgraph-eol/)")
+            DeprecationWarning(
+                "RedisGraph support is deprecated as of Redis Stack 7.2 \
+                (https://redis.com/blog/redisgraph-eol/)"
+            )
         )
         self.NAME = name  # Graph key
         self.client = client
@@ -54,7 +56,7 @@ class Graph(GraphCommands):
         lbls = self.labels()
 
         # Unpack data.
-        self._labels = [l[0] for _, l in enumerate(lbls)]
+        self._labels = [label[0] for _, label in enumerate(lbls)]
 
     def _refresh_relations(self):
         rels = self.relationship_types()
@@ -175,7 +177,7 @@ class AsyncGraph(Graph, AsyncGraphCommands):
         lbls = await self.labels()
 
         # Unpack data.
-        self._labels = [l[0] for _, l in enumerate(lbls)]
+        self._labels = [label[0] for _, label in enumerate(lbls)]
 
     async def _refresh_attributes(self):
         props = await self.property_keys()

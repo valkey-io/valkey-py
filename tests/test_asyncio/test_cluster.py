@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import pytest
 import pytest_asyncio
 from _pytest.fixtures import FixtureRequest
+
 from tests.conftest import (
     assert_resp_response,
     is_resp2_connection,

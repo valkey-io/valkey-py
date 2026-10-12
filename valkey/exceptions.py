@@ -55,7 +55,8 @@ class OutOfMemoryError(ResponseError):
       * Valkey maxmemory-policy=noeviction
       * Valkey maxmemory-policy=volatile* and there are no evictable keys
 
-    For more information see `Memory optimization in Valkey <https://redis.io/docs/management/optimization/memory-optimization/#memory-allocation>`_. # noqa
+    For more information see `Memory optimization in Valkey
+    <https://redis.io/docs/management/optimization/memory-optimization/#memory-allocation>`_.
     """
 
     pass

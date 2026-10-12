@@ -2,6 +2,7 @@ import time
 
 import pytest
 import pytest_asyncio
+
 from valkey._cache import EvictionPolicy, _LocalCache
 from valkey.utils import LIBVALKEY_AVAILABLE
 
@@ -371,7 +372,6 @@ class TestClusterLocalCache:
 @pytest.mark.skipif(LIBVALKEY_AVAILABLE, reason="PythonParser only")
 @pytest.mark.onlynoncluster
 class TestSentinelLocalCache:
-
     async def test_get_from_cache(self, local_cache, master):
         await master.set("foo", "bar")
         # get key from valkey and save in local cache

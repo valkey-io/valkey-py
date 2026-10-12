@@ -5,6 +5,7 @@ import socket
 import ssl
 
 import pytest
+
 from valkey.asyncio.connection import (
     Connection,
     SSLConnection,

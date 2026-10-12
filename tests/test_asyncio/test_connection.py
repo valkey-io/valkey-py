@@ -4,6 +4,7 @@ import types
 from unittest.mock import patch
 
 import pytest
+
 import valkey
 from tests.conftest import skip_if_server_version_lt
 from valkey._parsers import (

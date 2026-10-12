@@ -6,6 +6,7 @@ import ssl
 import threading
 
 import pytest
+
 from valkey.connection import Connection, SSLConnection, UnixDomainSocketConnection
 from valkey.exceptions import ConnectionError
 
