@@ -28,6 +28,10 @@ from .encoders import Encoder
 from .socket import SERVER_CLOSED_CONNECTION_ERROR, SocketBuffer
 
 MODULE_LOAD_ERROR = "Error loading the extension. Please check the server logs."
+MODULE_LOAD_ERROR_9_2 = (
+    "Error loading module: failed to open the module library. "
+    "Check the server logs for more info"
+)
 NO_SUCH_MODULE_ERROR = "Error unloading module: no such module with that name"
 MODULE_UNLOAD_NOT_POSSIBLE_ERROR = "Error unloading module: operation not possible."
 MODULE_EXPORTS_DATA_TYPES_ERROR = (
@@ -60,6 +64,7 @@ class BaseParser(ABC):
             "wrong number of arguments "
             "for 'AUTH' command": AuthenticationWrongNumberOfArgsError,
             MODULE_LOAD_ERROR: ModuleError,
+            MODULE_LOAD_ERROR_9_2: ModuleError,
             MODULE_EXPORTS_DATA_TYPES_ERROR: ModuleError,
             NO_SUCH_MODULE_ERROR: ModuleError,
             MODULE_UNLOAD_NOT_POSSIBLE_ERROR: ModuleError,
