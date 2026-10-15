@@ -54,14 +54,20 @@ class SentinelCommands:
         """
         return self.execute_command("SENTINEL RESET", pattern, once=True)
 
-    def sentinel_failover(self, new_master_name):
+    def sentinel_failover(self, new_master_name, coordinated: bool = False):
         """
         Force a failover as if the master was not reachable, and without
         asking for agreement to other Sentinels (however a new version of the
         configuration will be published so that the other Sentinels will
         update their configurations).
+
+        If coordinated is True (Valkey 9.0+), Sentinel performs coordinated failover
+        using ``SENTINEL FAILOVER <name> COORDINATED`` which avoids losing writes.
         """
-        return self.execute_command("SENTINEL FAILOVER", new_master_name, once=True)
+        pieces = [new_master_name]
+        if coordinated:
+            pieces.append("COORDINATED")
+        return self.execute_command("SENTINEL FAILOVER", *pieces, once=True)
 
     def sentinel_ckquorum(self, new_master_name):
         """

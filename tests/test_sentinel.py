@@ -270,14 +270,19 @@ def test_auto_close_pool(cluster, sentinel, method_name):
 
 @pytest.mark.onlynoncluster
 @pytest.mark.parametrize(
-    "primary_name, expected",
+    "primary_name, kwargs, expected",
     [
-        ("myprimary", ("SENTINEL FAILOVER", "myprimary")),
+        ("myprimary", {}, ("SENTINEL FAILOVER", "myprimary")),
+        (
+            "myprimary",
+            {"coordinated": True},
+            ("SENTINEL FAILOVER", "myprimary", "COORDINATED"),
+        ),
     ],
 )
-def test_failover(cluster, sentinel, primary_name, expected):
+def test_failover(cluster, sentinel, primary_name, kwargs, expected):
     with mock.patch.object(
         SentinelTestClient, "execute_command", autospec=True, return_value=True
     ) as execute_command:
-        assert sentinel.sentinel_failover(primary_name)
+        assert sentinel.sentinel_failover(primary_name, **kwargs)
     execute_command.assert_called_once_with(mock.ANY, *expected)
