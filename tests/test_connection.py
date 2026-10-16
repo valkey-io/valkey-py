@@ -9,6 +9,7 @@ from valkey import ConnectionPool, Valkey
 from valkey._parsers import _LibvalkeyParser, _RESP2Parser, _RESP3Parser
 from valkey.backoff import NoBackoff
 from valkey.connection import (
+    DEFAULT_RESP_VERSION,
     Connection,
     SSLConnection,
     UnixDomainSocketConnection,
@@ -56,6 +57,19 @@ def test_loading_external_modules(r):
 
 
 class TestConnection:
+    def test_protocol_invalid_value_raises_connection_error(self):
+        """An invalid protocol must surface the documented ConnectionError, not
+        an UnboundLocalError from the validation block after the except raised."""
+        with pytest.raises(ConnectionError):
+            Connection(protocol="abc")
+        with pytest.raises(ConnectionError):
+            Connection(protocol=4)
+
+    def test_protocol_is_normalized(self):
+        assert Connection().protocol == DEFAULT_RESP_VERSION
+        assert Connection(protocol=None).protocol == DEFAULT_RESP_VERSION
+        assert Connection(protocol="3").protocol == 3
+
     def test_disconnect(self):
         conn = Connection()
         mock_sock = mock.Mock()
