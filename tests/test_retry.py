@@ -1,7 +1,15 @@
 from unittest.mock import patch
 
 import pytest
-from valkey.backoff import AbstractBackoff, ExponentialBackoff, NoBackoff
+from valkey.backoff import (
+    AbstractBackoff,
+    ConstantBackoff,
+    DecorrelatedJitterBackoff,
+    EqualJitterBackoff,
+    ExponentialBackoff,
+    FullJitterBackoff,
+    NoBackoff,
+)
 from valkey.client import Valkey
 from valkey.connection import Connection, UnixDomainSocketConnection
 from valkey.exceptions import (
@@ -219,3 +227,30 @@ class TestValkeyClientRetry:
         assert exist_conn.retry._retries == new_retry_policy._retries
         new_conn = r.connection_pool.get_connection("_")
         assert new_conn.retry._retries == new_retry_policy._retries
+
+
+class TestBackoffValidation:
+    @pytest.mark.parametrize(
+        "backoff_cls,kwargs",
+        [
+            (ConstantBackoff, {"backoff": -0.5}),
+            (ExponentialBackoff, {"cap": -1.0}),
+            (ExponentialBackoff, {"base": -0.008}),
+            (FullJitterBackoff, {"cap": -1.0}),
+            (FullJitterBackoff, {"base": -1.0}),
+            (EqualJitterBackoff, {"cap": -1.0}),
+            (EqualJitterBackoff, {"base": -1.0}),
+            (DecorrelatedJitterBackoff, {"cap": -1.0}),
+            (DecorrelatedJitterBackoff, {"base": -1.0}),
+        ],
+    )
+    def test_negative_parameters_raise(self, backoff_cls, kwargs):
+        # negative values previously produced negative retry delays, which
+        # crash time.sleep() in sync mode and return immediately in asyncio
+        with pytest.raises(ValueError, match="non-negative"):
+            backoff_cls(**kwargs)
+
+    def test_zero_still_allowed(self):
+        # zero is a valid degenerate backoff (NoBackoff is ConstantBackoff(0))
+        assert ConstantBackoff(0).compute(3) == 0
+        assert ExponentialBackoff(cap=0, base=0).compute(3) == 0

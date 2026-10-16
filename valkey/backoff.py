@@ -29,6 +29,8 @@ class ConstantBackoff(AbstractBackoff):
 
     def __init__(self, backoff: float) -> None:
         """`backoff`: backoff time in seconds"""
+        if backoff < 0:
+            raise ValueError(f"backoff must be non-negative, got {backoff}")
         self._backoff = backoff
 
     def compute(self, failures: int) -> float:
@@ -50,6 +52,10 @@ class ExponentialBackoff(AbstractBackoff):
         `cap`: maximum backoff time in seconds
         `base`: base backoff time in seconds
         """
+        if cap < 0 or base < 0:
+            raise ValueError(
+                f"cap and base must be non-negative, got cap={cap}, base={base}"
+            )
         self._cap = cap
         self._base = base
 
@@ -65,6 +71,10 @@ class FullJitterBackoff(AbstractBackoff):
         `cap`: maximum backoff time in seconds
         `base`: base backoff time in seconds
         """
+        if cap < 0 or base < 0:
+            raise ValueError(
+                f"cap and base must be non-negative, got cap={cap}, base={base}"
+            )
         self._cap = cap
         self._base = base
 
@@ -80,6 +90,10 @@ class EqualJitterBackoff(AbstractBackoff):
         `cap`: maximum backoff time in seconds
         `base`: base backoff time in seconds
         """
+        if cap < 0 or base < 0:
+            raise ValueError(
+                f"cap and base must be non-negative, got cap={cap}, base={base}"
+            )
         self._cap = cap
         self._base = base
 
@@ -96,6 +110,10 @@ class DecorrelatedJitterBackoff(AbstractBackoff):
         `cap`: maximum backoff time in seconds
         `base`: base backoff time in seconds
         """
+        if cap < 0 or base < 0:
+            raise ValueError(
+                f"cap and base must be non-negative, got cap={cap}, base={base}"
+            )
         self._cap = cap
         self._base = base
         self._previous_backoff = 0.0
