@@ -107,6 +107,37 @@ class TestConnectionPool:
         expected = "path=/abc,db=1,client_name=test-client"
         assert expected in repr(pool)
 
+    def test_min_connections(self):
+        pool = valkey.ConnectionPool(
+            connection_class=DummyConnection,
+            min_connections=5,
+        )
+        assert pool.min_connections == 5
+        assert len(pool._available_connections) == 5
+        assert pool._created_connections == 5
+
+    def test_min_connections_default(self):
+        pool = valkey.ConnectionPool(
+            connection_class=DummyConnection,
+        )
+        assert pool.min_connections == 0
+        assert len(pool._available_connections) == 0
+
+    def test_min_connections_greater_than_max_raises(self):
+        with pytest.raises(ValueError):
+            valkey.ConnectionPool(
+                connection_class=DummyConnection,
+                min_connections=20,
+                max_connections=10,
+            )
+
+    def test_min_connections_negative_raises(self):
+        with pytest.raises(ValueError):
+            valkey.ConnectionPool(
+                connection_class=DummyConnection,
+                min_connections=-1,
+            )
+
 
 class TestBlockingConnectionPool:
     def get_pool(self, connection_kwargs=None, max_connections=10, timeout=20):
@@ -195,6 +226,31 @@ class TestBlockingConnectionPool:
         )
         expected = "path=abc,db=0,client_name=test-client"
         assert expected in repr(pool)
+
+    def test_min_connections(self):
+        pool = valkey.BlockingConnectionPool(
+            connection_class=DummyConnection,
+            max_connections=10,
+            min_connections=5,
+        )
+        assert pool.min_connections == 5
+        assert len(pool._connections) == 5
+
+    def test_min_connections_default(self):
+        pool = valkey.BlockingConnectionPool(
+            connection_class=DummyConnection,
+            max_connections=10,
+        )
+        assert pool.min_connections == 0
+        assert len(pool._connections) == 0
+
+    def test_min_connections_greater_than_max_raises(self):
+        with pytest.raises(ValueError):
+            valkey.BlockingConnectionPool(
+                connection_class=DummyConnection,
+                min_connections=20,
+                max_connections=10,
+            )
 
 
 class TestConnectionPoolURLParsing:
