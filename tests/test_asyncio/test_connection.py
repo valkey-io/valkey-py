@@ -1,4 +1,5 @@
 import asyncio
+import os
 import socket
 import types
 from unittest.mock import patch
@@ -548,3 +549,77 @@ async def test_unix_socket_connection_failure():
         str(e.value)
         == "Error 2 connecting to unix:///tmp/a.sock. No such file or directory."
     )
+
+
+def _short_sock_path(name: str = "v.sock") -> str:
+    """macOS limits AF_UNIX sun_path to ~104 bytes; pytest tmp paths exceed it."""
+    import tempfile
+
+    return os.path.join(tempfile.mkdtemp(prefix="uds_"), name)
+
+
+async def _uds_server(received, sock_path):
+    """Minimal RESP server that records every command and answers +OK."""
+
+    async def handle(reader, writer):
+        while True:
+            line = await reader.readline()
+            if not line:
+                break
+            if not line.startswith(b"*"):
+                continue
+            n = int(line[1:-2])
+            parts = []
+            for _ in range(n):
+                header = await reader.readline()
+                length = int(header[1:-2])
+                parts.append((await reader.readexactly(length)).decode())
+                await reader.readexactly(2)
+            received.append(parts)
+            writer.write(b"+OK\r\n")
+            await writer.drain()
+
+    return await asyncio.start_unix_server(handle, path=sock_path)
+
+
+async def test_unix_socket_connection_handshake_runs_once():
+    """connect() runs the handshake itself; _connect() must only open the
+    socket. It used to call on_connect() too, so every UDS connection ran the
+    default handshake twice (doubled HELLO/AUTH round trips)."""
+    received = []
+    sock_path = _short_sock_path()
+    server = await _uds_server(received, sock_path)
+    try:
+        conn = UnixDomainSocketConnection(path=sock_path)
+        await conn.connect()
+        await conn.disconnect()
+    finally:
+        server.close()
+        await server.wait_closed()
+
+    lib_info = [cmd for cmd in received if cmd[:2] == ["CLIENT", "SETINFO"]]
+    assert len(received) == len(lib_info)
+    assert len(lib_info) == 2  # LIB-NAME + LIB-VER, once each
+
+
+async def test_unix_socket_connection_custom_connect_func_replaces_handshake():
+    """A valkey_connect_func fully replaces the default handshake on TCP; it
+    must do the same on UDS (the default handshake used to run first)."""
+
+    async def custom_connect(conn):
+        await conn.send_command("CUSTOMINIT")
+
+    received = []
+    sock_path = _short_sock_path()
+    server = await _uds_server(received, sock_path)
+    try:
+        conn = UnixDomainSocketConnection(
+            path=sock_path, valkey_connect_func=custom_connect
+        )
+        await conn.connect()
+        await conn.disconnect()
+    finally:
+        server.close()
+        await server.wait_closed()
+
+    assert received == [["CUSTOMINIT"]]
