@@ -3,7 +3,7 @@
 services:
 
   valkey:
-    image: valkey/valkey:latest
+    image: valkey/valkey:${VALKEY_DOCKER_TAG:-latest}
     container_name: valkey-standalone
     ports:
       - "6379:6379"
@@ -20,7 +20,7 @@ services:
       - all
 
   replica:
-    image: valkey/valkey:latest
+    image: valkey/valkey:${VALKEY_DOCKER_TAG:-latest}
     container_name: valkey-replica
     depends_on:
       - valkey
@@ -77,7 +77,7 @@ services:
       - "./dockers/stunnel/keys:/etc/stunnel/keys:ro"
 
   sentinel:
-    image: valkey/valkey:latest
+    image: valkey/valkey:${VALKEY_DOCKER_TAG:-latest}
     container_name: valkey-sentinel
     depends_on:
       - valkey
@@ -96,7 +96,7 @@ services:
       - all
 
   sentinel2:
-    image: valkey/valkey:latest
+    image: valkey/valkey:${VALKEY_DOCKER_TAG:-latest}
     container_name: valkey-sentinel2
     depends_on:
       - valkey
@@ -115,7 +115,7 @@ services:
       - all
 
   sentinel3:
-    image: valkey/valkey:latest
+    image: valkey/valkey:${VALKEY_DOCKER_TAG:-latest}
     container_name: valkey-sentinel3
     depends_on:
       - valkey
