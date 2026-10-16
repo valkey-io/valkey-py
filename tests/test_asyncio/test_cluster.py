@@ -2764,6 +2764,110 @@ class TestNodesManager:
 
         await rc.aclose()
 
+    async def test_move_node_to_end_of_cached_nodes(self) -> None:
+        """
+        Test that move_node_to_end_of_cached_nodes moves a node to the end
+        of startup_nodes and nodes_cache.
+        """
+        node_1 = ClusterNode(default_host, 7000)
+        node_2 = ClusterNode(default_host, 7001)
+        node_3 = ClusterNode(default_host, 7002)
+
+        manager = NodesManager(
+            [node_1, node_2, node_3], False, {}, dynamic_startup_nodes=False
+        )
+        manager.nodes_cache = {
+            node_1.name: node_1,
+            node_2.name: node_2,
+            node_3.name: node_3,
+        }
+
+        assert list(manager.startup_nodes) == [node_1.name, node_2.name, node_3.name]
+        assert list(manager.nodes_cache) == [node_1.name, node_2.name, node_3.name]
+
+        # Move the first node to the end
+        manager.move_node_to_end_of_cached_nodes(node_1.name)
+        assert list(manager.startup_nodes) == [node_2.name, node_3.name, node_1.name]
+        assert list(manager.nodes_cache) == [node_2.name, node_3.name, node_1.name]
+
+        # Move a middle node to the end
+        manager.move_node_to_end_of_cached_nodes(node_3.name)
+        assert list(manager.startup_nodes) == [node_2.name, node_1.name, node_3.name]
+        assert list(manager.nodes_cache) == [node_2.name, node_1.name, node_3.name]
+
+        # Moving the last node keeps it at the end
+        manager.move_node_to_end_of_cached_nodes(node_3.name)
+        assert list(manager.startup_nodes) == [node_2.name, node_1.name, node_3.name]
+        assert list(manager.nodes_cache) == [node_2.name, node_1.name, node_3.name]
+
+    async def test_move_node_to_end_of_cached_nodes_nonexistent(self) -> None:
+        """
+        Test that move_node_to_end_of_cached_nodes does nothing for a
+        node that is not in either cache.
+        """
+        node_1 = ClusterNode(default_host, 7000)
+        node_2 = ClusterNode(default_host, 7001)
+
+        manager = NodesManager([node_1, node_2], False, {}, dynamic_startup_nodes=False)
+        manager.nodes_cache = {node_1.name: node_1, node_2.name: node_2}
+
+        manager.move_node_to_end_of_cached_nodes("nonexistent:9999")
+        assert list(manager.startup_nodes) == [node_1.name, node_2.name]
+        assert list(manager.nodes_cache) == [node_1.name, node_2.name]
+
+    async def test_move_node_to_end_of_cached_nodes_single_node(self) -> None:
+        """
+        Test that the last remaining startup node is never removed, so
+        the client always keeps a seed to rediscover the cluster with.
+        """
+        node_1 = ClusterNode(default_host, 7000)
+
+        manager = NodesManager([node_1], False, {}, dynamic_startup_nodes=False)
+        manager.nodes_cache = {node_1.name: node_1}
+
+        manager.move_node_to_end_of_cached_nodes(node_1.name)
+        assert list(manager.startup_nodes) == [node_1.name]
+        assert list(manager.nodes_cache) == [node_1.name]
+
+    async def test_startup_nodes_survive_all_nodes_failing(self) -> None:
+        """
+        Regression test for the cluster client never recovering after a
+        failover where every node is briefly unreachable: handling a
+        connection error for each node in turn must never drain
+        startup_nodes to empty, and initialize() must succeed again once
+        a node is reachable.
+        """
+        node_1 = ClusterNode(default_host, 7000, PRIMARY)
+        node_2 = ClusterNode(default_host, 7001, PRIMARY)
+
+        manager = NodesManager([node_1, node_2], False, {}, dynamic_startup_nodes=False)
+        manager.nodes_cache = {node_1.name: node_1, node_2.name: node_2}
+
+        # Every node fails in turn, as in an all-nodes-unreachable window.
+        # The error handler moves the failed node to the end instead of
+        # removing it.
+        for target_node in (node_1, node_2, node_1, node_2):
+            manager.move_node_to_end_of_cached_nodes(target_node.name)
+            assert len(manager.startup_nodes) >= 1
+
+        assert sorted(manager.startup_nodes) == sorted([node_1.name, node_2.name])
+
+        # Once a node is healthy again, rediscovery must work.
+        async def mocked_execute_command(self, *args, **kwargs):
+            assert args[0] == "CLUSTER SLOTS"
+            return [[0, 16383, [default_host, 7000, "node_0"]]]
+
+        with mock.patch.object(
+            ClusterNode,
+            "execute_command",
+            autospec=True,
+            side_effect=mocked_execute_command,
+        ):
+            await manager.initialize()
+
+        assert len(manager.slots_cache) == VALKEY_CLUSTER_HASH_SLOTS
+        await manager.aclose()
+
 
 class TestClusterPipeline:
     """Tests for the ClusterPipeline class."""
