@@ -302,6 +302,43 @@ async def moved_redirection_helper(
             assert prev_primary.server_type == REPLICA
 
 
+class TestClusterPipelineErrorMessages:
+    async def test_raise_on_error_message_uses_error_text(self) -> None:
+        r = await get_mocked_valkey_client(host=default_host, port=default_port)
+        try:
+            node = r.get_node_from_key("foo")
+            mock_node_resp_exc(
+                node,
+                ResponseError(
+                    "WRONGTYPE Operation against a key holding the wrong kind of value"
+                ),
+            )
+
+            async with r.pipeline() as pipe:
+                with pytest.raises(ResponseError) as ex:
+                    await pipe.get("foo").execute()
+            assert str(ex.value) == (
+                "Command # 1 (GET foo) of pipeline caused error: "
+                "WRONGTYPE Operation against a key holding the wrong kind of value"
+            )
+        finally:
+            await r.aclose()
+
+    async def test_raise_on_error_keeps_argless_error(self) -> None:
+        r = await get_mocked_valkey_client(host=default_host, port=default_port)
+        try:
+            mock_node_resp_exc(r.get_node_from_key("foo"), ResponseError())
+
+            async with r.pipeline() as pipe:
+                with pytest.raises(ResponseError) as ex:
+                    await pipe.get("foo").execute()
+            assert str(ex.value) == (
+                "Command # 1 (GET foo) of pipeline caused error: ResponseError"
+            )
+        finally:
+            await r.aclose()
+
+
 class TestValkeyClusterObj:
     """
     Tests for the ValkeyCluster class
