@@ -585,3 +585,40 @@ class TestCustomCache:
         assert cache.get(("GET", "foo")) is None
         # get key from valkey
         assert r.get("foo") == b"barbar"
+
+
+class TestLocalCacheEvictionBookkeeping:
+    """Server-free tests: eviction must keep the cache, commands_ttl_list and
+    key_commands_map in sync (_LocalCache._evict used to pop from the cache
+    only)."""
+
+    def test_lru_eviction_retires_ttl_entry(self):
+        cache = _LocalCache(max_size=2)
+        cache.set(("GET", "a"), b"1", ["a"])
+        cache.set(("GET", "b"), b"2", ["b"])
+        cache.set(("GET", "c"), b"3", ["c"])
+        assert ("GET", "a") not in cache.commands_ttl_list
+        assert len(cache.commands_ttl_list) == len(cache.cache) == 2
+
+    def test_ttl_check_after_eviction_does_not_raise(self):
+        # With ttl set, _evict inspects commands_ttl_list[0] against the
+        # cache; a stale TTL entry makes every subsequent set() raise KeyError.
+        cache = _LocalCache(max_size=2, ttl=60)
+        cache.set(("GET", "a"), b"1", ["a"])
+        cache.set(("GET", "b"), b"2", ["b"])
+        cache.set(("GET", "c"), b"3", ["c"])
+        cache.set(("GET", "d"), b"4", ["d"])
+        assert len(cache.cache) == 2
+
+    def test_lru_eviction_retires_key_commands_map_entry(self):
+        cache = _LocalCache(max_size=2)
+        cache.set(("GET", "a"), b"1", ["a"])
+        cache.set(("GET", "b"), b"2", ["b"])
+        cache.set(("GET", "c"), b"3", ["c"])
+        assert ("GET", "a") not in cache.key_commands_map.get("a", set())
+
+    def test_re_set_does_not_duplicate_ttl_entry(self):
+        cache = _LocalCache()
+        cache.set(("GET", "a"), b"1", ["a"])
+        cache.set(("GET", "a"), b"1b", ["a"])
+        assert cache.commands_ttl_list.count(("GET", "a")) == 1
