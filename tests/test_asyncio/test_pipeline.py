@@ -2,6 +2,7 @@ import pytest
 
 import valkey
 from tests.conftest import skip_if_server_version_lt
+from valkey.asyncio import utils
 
 from .compat import aclosing, mock
 from .conftest import wait_for_command
@@ -459,3 +460,39 @@ class TestPipeline:
             response = await pipe.execute()
         assert response[0]
         assert await r.get("foo") == b"bar"
+
+
+class OutOfStock(Exception):
+    pass
+
+
+async def _reserve(r, order):
+    async with utils.pipeline(r) as p:
+        await p.watch(*order)
+        stock = dict(zip(order, await p.mget(*order)))
+        p.multi()
+        for key, qty in order.items():
+            if int(stock[key]) < qty:
+                raise OutOfStock(key)
+            p.decrby(key, qty)
+
+
+@pytest.mark.onlynoncluster
+async def test_utils_pipeline_does_not_execute_after_an_exception(r):
+    await r.mset({"stock:a": 5, "stock:b": 0})
+    in_use = len(r.connection_pool._in_use_connections)
+    with pytest.raises(OutOfStock):
+        await _reserve(r, {"stock:a": 2, "stock:b": 1})
+    # The rejected order must not reserve anything, and the pipeline
+    # connection must be released
+    assert await r.mget("stock:a", "stock:b") == [b"5", b"0"]
+    assert len(r.connection_pool._in_use_connections) == in_use
+
+
+@pytest.mark.onlynoncluster
+async def test_utils_pipeline_executes_the_transaction_on_success(r):
+    await r.mset({"stock:a": 5, "stock:b": 3})
+    in_use = len(r.connection_pool._in_use_connections)
+    await _reserve(r, {"stock:a": 2, "stock:b": 1})
+    assert await r.mget("stock:a", "stock:b") == [b"3", b"2"]
+    assert len(r.connection_pool._in_use_connections) == in_use
