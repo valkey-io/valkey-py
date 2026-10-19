@@ -11,8 +11,9 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-import valkey
 from packaging.version import Version
+
+import valkey
 from valkey import exceptions
 from valkey._parsers.helpers import (
     _ValkeyCallbacks,

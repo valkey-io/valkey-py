@@ -6,6 +6,7 @@ from threading import Thread
 from unittest import mock
 
 import pytest
+
 import valkey
 from valkey._parsers.url_parser import to_bool
 from valkey.utils import SSL_AVAILABLE

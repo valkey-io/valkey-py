@@ -1,4 +1,5 @@
 import pytest
+
 from tests.conftest import skip_if_version_is_one_of
 
 from .conftest import wait_for_command

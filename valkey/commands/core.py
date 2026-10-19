@@ -677,9 +677,9 @@ class ManagementCommands(CommandsProtocol):
         self: AsyncClientProtocol, address: str, **kwargs
     ) -> Awaitable[int | bool]: ...
 
-    def client_kill(
-        self, address: str, **kwargs
-    ) -> (int | bool) | Awaitable[int | bool]:
+    def client_kill(self, address: str, **kwargs) -> (int | bool) | Awaitable[
+        int | bool
+    ]:
         """Disconnects the client at ``address`` (ip:port)
 
         For more information see https://valkey.io/commands/client-kill
@@ -1721,9 +1721,9 @@ class ManagementCommands(CommandsProtocol):
         self: AsyncClientProtocol, **kwargs
     ) -> Awaitable[datetime.datetime | None]: ...
 
-    def lastsave(
-        self, **kwargs
-    ) -> (datetime.datetime | None) | Awaitable[datetime.datetime | None]:
+    def lastsave(self, **kwargs) -> (datetime.datetime | None) | Awaitable[
+        datetime.datetime | None
+    ]:
         """
         Return a Python datetime object representing the last time the
         Valkey database was saved to disk
@@ -1944,9 +1944,9 @@ class ManagementCommands(CommandsProtocol):
         self: AsyncClientProtocol, key: KeyT, samples: Union[int, None] = None, **kwargs
     ) -> Awaitable[int | None]: ...
 
-    def memory_usage(
-        self, key: KeyT, samples: Union[int, None] = None, **kwargs
-    ) -> (int | None) | Awaitable[int | None]:
+    def memory_usage(self, key: KeyT, samples: Union[int, None] = None, **kwargs) -> (
+        int | None
+    ) | Awaitable[int | None]:
         """
         Return the total memory usage for key, its value and associated
         administrative overheads.

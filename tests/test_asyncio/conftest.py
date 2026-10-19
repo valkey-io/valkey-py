@@ -3,6 +3,7 @@ from typing import Union
 
 import pytest
 import pytest_asyncio
+
 import valkey.asyncio as valkey
 from tests.conftest import VALKEY_INFO
 from valkey.asyncio import Sentinel

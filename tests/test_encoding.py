@@ -1,4 +1,5 @@
 import pytest
+
 import valkey
 from valkey.connection import Connection
 from valkey.utils import LIBVALKEY_AVAILABLE

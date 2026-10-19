@@ -2,6 +2,7 @@ import contextlib
 import multiprocessing
 
 import pytest
+
 import valkey
 from valkey.connection import Connection, ConnectionPool
 from valkey.exceptions import ConnectionError

@@ -40,10 +40,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    'black[jupyter]',
     'cachetools',
-    'flake8-isort',
-    'flake8',
     'flynt',
     'hatchling',
     'mock',
@@ -52,6 +49,7 @@ dev = [
     'pytest-asyncio',
     'pytest-cov',
     'pytest-timeout',
+    'ruff==0.17.0',
     'ujson>=4.2.0',
     'uvloop; implementation_name != "pypy"',
     'vulture>=2.3.0',
@@ -111,6 +109,20 @@ markers = [
 ]
 asyncio_mode = "auto"
 timeout = 30
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+extend-exclude = [".venv*", "venv*", "build", "dist", "docker", "whitelist.py", "tasks.py"]
+
+[tool.ruff.lint]
+# Preserve Flake8 and import-sorting checks. Flynt remains a separate check
+# because Ruff's FLY rules do not cover all of its transformations.
+select = ["E", "W", "F", "I"]
+ignore = ["E701", "F405"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["valkey", "tests"]
 
 [tool.mypy]
 python_version = "3.11"

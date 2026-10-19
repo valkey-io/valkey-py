@@ -40,7 +40,8 @@ class GraphCommands:
     def query(self, q, params=None, timeout=None, read_only=False, profile=False):
         """
         Executes a query against the graph.
-        For more information see `GRAPH.QUERY <https://valkey.io/commands/graph.query>`_. # noqa
+        For more information see `GRAPH.QUERY
+        <https://valkey.io/commands/graph.query>`_.
 
         Args:
 
@@ -107,7 +108,8 @@ class GraphCommands:
     def delete(self):
         """
         Deletes graph.
-        For more information see `DELETE <https://valkey.io/commands/graph.delete>`_. # noqa
+        For more information see `DELETE
+        <https://valkey.io/commands/graph.delete>`_.
         """
         self._clear_schema()
         return self.execute_command(DELETE_CMD, self.name)
@@ -134,7 +136,8 @@ class GraphCommands:
         for each operation's execution. Return a string representation of a
         query execution plan, with details on results produced by and time
         spent in each operation.
-        For more information see `GRAPH.PROFILE <https://valkey.io/commands/graph.profile>`_. # noqa
+        For more information see `GRAPH.PROFILE
+        <https://valkey.io/commands/graph.profile>`_.
         """
         return self.query(query, profile=True)
 
@@ -142,7 +145,8 @@ class GraphCommands:
         """
         Get a list containing up to 10 of the slowest queries issued
         against the given graph ID.
-        For more information see `GRAPH.SLOWLOG <https://valkey.io/commands/graph.slowlog>`_. # noqa
+        For more information see `GRAPH.SLOWLOG
+        <https://valkey.io/commands/graph.slowlog>`_.
 
         Each item in the list has the following structure:
         1. A unix timestamp at which the log entry was processed.
@@ -171,15 +175,14 @@ class GraphCommands:
             if set:
                 params.append(value)
             else:
-                raise DataError(
-                    "``value`` can be provided only when ``set`` is True"
-                )  # noqa
+                raise DataError("``value`` can be provided only when ``set`` is True")  # noqa
         return self.execute_command(CONFIG_CMD, *params)
 
     def list_keys(self):
         """
         Lists all graph keys in the keyspace.
-        For more information see `GRAPH.LIST <https://valkey.io/commands/graph.list>`_. # noqa
+        For more information see `GRAPH.LIST
+        <https://valkey.io/commands/graph.list>`_.
         """
         return self.execute_command(LIST_CMD)
 
@@ -203,7 +206,8 @@ class GraphCommands:
         """
         Get the execution plan for given query,
         GRAPH.EXPLAIN returns ExecutionPlan object.
-        For more information see `GRAPH.EXPLAIN <https://valkey.io/commands/graph.explain>`_. # noqa
+        For more information see `GRAPH.EXPLAIN
+        <https://valkey.io/commands/graph.explain>`_.
 
         Args:
             query: the query that will be executed
@@ -219,7 +223,8 @@ class AsyncGraphCommands(GraphCommands):
     async def query(self, q, params=None, timeout=None, read_only=False, profile=False):
         """
         Executes a query against the graph.
-        For more information see `GRAPH.QUERY <https://oss.valkey.com/valkeygraph/master/commands/#graphquery>`_. # noqa
+        For more information see `GRAPH.QUERY
+        <https://oss.valkey.com/valkeygraph/master/commands/#graphquery>`_.
 
         Args:
 

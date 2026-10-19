@@ -2,6 +2,7 @@ from contextlib import closing
 from unittest import mock
 
 import pytest
+
 import valkey
 
 from .conftest import skip_if_server_version_lt, wait_for_command

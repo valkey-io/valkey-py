@@ -2,6 +2,7 @@ import socket
 from unittest import mock
 
 import pytest
+
 import valkey.sentinel
 from valkey import exceptions
 from valkey.sentinel import (

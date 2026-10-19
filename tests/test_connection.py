@@ -4,6 +4,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
+
 import valkey
 from valkey import ConnectionPool, Valkey
 from valkey._parsers import _LibvalkeyParser, _RESP2Parser, _RESP3Parser

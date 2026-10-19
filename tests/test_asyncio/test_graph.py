@@ -1,4 +1,5 @@
 import pytest
+
 import valkey.asyncio as valkey
 from valkey.commands.graph import Edge, Node, Path
 from valkey.commands.graph.execution_plan import Operation
@@ -35,8 +36,7 @@ async def test_graph_creation(decoded_r: valkey.Valkey):
     await graph.commit()
 
     query = (
-        'MATCH (p:person)-[v:visited {purpose:"pleasure"}]->(c:country) '
-        "RETURN p, v, c"
+        'MATCH (p:person)-[v:visited {purpose:"pleasure"}]->(c:country) RETURN p, v, c'
     )
 
     result = await graph.query(query)

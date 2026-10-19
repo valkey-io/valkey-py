@@ -4,6 +4,7 @@ from typing import List, Sequence, Union
 
 import cachetools
 import pytest
+
 import valkey
 from tests.conftest import _get_client
 from valkey import ValkeyError
@@ -487,7 +488,6 @@ class TestClusterLocalCache:
 @pytest.mark.skipif(LIBVALKEY_AVAILABLE, reason="PythonParser only")
 @pytest.mark.onlynoncluster
 class TestSentinelLocalCache:
-
     def test_get_from_cache(self, local_cache, master):
         master.set("foo", "bar")
         # get key from valkey and save in local cache

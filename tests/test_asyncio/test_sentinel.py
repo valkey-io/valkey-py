@@ -3,6 +3,7 @@ from unittest import mock
 
 import pytest
 import pytest_asyncio
+
 import valkey.asyncio.sentinel
 from valkey import exceptions
 from valkey.asyncio.sentinel import (
