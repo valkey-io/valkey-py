@@ -418,6 +418,35 @@ class TestLocalCache:
         assert r.get("foo") == b"barbar"
 
 
+class TestLocalCacheEviction:
+    """Unit tests for the _LocalCache eviction bookkeeping (no server needed)."""
+
+    @pytest.mark.parametrize("eviction_policy", list(EvictionPolicy))
+    def test_eviction_with_ttl_does_not_raise(self, eviction_policy):
+        # a cache configured with a max size and a ttl used to raise KeyError
+        # from _is_expired() on its second eviction
+        cache = _LocalCache(max_size=2, ttl=60, eviction_policy=eviction_policy)
+        for i in range(10):
+            cache.set(f"GET key{i}", i, [f"key{i}"])
+        assert len(cache.cache) == 2
+
+    @pytest.mark.parametrize("eviction_policy", list(EvictionPolicy))
+    def test_evicted_commands_are_dropped_from_ttl_list(self, eviction_policy):
+        cache = _LocalCache(max_size=2, ttl=60, eviction_policy=eviction_policy)
+        for i in range(5):
+            cache.set(f"GET key{i}", i, [f"key{i}"])
+        # commands_ttl_list must only track the commands still cached
+        assert sorted(cache.commands_ttl_list) == sorted(cache.cache)
+        assert len(cache.commands_ttl_list) == len(set(cache.commands_ttl_list))
+
+    def test_recaching_a_command_does_not_duplicate_ttl_entry(self):
+        cache = _LocalCache(max_size=2, ttl=60)
+        cache.set("GET key", 1, ["key"])
+        cache.set("GET key", 2, ["key"])
+        assert cache.commands_ttl_list == ["GET key"]
+        assert cache.get("GET key") == 2
+
+
 @pytest.mark.skipif(LIBVALKEY_AVAILABLE, reason="PythonParser only")
 @pytest.mark.onlycluster
 class TestClusterLocalCache:
