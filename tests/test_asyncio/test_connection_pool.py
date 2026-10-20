@@ -893,3 +893,29 @@ class TestHealthCheck:
             assert await wait_for_message(p) is None
             m.assert_called_with("PING", p.HEALTH_CHECK_MESSAGE, check_health=False)
             self.assert_interval_advanced(p.connection)
+
+
+class TestCaseInsensitiveDictPop:
+    def test_pop_is_case_insensitive(self):
+        # the async client shares CaseInsensitiveDict with the sync client;
+        # pin the pop() behavior on the async client's own instance
+        client = valkey.Valkey(host="localhost", port=6379)
+
+        def callback(response, **kwargs):
+            return response
+
+        client.set_response_callback("GET", callback)
+        # used to raise KeyError even though the key exists
+        assert client.response_callbacks.pop("get") is callback
+        assert "GET" not in client.response_callbacks
+
+    def test_pop_default_is_case_insensitive(self):
+        client = valkey.Valkey(host="localhost", port=6379)
+
+        def callback(response, **kwargs):
+            return response
+
+        client.set_response_callback("SET", callback)
+        # used to silently return the default even though the key exists
+        assert client.response_callbacks.pop("set", None) is callback
+        assert client.response_callbacks.pop("missing", "sentinel") == "sentinel"
