@@ -254,6 +254,11 @@ class _LocalCache(AbstractCache):
             _ACCESS_COUNT: 0,  # Used only for LFU
         }
         self._update_key_commands_map(keys_in_command, command)
+        if command in self.commands_ttl_list:
+            # the command is cached again, refresh its position so that
+            # commands_ttl_list has no duplicates and stays in sync with
+            # the commands currently held by the cache.
+            self.commands_ttl_list.remove(command)
         self.commands_ttl_list.append(command)
 
     def get(self, command: Union[str, Sequence[str]]) -> ResponseT | None:
@@ -345,15 +350,15 @@ class _LocalCache(AbstractCache):
         if self._is_expired(self.commands_ttl_list[0]):
             self.delete_command(self.commands_ttl_list[0])
         elif self.eviction_policy == EvictionPolicy.LRU:
-            self.cache.popitem(last=False)
+            self.delete_command(next(iter(self.cache)))
         elif self.eviction_policy == EvictionPolicy.LFU:
             min_access_command = min(
                 self.cache, key=lambda k: self.cache[k].get("access_count", 0)
             )
-            self.cache.pop(min_access_command)
+            self.delete_command(min_access_command)
         elif self.eviction_policy == EvictionPolicy.RANDOM:
             random_command = random.choice(list(self.cache.keys()))
-            self.cache.pop(random_command)
+            self.delete_command(random_command)
 
     def _update_key_commands_map(
         self, keys: List[KeyT], command: Union[str, Sequence[str]]
