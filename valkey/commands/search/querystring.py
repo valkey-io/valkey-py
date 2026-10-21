@@ -56,8 +56,12 @@ def ge(n):
 def geo(lat, lon, radius, unit="km"):
     """
     Indicate that value is a geo region
+
+    ``GeoValue`` stores and renders longitude first, so the arguments are
+    swapped here to keep the ``lat, lon`` order of this helper's public
+    signature.
     """
-    return GeoValue(lat, lon, radius, unit)
+    return GeoValue(lon, lat, radius, unit)
 
 
 class Value:
