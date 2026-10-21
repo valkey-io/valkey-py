@@ -1,5 +1,13 @@
 import warnings
 
+from valkey.exceptions import ResponseError
+
+NOQUORUM_ERROR_PREFIX = "NOQUORUM"
+
+
+def _is_noquorum_error(error: ResponseError) -> bool:
+    return str(error).startswith(NOQUORUM_ERROR_PREFIX)
+
 
 class SentinelCommands:
     """
@@ -77,8 +85,16 @@ class SentinelCommands:
 
         This command should be used in monitoring systems to check if a
         Sentinel deployment is ok.
+
+        Returns ``True`` when the quorum and the majority can be reached and
+        ``False`` when Sentinel replies with ``NOQUORUM``.
         """
-        return self.execute_command("SENTINEL CKQUORUM", new_master_name, once=True)
+        try:
+            return self.execute_command("SENTINEL CKQUORUM", new_master_name, once=True)
+        except ResponseError as error:
+            if _is_noquorum_error(error):
+                return False
+            raise
 
     def sentinel_flushconfig(self):
         """
@@ -103,3 +119,21 @@ class AsyncSentinelCommands(SentinelCommands):
     async def sentinel(self, *args) -> None:
         """Valkey Sentinel's SENTINEL command."""
         super().sentinel(*args)
+
+    async def sentinel_ckquorum(self, new_master_name):
+        """
+        Check if the current Sentinel configuration is able to reach the
+        quorum needed to failover a master, and the majority needed to
+        authorize the failover.
+
+        Returns ``True`` when the quorum and the majority can be reached and
+        ``False`` when Sentinel replies with ``NOQUORUM``.
+        """
+        try:
+            return await self.execute_command(
+                "SENTINEL CKQUORUM", new_master_name, once=True
+            )
+        except ResponseError as error:
+            if _is_noquorum_error(error):
+                return False
+            raise
