@@ -4,12 +4,12 @@ FIELDNAME = object()
 
 
 class Limit:
-    def __init__(self, offset: int = 0, count: int = 0) -> None:
+    def __init__(self, offset: int = 0, count: int | None = None) -> None:
         self.offset = offset
         self.count = count
 
     def build_args(self):
-        if self.count:
+        if self.count is not None:
             return ["LIMIT", str(self.offset), str(self.count)]
         else:
             return []
@@ -187,7 +187,7 @@ class AggregateRequest:
         ### Parameters
 
         - **offset**: Result offset from which to begin paging
-        - **num**: Number of results to return
+        - **num**: Number of results to return, including zero.
 
 
         Example of sorting the initial results:
