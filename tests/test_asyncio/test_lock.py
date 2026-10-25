@@ -6,6 +6,8 @@ import pytest_asyncio
 from valkey.asyncio.lock import Lock
 from valkey.exceptions import LockError, LockNotOwnedError
 
+from .compat import mock
+
 
 class TestLock:
     @pytest_asyncio.fixture()
@@ -238,3 +240,56 @@ class TestLockClassSelection:
 
         lock = r.lock("foo", lock_class=MyLock)
         assert isinstance(lock, MyLock)
+
+
+def _unconnected_lock(token=None, timeout=10):
+    with mock.patch.object(Lock, "register_scripts"):
+        lock = Lock(mock.MagicMock(), "foo", timeout=timeout)
+    lock.local.token = token
+    for script in ("lua_release", "lua_extend", "lua_reacquire"):
+        setattr(lock, script, mock.AsyncMock(return_value=0))
+    return lock
+
+
+@pytest.mark.parametrize(
+    "token, timeout, call, error_class",
+    [
+        (None, 10, lambda lock: lock.release(), LockError),
+        (b"token", 10, lambda lock: lock.release(), LockNotOwnedError),
+        (None, 10, lambda lock: lock.extend(10), LockError),
+        (b"token", None, lambda lock: lock.extend(10), LockError),
+        (b"token", 10, lambda lock: lock.extend(10), LockNotOwnedError),
+        (None, 10, lambda lock: lock.reacquire(), LockError),
+        (b"token", None, lambda lock: lock.reacquire(), LockError),
+        (b"token", 10, lambda lock: lock.reacquire(), LockNotOwnedError),
+    ],
+    ids=[
+        "release-unlocked",
+        "release-not-owned",
+        "extend-unlocked",
+        "extend-no-timeout",
+        "extend-not-owned",
+        "reacquire-unlocked",
+        "reacquire-no-timeout",
+        "reacquire-not-owned",
+    ],
+)
+async def test_lock_errors_carry_lock_name(token, timeout, call, error_class):
+    lock = _unconnected_lock(token=token, timeout=timeout)
+
+    with pytest.raises(error_class) as ex:
+        await call(lock)
+
+    assert type(ex.value) is error_class
+    assert ex.value.lock_name == "foo"
+
+
+async def test_context_manager_acquire_failure_carries_lock_name():
+    lock = _unconnected_lock()
+    lock.acquire = mock.AsyncMock(return_value=False)
+
+    with pytest.raises(LockError) as ex:
+        async with lock:
+            pass
+
+    assert ex.value.lock_name == "foo"
