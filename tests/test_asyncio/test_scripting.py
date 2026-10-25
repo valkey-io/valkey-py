@@ -22,6 +22,7 @@ return "hello " .. name
 
 
 @pytest.mark.onlynoncluster
+@pytest.mark.standalone_exclusive  # Fixture flushes the global script cache.
 class TestScripting:
     @pytest_asyncio.fixture
     async def r(self, create_valkey):

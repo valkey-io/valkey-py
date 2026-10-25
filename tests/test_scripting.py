@@ -55,6 +55,7 @@ class TestScript:
         assert encoder.encode("fake-script") == b"fake-script"
 
 
+@pytest.mark.standalone_exclusive  # Autouse fixture flushes the global script cache.
 class TestScripting:
     @pytest.fixture(autouse=True)
     def reset_scripts(self, r):

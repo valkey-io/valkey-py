@@ -700,9 +700,7 @@ class TestConnection:
 class TestMultiConnectionClient:
     @pytest_asyncio.fixture()
     async def r(self, create_valkey, server):
-        valkey = await create_valkey(single_connection_client=False)
-        yield valkey
-        await valkey.flushall()
+        return await create_valkey(single_connection_client=False)
 
 
 @pytest.mark.onlynoncluster
@@ -712,9 +710,7 @@ class TestHealthCheck:
 
     @pytest_asyncio.fixture()
     async def r(self, create_valkey):
-        valkey = await create_valkey(health_check_interval=self.interval)
-        yield valkey
-        await valkey.flushall()
+        return await create_valkey(health_check_interval=self.interval)
 
     def assert_interval_advanced(self, connection):
         diff = connection.next_health_check - asyncio.get_running_loop().time()

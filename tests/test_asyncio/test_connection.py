@@ -279,7 +279,7 @@ async def test_connection_disconnect_race(parser_class, connect_args):
         return reader, writer
 
     async def dummy_method(*args, **kwargs):
-        pass
+        return b"OK"
 
     # get dummy stream objects for the connection
     with patch.object(asyncio, "open_connection", open_connection):

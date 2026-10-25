@@ -17,6 +17,16 @@ import pytest_asyncio
 
 import valkey.asyncio as valkey
 from tests.conftest import get_protocol_version, skip_if_server_version_lt
+from tests.test_pubsub import (
+    BAR,
+    BAR_PATTERN,
+    BAZ,
+    FOO,
+    FOO_PATTERN,
+    QUUX,
+    UNICODE_CHANNEL,
+    UNICODE_PATTERN,
+)
 from valkey.exceptions import ConnectionError
 from valkey.typing import EncodableT
 from valkey.utils import LIBVALKEY_AVAILABLE
@@ -69,7 +79,7 @@ def make_subscribe_test_data(pubsub, type):
             "unsub_type": "unsubscribe",
             "sub_func": pubsub.subscribe,
             "unsub_func": pubsub.unsubscribe,
-            "keys": ["foo", "bar", "uni" + chr(4456) + "code"],
+            "keys": [FOO, BAR, UNICODE_CHANNEL],
         }
     elif type == "pattern":
         return {
@@ -78,7 +88,7 @@ def make_subscribe_test_data(pubsub, type):
             "unsub_type": "punsubscribe",
             "sub_func": pubsub.psubscribe,
             "unsub_func": pubsub.punsubscribe,
-            "keys": ["f*", "b*", "uni" + chr(4456) + "*"],
+            "keys": [FOO_PATTERN, BAR_PATTERN, UNICODE_PATTERN],
         }
     assert False, f"invalid subscribe type: {type}"
 
@@ -219,7 +229,7 @@ class TestPubSubSubscribeUnsubscribe:
         p = r.pubsub()
         async with aclosing(p):
             assert p.subscribed is False
-            await p.subscribe("foo")
+            await p.subscribe(FOO)
             assert p.subscribed is True
         assert p.subscribed is False
 
@@ -227,7 +237,7 @@ class TestPubSubSubscribeUnsubscribe:
         p = r.pubsub()
         async with p:
             assert p.subscribed is False
-            await p.subscribe("foo")
+            await p.subscribe(FOO)
             assert p.subscribed is True
         assert p.subscribed is False
 
@@ -237,7 +247,7 @@ class TestPubSubSubscribeUnsubscribe:
         """
         p = r.pubsub()
         assert p.subscribed is False
-        await p.subscribe("foo")
+        await p.subscribe(FOO)
         assert p.subscribed is True
         with pytest.deprecated_call():
             await p.close()
@@ -249,7 +259,7 @@ class TestPubSubSubscribeUnsubscribe:
         """
         p = r.pubsub()
         assert p.subscribed is False
-        await p.subscribe("foo")
+        await p.subscribe(FOO)
         assert p.subscribed is True
         with pytest.deprecated_call():
             await p.reset()
@@ -259,10 +269,10 @@ class TestPubSubSubscribeUnsubscribe:
         p = r.pubsub(ignore_subscribe_messages=True)
 
         checks = (
-            (p.subscribe, "foo"),
-            (p.unsubscribe, "foo"),
-            (p.psubscribe, "f*"),
-            (p.punsubscribe, "f*"),
+            (p.subscribe, FOO),
+            (p.unsubscribe, FOO),
+            (p.psubscribe, FOO_PATTERN),
+            (p.punsubscribe, FOO_PATTERN),
         )
 
         assert p.subscribed is False
@@ -277,10 +287,10 @@ class TestPubSubSubscribeUnsubscribe:
         p = pubsub
 
         checks = (
-            (p.subscribe, "foo"),
-            (p.unsubscribe, "foo"),
-            (p.psubscribe, "f*"),
-            (p.punsubscribe, "f*"),
+            (p.subscribe, FOO),
+            (p.unsubscribe, FOO),
+            (p.psubscribe, FOO_PATTERN),
+            (p.punsubscribe, FOO_PATTERN),
         )
 
         assert p.subscribed is False
@@ -350,22 +360,22 @@ class TestPubSubMessages:
 
     async def test_published_message_to_channel(self, r: valkey.Valkey, pubsub):
         p = pubsub
-        await p.subscribe("foo")
-        assert await wait_for_message(p) == make_message("subscribe", "foo", 1)
-        assert await r.publish("foo", "test message") == 1
+        await p.subscribe(FOO)
+        assert await wait_for_message(p) == make_message("subscribe", FOO, 1)
+        assert await r.publish(FOO, "test message") == 1
 
         message = await wait_for_message(p)
         assert isinstance(message, dict)
-        assert message == make_message("message", "foo", "test message")
+        assert message == make_message("message", FOO, "test message")
 
     async def test_published_message_to_pattern(self, r: valkey.Valkey, pubsub):
         p = pubsub
-        await p.subscribe("foo")
-        await p.psubscribe("f*")
-        assert await wait_for_message(p) == make_message("subscribe", "foo", 1)
-        assert await wait_for_message(p) == make_message("psubscribe", "f*", 2)
+        await p.subscribe(FOO)
+        await p.psubscribe(FOO_PATTERN)
+        assert await wait_for_message(p) == make_message("subscribe", FOO, 1)
+        assert await wait_for_message(p) == make_message("psubscribe", FOO_PATTERN, 2)
         # 1 to pattern, 1 to channel
-        assert await r.publish("foo", "test message") == 2
+        assert await r.publish(FOO, "test message") == 2
 
         message1 = await wait_for_message(p)
         message2 = await wait_for_message(p)
@@ -373,8 +383,8 @@ class TestPubSubMessages:
         assert isinstance(message2, dict)
 
         expected = [
-            make_message("message", "foo", "test message"),
-            make_message("pmessage", "foo", "test message", pattern="f*"),
+            make_message("message", FOO, "test message"),
+            make_message("pmessage", FOO, "test message", pattern=FOO_PATTERN),
         ]
 
         assert message1 in expected
@@ -383,49 +393,49 @@ class TestPubSubMessages:
 
     async def test_channel_message_handler(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
-        await p.subscribe(foo=self.message_handler)
+        await p.subscribe(**{FOO: self.message_handler})
         assert await wait_for_message(p) is None
-        assert await r.publish("foo", "test message") == 1
+        assert await r.publish(FOO, "test message") == 1
         assert await wait_for_message(p) is None
-        assert self.message == make_message("message", "foo", "test message")
+        assert self.message == make_message("message", FOO, "test message")
         await p.aclose()
 
     async def test_channel_async_message_handler(self, r):
         p = r.pubsub(ignore_subscribe_messages=True)
-        await p.subscribe(foo=self.async_message_handler)
+        await p.subscribe(**{FOO: self.async_message_handler})
         assert await wait_for_message(p) is None
-        assert await r.publish("foo", "test message") == 1
+        assert await r.publish(FOO, "test message") == 1
         assert await wait_for_message(p) is None
-        assert self.async_message == make_message("message", "foo", "test message")
+        assert self.async_message == make_message("message", FOO, "test message")
         await p.aclose()
 
     async def test_channel_sync_async_message_handler(self, r):
         p = r.pubsub(ignore_subscribe_messages=True)
-        await p.subscribe(foo=self.message_handler)
-        await p.subscribe(bar=self.async_message_handler)
+        await p.subscribe(**{FOO: self.message_handler})
+        await p.subscribe(**{BAR: self.async_message_handler})
         assert await wait_for_message(p) is None
-        assert await r.publish("foo", "test message") == 1
-        assert await r.publish("bar", "test message 2") == 1
+        assert await r.publish(FOO, "test message") == 1
+        assert await r.publish(BAR, "test message 2") == 1
         assert await wait_for_message(p) is None
-        assert self.message == make_message("message", "foo", "test message")
-        assert self.async_message == make_message("message", "bar", "test message 2")
+        assert self.message == make_message("message", FOO, "test message")
+        assert self.async_message == make_message("message", BAR, "test message 2")
         await p.aclose()
 
     @pytest.mark.onlynoncluster
     async def test_pattern_message_handler(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
-        await p.psubscribe(**{"f*": self.message_handler})
+        await p.psubscribe(**{FOO_PATTERN: self.message_handler})
         assert await wait_for_message(p) is None
-        assert await r.publish("foo", "test message") == 1
+        assert await r.publish(FOO, "test message") == 1
         assert await wait_for_message(p) is None
         assert self.message == make_message(
-            "pmessage", "foo", "test message", pattern="f*"
+            "pmessage", FOO, "test message", pattern=FOO_PATTERN
         )
         await p.aclose()
 
     async def test_unicode_channel_message_handler(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
-        channel = "uni" + chr(4456) + "code"
+        channel = UNICODE_CHANNEL
         channels = {channel: self.message_handler}
         await p.subscribe(**channels)
         assert await wait_for_message(p) is None
@@ -438,8 +448,8 @@ class TestPubSubMessages:
     # see: https://valkey-py.readthedocs.io/en/latest/clustering.html#known-pubsub-limitations # noqa: E501
     async def test_unicode_pattern_message_handler(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
-        pattern = "uni" + chr(4456) + "*"
-        channel = "uni" + chr(4456) + "code"
+        pattern = UNICODE_PATTERN
+        channel = UNICODE_CHANNEL
         await p.psubscribe(**{pattern: self.message_handler})
         assert await wait_for_message(p) is None
         assert await r.publish(channel, "test message") == 1
@@ -469,20 +479,23 @@ class TestPubSubRESP3Handler:
         if get_protocol_version(r) in [2, "2", None]:
             return
         p = r.pubsub(push_handler_func=self.my_handler)
-        await p.subscribe("foo")
+        await p.subscribe(FOO)
         assert await wait_for_message(p) is None
-        assert self.message == ["my handler", [b"subscribe", b"foo", 1]]
-        assert await r.publish("foo", "test message") == 1
+        assert self.message == ["my handler", [b"subscribe", FOO.encode(), 1]]
+        assert await r.publish(FOO, "test message") == 1
         assert await wait_for_message(p) is None
-        assert self.message == ["my handler", [b"message", b"foo", b"test message"]]
+        assert self.message == [
+            "my handler",
+            [b"message", FOO.encode(), b"test message"],
+        ]
 
 
 @pytest.mark.onlynoncluster
 class TestPubSubAutoDecoding:
     """These tests only validate that we get unicode values back"""
 
-    channel = "uni" + chr(4456) + "code"
-    pattern = "uni" + chr(4456) + "*"
+    channel = UNICODE_CHANNEL
+    pattern = UNICODE_PATTERN
     data = "abc" + chr(4458) + "123"
 
     def make_message(self, type, channel, data, pattern=None):
@@ -587,7 +600,7 @@ class TestPubSubAutoDecoding:
 
     async def test_context_manager(self, r: valkey.Valkey):
         async with r.pubsub() as pubsub:
-            await pubsub.subscribe("foo")
+            await pubsub.subscribe(FOO)
             assert pubsub.connection is not None
 
         assert pubsub.connection is None
@@ -602,7 +615,7 @@ class TestPubSubValkeyDown:
         r = valkey.Valkey(host="localhost", port=6390)
         p = r.pubsub()
         with pytest.raises(ConnectionError):
-            await p.subscribe("foo")
+            await p.subscribe(FOO)
 
 
 @pytest.mark.onlynoncluster
@@ -611,34 +624,35 @@ class TestPubSubSubcommands:
     @skip_if_server_version_lt("2.8.0")
     async def test_pubsub_channels(self, r: valkey.Valkey, pubsub):
         p = pubsub
-        await p.subscribe("foo", "bar", "baz", "quux")
+        await p.subscribe(FOO, BAR, BAZ, QUUX)
         for i in range(4):
             assert (await wait_for_message(p))["type"] == "subscribe"
-        expected = [b"bar", b"baz", b"foo", b"quux"]
+        expected = [BAR.encode(), BAZ.encode(), FOO.encode(), QUUX.encode()]
         assert all([channel in await r.pubsub_channels() for channel in expected])
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.0")
     async def test_pubsub_numsub(self, r: valkey.Valkey):
         p1 = r.pubsub()
-        await p1.subscribe("foo", "bar", "baz")
+        await p1.subscribe(FOO, BAR, BAZ)
         for i in range(3):
             assert (await wait_for_message(p1))["type"] == "subscribe"
         p2 = r.pubsub()
-        await p2.subscribe("bar", "baz")
+        await p2.subscribe(BAR, BAZ)
         for i in range(2):
             assert (await wait_for_message(p2))["type"] == "subscribe"
         p3 = r.pubsub()
-        await p3.subscribe("baz")
+        await p3.subscribe(BAZ)
         assert (await wait_for_message(p3))["type"] == "subscribe"
 
-        channels = [(b"foo", 1), (b"bar", 2), (b"baz", 3)]
-        assert await r.pubsub_numsub("foo", "bar", "baz") == channels
+        channels = [(FOO.encode(), 1), (BAR.encode(), 2), (BAZ.encode(), 3)]
+        assert await r.pubsub_numsub(FOO, BAR, BAZ) == channels
         await p1.aclose()
         await p2.aclose()
         await p3.aclose()
 
     @skip_if_server_version_lt("2.8.0")
+    @pytest.mark.standalone_exclusive  # Server-wide pattern count.
     async def test_pubsub_numpat(self, r: valkey.Valkey):
         p = r.pubsub()
         await p.psubscribe("*oo", "*ar", "b*z")
@@ -653,7 +667,7 @@ class TestPubSubPings:
     @skip_if_server_version_lt("3.0.0")
     async def test_send_pubsub_ping(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
-        await p.subscribe("foo")
+        await p.subscribe(FOO)
         await p.ping()
         assert await wait_for_message(p) == make_message(
             type="pong", channel=None, data="", pattern=None
@@ -663,7 +677,7 @@ class TestPubSubPings:
     @skip_if_server_version_lt("3.0.0")
     async def test_send_pubsub_ping_message(self, r: valkey.Valkey):
         p = r.pubsub(ignore_subscribe_messages=True)
-        await p.subscribe("foo")
+        await p.subscribe(FOO)
         await p.ping(message="hello world")
         assert await wait_for_message(p) == make_message(
             type="pong", channel=None, data="hello world", pattern=None
@@ -674,12 +688,13 @@ class TestPubSubPings:
 @pytest.mark.onlynoncluster
 class TestPubSubConnectionKilled:
     @skip_if_server_version_lt("3.0.0")
+    @pytest.mark.standalone_exclusive  # Kills all subscribed clients.
     async def test_connection_error_raised_when_connection_dies(
         self, r: valkey.Valkey, pubsub
     ):
         p = pubsub
-        await p.subscribe("foo")
-        assert await wait_for_message(p) == make_message("subscribe", "foo", 1)
+        await p.subscribe(FOO)
+        assert await wait_for_message(p) == make_message("subscribe", FOO, 1)
         for client in await r.client_list():
             if client["cmd"] == "subscribe":
                 await r.client_kill_filter(_id=client["id"])
@@ -691,8 +706,8 @@ class TestPubSubConnectionKilled:
 class TestPubSubTimeouts:
     async def test_get_message_with_timeout_returns_none(self, pubsub):
         p = pubsub
-        await p.subscribe("foo")
-        assert await wait_for_message(p) == make_message("subscribe", "foo", 1)
+        await p.subscribe(FOO)
+        assert await wait_for_message(p) == make_message("subscribe", FOO, 1)
         assert await p.get_message(timeout=0.01) is None
 
 
@@ -711,7 +726,7 @@ class TestPubSubReconnect:
             # must make sure the task exits
             async with async_timeout(2):
                 nonlocal interrupt
-                await pubsub.subscribe("foo")
+                await pubsub.subscribe(FOO)
                 while True:
                     try:
                         try:
@@ -738,7 +753,7 @@ class TestPubSubReconnect:
         async with async_timeout(1):
             message = await messages.get()
         assert message == {
-            "channel": b"foo",
+            "channel": FOO.encode(),
             "data": 1,
             "pattern": None,
             "type": "subscribe",
@@ -750,7 +765,7 @@ class TestPubSubReconnect:
         # await another auto-connect message
         message = await messages.get()
         assert message == {
-            "channel": b"foo",
+            "channel": FOO.encode(),
             "data": 1,
             "pattern": None,
             "type": "subscribe",
@@ -771,7 +786,7 @@ class TestPubSubRun:
             if (
                 message is not None
                 and message["type"] == "subscribe"
-                and message["channel"] == b"foo"
+                and message["channel"] == FOO.encode()
             ):
                 return
 
@@ -781,9 +796,9 @@ class TestPubSubRun:
 
         messages = asyncio.Queue()
         p = pubsub
-        await self._subscribe(p, foo=callback)
+        await self._subscribe(p, **{FOO: callback})
         task = asyncio.get_running_loop().create_task(p.run())
-        await r.publish("foo", "bar")
+        await r.publish(FOO, "bar")
         message = await messages.get()
         task.cancel()
         try:
@@ -791,7 +806,7 @@ class TestPubSubRun:
         except asyncio.CancelledError:
             pass
         assert message == {
-            "channel": b"foo",
+            "channel": FOO.encode(),
             "data": b"bar",
             "pattern": None,
             "type": "message",
@@ -804,7 +819,7 @@ class TestPubSubRun:
 
         exceptions = asyncio.Queue()
         p = pubsub
-        await self._subscribe(p, foo=lambda x: None)
+        await self._subscribe(p, **{FOO: lambda x: None})
         with mock.patch.object(p, "get_message", side_effect=Exception("error")):
             task = asyncio.get_running_loop().create_task(
                 p.run(exception_handler=exception_handler_callback)
@@ -826,11 +841,11 @@ class TestPubSubRun:
         task = asyncio.get_running_loop().create_task(p.run())
         # wait until loop gets settled.  Add a subscription
         await asyncio.sleep(0.1)
-        await p.subscribe(foo=callback)
+        await p.subscribe(**{FOO: callback})
         # wait for the subscribe to finish.  Cannot use _subscribe() because
         # p.run() is already accepting messages
         while True:
-            n = await r.publish("foo", "bar")
+            n = await r.publish(FOO, "bar")
             if n == 1:
                 break
             await asyncio.sleep(0.1)
@@ -842,7 +857,7 @@ class TestPubSubRun:
         with pytest.raises(asyncio.CancelledError):
             await task
         assert message == {
-            "channel": b"foo",
+            "channel": FOO.encode(),
             "data": b"bar",
             "pattern": None,
             "type": "message",
@@ -871,7 +886,7 @@ class TestPubSubAutoReconnect:
         # get the initial connect message
         message = await self.messages.get()
         assert message == {
-            "channel": b"foo",
+            "channel": FOO.encode(),
             "data": 1,
             "pattern": None,
             "type": "subscribe",
@@ -880,7 +895,7 @@ class TestPubSubAutoReconnect:
     async def myfinish(self):
         message = await self.messages.get()
         assert message == {
-            "channel": b"foo",
+            "channel": FOO.encode(),
             "data": 1,
             "pattern": None,
             "type": "subscribe",
@@ -946,7 +961,7 @@ class TestPubSubAutoReconnect:
     async def loop(self):
         # reader loop, performing state transitions as it
         # discovers disconnects and reconnects
-        await self.pubsub.subscribe("foo")
+        await self.pubsub.subscribe(FOO)
         while True:
             await asyncio.sleep(0.01)  # give main thread chance to get lock
             async with self.cond:
@@ -996,7 +1011,7 @@ class TestBaseException:
         CancelledError became a BaseException instead of an Exception before.
         """
         pubsub = r.pubsub()
-        await pubsub.subscribe("foo")
+        await pubsub.subscribe(FOO)
         assert pubsub.connection.is_connected
 
         async def get_msg_or_timeout(timeout=0.1):
@@ -1026,7 +1041,7 @@ class TestBaseException:
         and verify that it isn't caught
         """
         pubsub = r.pubsub()
-        await pubsub.subscribe("foo")
+        await pubsub.subscribe(FOO)
         assert pubsub.connection.is_connected
 
         async def get_msg():

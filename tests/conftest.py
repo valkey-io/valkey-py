@@ -13,9 +13,11 @@ from packaging.version import Version
 import valkey
 from valkey import Sentinel
 from valkey.backoff import NoBackoff
-from valkey.connection import Connection, parse_url
+from valkey.connection import Connection
 from valkey.exceptions import ValkeyClusterException
 from valkey.retry import Retry
+
+pytest_plugins = ["tests.standalone"]
 
 VALKEY_INFO = {}
 default_valkey_url = "valkey://localhost:6379/0"
@@ -94,12 +96,19 @@ def pytest_sessionstart(session):
         version = info["valkey_version"]
         arch_bits = info["arch_bits"]
         cluster_enabled = info["cluster_enabled"]
-    except valkey.ConnectionError:
+    except valkey.ConnectionError as error:
+        if session.config.getoption("standalone_phase"):
+            raise pytest.UsageError(
+                f"Standalone isolation preflight failed: {error}"
+            ) from error
         # provide optimistic defaults
         info = {}
         version = "10.0.0"
         arch_bits = 64
         cluster_enabled = False
+    from tests.standalone import preflight
+
+    preflight(session.config, info)
     VALKEY_INFO["version"] = version
     VALKEY_INFO["arch_bits"] = arch_bits
     VALKEY_INFO["cluster_enabled"] = cluster_enabled
@@ -231,6 +240,8 @@ def _get_client(
     ConnectionPool.from_url, keyword arguments to this function override
     values specified in the URL.
     """
+    from tests.standalone import connection_options
+
     if from_url is None:
         valkey_url = request.config.getoption("--valkey-url")
     else:
@@ -240,8 +251,7 @@ def _get_client(
 
     cluster_mode = VALKEY_INFO["cluster_enabled"]
     if not cluster_mode:
-        url_options = parse_url(valkey_url)
-        url_options.update(kwargs)
+        url_options = connection_options(request.config, valkey_url, **kwargs)
         pool = valkey.ConnectionPool(**url_options)
         client = cls(connection_pool=pool)
     else:
@@ -285,6 +295,13 @@ def cluster_teardown(client, flushdb):
 def r(request):
     with _get_client(valkey.Valkey, request) as client:
         yield client
+
+
+@pytest.fixture
+def standalone_db(request):
+    """Database for direct standalone clients, with normal factory cleanup."""
+    client = _get_client(valkey.Valkey, request)
+    return client.connection_pool.connection_kwargs.get("db", 0)
 
 
 @pytest.fixture
@@ -431,8 +448,12 @@ def wait_for_command(client, monitor, command, key=None):
         id_str = str(client.client_id())
         key = f"__VALKEY-PY-{id_str}__"
     client.get(key)
+    pool = getattr(client, "connection_pool", None)
+    db = pool.connection_kwargs.get("db", 0) if pool is not None else 0
     while True:
         monitor_response = monitor.next_command()
+        if monitor_response["db"] != db:
+            continue
         if command in monitor_response["command"]:
             return monitor_response
         if key in monitor_response["command"]:

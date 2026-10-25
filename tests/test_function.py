@@ -17,6 +17,7 @@ get_function = "redis.register_function('get', function(keys, args) return \
 
 
 @skip_if_server_version_lt("7.0.0")
+@pytest.mark.standalone_exclusive  # Autouse fixture flushes global functions.
 class TestFunction:
     @pytest.fixture(autouse=True)
     def reset_functions(self, r):

@@ -90,6 +90,7 @@ class TestResponseCallbacks:
 
 class TestValkeyCommands:
     @pytest.mark.onlynoncluster
+    @pytest.mark.standalone_exclusive
     def test_auth(self, r, request):
         # sending an AUTH command before setting a user/password on the
         # server should return an AuthenticationError
@@ -157,6 +158,7 @@ class TestValkeyCommands:
         assert "get" in commands or b"get" in commands
 
     @skip_if_server_version_lt("7.0.0")
+    @pytest.mark.standalone_exclusive
     def test_acl_dryrun(self, r, request):
         username = "valkey-py-user"
 
@@ -171,6 +173,7 @@ class TestValkeyCommands:
         assert no_permissions_message in r.acl_dryrun(username, "get", "key")
 
     @skip_if_server_version_lt("6.0.0")
+    @pytest.mark.standalone_exclusive
     def test_acl_deluser(self, r, request):
         username = "valkey-py-user"
 
@@ -209,6 +212,7 @@ class TestValkeyCommands:
         assert len(password) == 139
 
     @skip_if_server_version_lt("7.0.0")
+    @pytest.mark.standalone_exclusive
     def test_acl_getuser_setuser(self, r, request):
         r.flushall()
         username = "valkey-py-user"
@@ -366,6 +370,7 @@ class TestValkeyCommands:
         assert len(res) != 0
 
     @skip_if_server_version_lt("6.0.0")
+    @pytest.mark.standalone_exclusive
     def test_acl_list(self, r, request):
         username = "valkey-py-user"
         start = r.acl_list()
@@ -381,6 +386,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("6.0.0")
     @pytest.mark.onlynoncluster
+    @pytest.mark.standalone_exclusive
     def test_acl_log(self, r, request):
         username = "valkey-py-user"
 
@@ -427,6 +433,7 @@ class TestValkeyCommands:
         )
 
     @skip_if_server_version_lt("6.0.0")
+    @pytest.mark.standalone_exclusive
     def test_acl_setuser_categories_without_prefix_fails(self, r, request):
         username = "valkey-py-user"
 
@@ -439,6 +446,7 @@ class TestValkeyCommands:
             r.acl_setuser(username, categories=["list"])
 
     @skip_if_server_version_lt("6.0.0")
+    @pytest.mark.standalone_exclusive
     def test_acl_setuser_commands_without_prefix_fails(self, r, request):
         username = "valkey-py-user"
 
@@ -451,6 +459,7 @@ class TestValkeyCommands:
             r.acl_setuser(username, commands=["get"])
 
     @skip_if_server_version_lt("6.0.0")
+    @pytest.mark.standalone_exclusive
     def test_acl_setuser_add_passwords_and_nopass_fails(self, r, request):
         username = "valkey-py-user"
 
@@ -501,6 +510,7 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.2.0")
+    @pytest.mark.standalone_exclusive
     def test_client_list_client_id(self, r, request):
         clients = r.client_list()
         clients = r.client_list(client_id=[clients[0]["id"]])
@@ -528,6 +538,7 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.0.0")
+    @pytest.mark.standalone_exclusive  # FLUSHDB invalidations are server-wide.
     def test_client_tracking(self, r, r2):
         # simple case
         assert r.client_tracking_on()
@@ -598,6 +609,7 @@ class TestValkeyCommands:
             client
             for client in r.client_list()
             if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
+            and client["db"] == str(r.connection_pool.connection_kwargs.get("db", 0))
         ]
         assert len(clients) == 2
 
@@ -610,6 +622,7 @@ class TestValkeyCommands:
             client
             for client in r.client_list()
             if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
+            and client["db"] == str(r.connection_pool.connection_kwargs.get("db", 0))
         ]
         assert len(clients) == 1
         assert clients[0].get("name") == "valkey-py-c1"
@@ -637,6 +650,7 @@ class TestValkeyCommands:
             client
             for client in r.client_list()
             if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
+            and client["db"] == str(r.connection_pool.connection_kwargs.get("db", 0))
         ]
         assert len(clients) == 2
 
@@ -650,6 +664,7 @@ class TestValkeyCommands:
             client
             for client in r.client_list()
             if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
+            and client["db"] == str(r.connection_pool.connection_kwargs.get("db", 0))
         ]
         assert len(clients) == 1
         assert clients[0].get("name") == "valkey-py-c1"
@@ -663,6 +678,7 @@ class TestValkeyCommands:
             client
             for client in r.client_list()
             if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
+            and client["db"] == str(r.connection_pool.connection_kwargs.get("db", 0))
         ]
         assert len(clients) == 2
 
@@ -676,6 +692,7 @@ class TestValkeyCommands:
             client
             for client in r.client_list()
             if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
+            and client["db"] == str(r.connection_pool.connection_kwargs.get("db", 0))
         ]
         assert len(clients) == 1
         assert clients[0].get("name") == "valkey-py-c1"
@@ -688,6 +705,7 @@ class TestValkeyCommands:
         assert "valkey_py_test" in [c["name"] for c in clients]
 
     @skip_if_server_version_lt("6.2.0")
+    @pytest.mark.standalone_exclusive
     def test_client_kill_filter_by_laddr(self, r, r2):
         r.client_setname("valkey-py-c1")
         r2.client_setname("valkey-py-c2")
@@ -704,6 +722,7 @@ class TestValkeyCommands:
         assert r.client_kill_filter(laddr=client_2_addr)
 
     @skip_if_server_version_lt("6.0.0")
+    @pytest.mark.standalone_exclusive
     def test_client_kill_filter_by_user(self, r, request):
         killuser = "user_to_kill"
         r.acl_setuser(
@@ -723,6 +742,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("7.3.240")
     @pytest.mark.onlynoncluster
+    @pytest.mark.standalone_exclusive
     def test_client_kill_filter_by_maxage(self, r, request):
         client = _get_client(valkey.Valkey, request, flushdb=False)
         client_name = "test-kill-by-maxage"
@@ -736,6 +756,7 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.9.50")
+    @pytest.mark.standalone_exclusive
     def test_client_pause(self, r):
         assert r.client_pause(1)
         assert r.client_pause(timeout=1)
@@ -743,6 +764,7 @@ class TestValkeyCommands:
             r.client_pause(timeout="not an integer")
 
     @skip_if_server_version_lt("6.2.0")
+    @pytest.mark.standalone_exclusive
     def test_client_pause_all(self, r, r2):
         assert r.client_pause(1, all=False)
         assert r2.set("foo", "bar")
@@ -751,6 +773,7 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.2.0")
+    @pytest.mark.standalone_exclusive
     def test_client_unpause(self, r):
         assert r.client_unpause() == b"OK"
 
@@ -812,6 +835,7 @@ class TestValkeyCommands:
         assert "hash-max-listpack-entries" in res
 
     @pytest.mark.onlynoncluster
+    @pytest.mark.standalone_exclusive
     def test_config_resetstat(self, r):
         r.ping()
         prior_commands_processed = int(r.info()["total_commands_processed"])
@@ -820,6 +844,7 @@ class TestValkeyCommands:
         reset_commands_processed = int(r.info()["total_commands_processed"])
         assert reset_commands_processed < prior_commands_processed
 
+    @pytest.mark.standalone_exclusive
     def test_config_set(self, r):
         r.config_set("timeout", 70)
         assert r.config_get()["timeout"] == "70"
@@ -827,6 +852,7 @@ class TestValkeyCommands:
         assert r.config_get()["timeout"] == "0"
 
     @skip_if_server_version_lt("7.0.0")
+    @pytest.mark.standalone_exclusive
     def test_config_set_multi_params(self, r: valkey.Valkey):
         r.config_set("timeout", 70, "maxmemory", 100)
         assert r.config_get()["timeout"] == "70"
@@ -884,6 +910,7 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.2.0")
+    @pytest.mark.standalone_exclusive
     def test_reset(self, r):
         assert_resp_response(r, r.reset(), "RESET", b"RESET")
 
@@ -909,12 +936,14 @@ class TestValkeyCommands:
         assert isinstance(r.role()[2], list)
 
     @pytest.mark.onlynoncluster
+    @pytest.mark.standalone_exclusive
     def test_select(self, r):
         assert r.select(5)
         assert r.select(2)
         assert r.select(9)
 
     @pytest.mark.onlynoncluster
+    @pytest.mark.standalone_exclusive
     def test_slowlog_get(self, r, slowlog):
         assert r.slowlog_reset()
         unicode_string = chr(3456) + "abcd" + chr(3421)
@@ -967,6 +996,7 @@ class TestValkeyCommands:
             r.parse_response = old_parse_response
 
     @pytest.mark.onlynoncluster
+    @pytest.mark.standalone_exclusive
     def test_slowlog_get_limit(self, r, slowlog):
         assert r.slowlog_reset()
         r.get("foo")
@@ -976,6 +1006,7 @@ class TestValkeyCommands:
         assert len(slowlog) == 1
 
     @pytest.mark.onlynoncluster
+    @pytest.mark.standalone_exclusive
     def test_slowlog_length(self, r, slowlog):
         r.get("foo")
         assert isinstance(r.slowlog_len(), int)
@@ -987,6 +1018,7 @@ class TestValkeyCommands:
         assert isinstance(t[0], int)
         assert isinstance(t[1], int)
 
+    @pytest.mark.standalone_exclusive
     def test_bgsave(self, r):
         assert r.bgsave()
         # Wait for the first bgsave to finish
@@ -1141,6 +1173,7 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("6.2.0")
+    @pytest.mark.standalone_exclusive
     def test_copy_to_another_database(self, request):
         r0 = _get_client(valkey.Valkey, request, db=0)
         r1 = _get_client(valkey.Valkey, request, db=1)
@@ -4941,12 +4974,15 @@ class TestValkeyCommands:
         with pytest.raises(NotImplementedError):
             r.latency_doctor()
 
+    @pytest.mark.standalone_exclusive
     def test_latency_history(self, r: valkey.Valkey):
         assert r.latency_history("command") == []
 
+    @pytest.mark.standalone_exclusive
     def test_latency_latest(self, r: valkey.Valkey):
         assert r.latency_latest() == []
 
+    @pytest.mark.standalone_exclusive
     def test_latency_reset(self, r: valkey.Valkey):
         assert r.latency_reset() == 0
 
@@ -5081,6 +5117,7 @@ class TestValkeyCommands:
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("5.0.0")
+    @pytest.mark.standalone_exclusive
     def test_replicaof(self, r):
         with pytest.raises(valkey.ResponseError):
             assert r.replicaof("NO ONE")
@@ -5104,6 +5141,7 @@ class TestValkeyCommands:
     @pytest.mark.replica
     @pytest.mark.xfail(strict=False)
     @skip_if_server_version_lt("2.8.0")
+    @pytest.mark.standalone_exclusive
     def test_sync(self, r):
         r.flushdb()
         time.sleep(1)
@@ -5113,6 +5151,7 @@ class TestValkeyCommands:
 
     @pytest.mark.replica
     @skip_if_server_version_lt("2.8.0")
+    @pytest.mark.standalone_exclusive
     def test_psync(self, r):
         r2 = valkey.Valkey(port=6380, decode_responses=False)
         res = r2.psync(str(r2.client_id()), 1)
@@ -5128,6 +5167,7 @@ class TestValkeyCommands:
 
         replica = valkey.Valkey(
             port=6380,
+            db=r.connection_pool.connection_kwargs.get("db", 0),
             decode_responses=True,
             client_capa_redirect=True,
         )

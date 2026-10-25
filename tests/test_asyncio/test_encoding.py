@@ -9,15 +9,11 @@ from valkey.exceptions import DataError
 class TestEncoding:
     @pytest_asyncio.fixture()
     async def r(self, create_valkey):
-        valkey = await create_valkey(decode_responses=True)
-        yield valkey
-        await valkey.flushall()
+        return await create_valkey(decode_responses=True)
 
     @pytest_asyncio.fixture()
     async def r_no_decode(self, create_valkey):
-        valkey = await create_valkey(decode_responses=False)
-        yield valkey
-        await valkey.flushall()
+        return await create_valkey(decode_responses=False)
 
     async def test_simple_encoding(self, r_no_decode: valkey.Valkey):
         unicode_string = chr(3456) + "abcd" + chr(3421)
@@ -86,9 +82,7 @@ class TestMemoryviewsAreNotPacked:
 class TestCommandsAreNotEncoded:
     @pytest_asyncio.fixture()
     async def r(self, create_valkey):
-        valkey = await create_valkey(encoding="utf-16")
-        yield valkey
-        await valkey.flushall()
+        return await create_valkey(encoding="utf-16")
 
     @pytest.mark.xfail
     async def test_basic_command(self, r: valkey.Valkey):

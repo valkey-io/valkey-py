@@ -49,6 +49,7 @@ dev = [
     'pytest-asyncio',
     'pytest-cov',
     'pytest-timeout',
+    'pytest-xdist>=3.2',
     'ruff==0.17.0',
     'ujson>=4.2.0',
     'uvloop; implementation_name != "pypy"',
@@ -98,6 +99,7 @@ include = [
 [tool.pytest.ini_options]
 addopts = "-s"
 markers = [
+    "standalone_exclusive: requires exclusive access to server-wide state",
     "valkeymod: run only the valkey module tests",
     "pipeline: pipeline tests",
     "onlycluster: marks tests to be run only with cluster mode valkey",
