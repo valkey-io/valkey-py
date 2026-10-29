@@ -10,10 +10,17 @@ from unittest.mock import patch
 import pytest
 
 import valkey
+from tests.standalone import worker_name
 from valkey.exceptions import ConnectionError
 from valkey.utils import LIBVALKEY_AVAILABLE
 
 from .conftest import _get_client, is_resp2_connection, skip_if_server_version_lt
+
+# Channels and patterns are server-wide, unlike ordinary keys.
+FOO, BAR, BAZ, QUUX = map(worker_name, ("foo", "bar", "baz", "quux"))
+FOO_PATTERN, BAR_PATTERN = map(worker_name, ("f*", "b*"))
+UNICODE_CHANNEL = worker_name("uni" + chr(4456) + "code")
+UNICODE_PATTERN = worker_name("uni" + chr(4456) + "*")
 
 
 def wait_for_message(
@@ -56,7 +63,7 @@ def make_subscribe_test_data(pubsub, type):
             "unsub_type": "unsubscribe",
             "sub_func": pubsub.subscribe,
             "unsub_func": pubsub.unsubscribe,
-            "keys": ["foo", "bar", "uni" + chr(4456) + "code"],
+            "keys": [FOO, BAR, UNICODE_CHANNEL],
         }
     elif type == "shard_channel":
         return {
@@ -65,7 +72,7 @@ def make_subscribe_test_data(pubsub, type):
             "unsub_type": "sunsubscribe",
             "sub_func": pubsub.ssubscribe,
             "unsub_func": pubsub.sunsubscribe,
-            "keys": ["foo", "bar", "uni" + chr(4456) + "code"],
+            "keys": [FOO, BAR, UNICODE_CHANNEL],
         }
     elif type == "pattern":
         return {
@@ -74,7 +81,7 @@ def make_subscribe_test_data(pubsub, type):
             "unsub_type": "punsubscribe",
             "sub_func": pubsub.psubscribe,
             "unsub_func": pubsub.punsubscribe,
-            "keys": ["f*", "b*", "uni" + chr(4456) + "*"],
+            "keys": [FOO_PATTERN, BAR_PATTERN, UNICODE_PATTERN],
         }
     assert False, f"invalid subscribe type: {type}"
 
@@ -119,9 +126,9 @@ class TestPubSubSubscribeUnsubscribe:
         node_channels = defaultdict(int)
         p = r.pubsub()
         keys = {
-            "foo": r.get_node_from_key("foo"),
-            "bar": r.get_node_from_key("bar"),
-            "uni" + chr(4456) + "code": r.get_node_from_key("uni" + chr(4456) + "code"),
+            FOO: r.get_node_from_key(FOO),
+            BAR: r.get_node_from_key(BAR),
+            UNICODE_CHANNEL: r.get_node_from_key(UNICODE_CHANNEL),
         }
 
         for key, node in keys.items():
@@ -258,7 +265,7 @@ class TestPubSubSubscribeUnsubscribe:
     @skip_if_server_version_lt("7.0.0")
     def test_subscribe_property_with_shard_channels_cluster(self, r):
         p = r.pubsub()
-        keys = ["foo", "bar", "uni" + chr(4456) + "code"]
+        keys = [FOO, BAR, UNICODE_CHANNEL]
         nodes = [r.get_node_from_key(key) for key in keys]
         assert p.subscribed is False
         p.ssubscribe(keys[0])
@@ -320,12 +327,12 @@ class TestPubSubSubscribeUnsubscribe:
         p = r.pubsub(ignore_subscribe_messages=True)
 
         checks = (
-            (p.subscribe, "foo", p.get_message),
-            (p.unsubscribe, "foo", p.get_message),
-            (p.psubscribe, "f*", p.get_message),
-            (p.punsubscribe, "f*", p.get_message),
-            (p.ssubscribe, "foo", p.get_sharded_message),
-            (p.sunsubscribe, "foo", p.get_sharded_message),
+            (p.subscribe, FOO, p.get_message),
+            (p.unsubscribe, FOO, p.get_message),
+            (p.psubscribe, FOO_PATTERN, p.get_message),
+            (p.punsubscribe, FOO_PATTERN, p.get_message),
+            (p.ssubscribe, FOO, p.get_sharded_message),
+            (p.sunsubscribe, FOO, p.get_sharded_message),
         )
 
         assert p.subscribed is False
@@ -340,12 +347,12 @@ class TestPubSubSubscribeUnsubscribe:
         p = r.pubsub()
 
         checks = (
-            (p.subscribe, "foo", p.get_message),
-            (p.unsubscribe, "foo", p.get_message),
-            (p.psubscribe, "f*", p.get_message),
-            (p.punsubscribe, "f*", p.get_message),
-            (p.ssubscribe, "foo", p.get_sharded_message),
-            (p.sunsubscribe, "foo", p.get_sharded_message),
+            (p.subscribe, FOO, p.get_message),
+            (p.unsubscribe, FOO, p.get_message),
+            (p.psubscribe, FOO_PATTERN, p.get_message),
+            (p.punsubscribe, FOO_PATTERN, p.get_message),
+            (p.ssubscribe, FOO, p.get_sharded_message),
+            (p.sunsubscribe, FOO, p.get_sharded_message),
         )
 
         assert p.subscribed is False
@@ -389,7 +396,7 @@ class TestPubSubSubscribeUnsubscribe:
     @skip_if_server_version_lt("7.0.0")
     def test_sub_unsub_resub_shard_channels_cluster(self, r):
         p = r.pubsub()
-        key = "foo"
+        key = FOO
         p.ssubscribe(key)
         p.sunsubscribe(key)
         p.ssubscribe(key)
@@ -437,7 +444,7 @@ class TestPubSubSubscribeUnsubscribe:
     @skip_if_server_version_lt("7.0.0")
     def test_sub_unsub_all_resub_shard_channels_cluster(self, r):
         p = r.pubsub()
-        key = "foo"
+        key = FOO
         p.ssubscribe(key)
         p.sunsubscribe()
         p.ssubscribe(key)
@@ -463,48 +470,48 @@ class TestPubSubMessages:
 
     def test_published_message_to_channel(self, r):
         p = r.pubsub()
-        p.subscribe("foo")
-        assert wait_for_message(p) == make_message("subscribe", "foo", 1)
-        assert r.publish("foo", "test message") == 1
+        p.subscribe(FOO)
+        assert wait_for_message(p) == make_message("subscribe", FOO, 1)
+        assert r.publish(FOO, "test message") == 1
 
         message = wait_for_message(p)
         assert isinstance(message, dict)
-        assert message == make_message("message", "foo", "test message")
+        assert message == make_message("message", FOO, "test message")
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("7.0.0")
     def test_published_message_to_shard_channel(self, r):
         p = r.pubsub()
-        p.ssubscribe("foo")
-        assert wait_for_message(p) == make_message("ssubscribe", "foo", 1)
-        assert r.spublish("foo", "test message") == 1
+        p.ssubscribe(FOO)
+        assert wait_for_message(p) == make_message("ssubscribe", FOO, 1)
+        assert r.spublish(FOO, "test message") == 1
 
         message = wait_for_message(p)
         assert isinstance(message, dict)
-        assert message == make_message("smessage", "foo", "test message")
+        assert message == make_message("smessage", FOO, "test message")
 
     @pytest.mark.onlycluster
     @skip_if_server_version_lt("7.0.0")
     def test_published_message_to_shard_channel_cluster(self, r):
         p = r.pubsub()
-        p.ssubscribe("foo")
+        p.ssubscribe(FOO)
         assert wait_for_message(p, func=p.get_sharded_message) == make_message(
-            "ssubscribe", "foo", 1
+            "ssubscribe", FOO, 1
         )
-        assert r.spublish("foo", "test message") == 1
+        assert r.spublish(FOO, "test message") == 1
 
         message = wait_for_message(p, func=p.get_sharded_message)
         assert isinstance(message, dict)
-        assert message == make_message("smessage", "foo", "test message")
+        assert message == make_message("smessage", FOO, "test message")
 
     def test_published_message_to_pattern(self, r):
         p = r.pubsub()
-        p.subscribe("foo")
-        p.psubscribe("f*")
-        assert wait_for_message(p) == make_message("subscribe", "foo", 1)
-        assert wait_for_message(p) == make_message("psubscribe", "f*", 2)
+        p.subscribe(FOO)
+        p.psubscribe(FOO_PATTERN)
+        assert wait_for_message(p) == make_message("subscribe", FOO, 1)
+        assert wait_for_message(p) == make_message("psubscribe", FOO_PATTERN, 2)
         # 1 to pattern, 1 to channel
-        assert r.publish("foo", "test message") == 2
+        assert r.publish(FOO, "test message") == 2
 
         message1 = wait_for_message(p)
         message2 = wait_for_message(p)
@@ -512,8 +519,8 @@ class TestPubSubMessages:
         assert isinstance(message2, dict)
 
         expected = [
-            make_message("message", "foo", "test message"),
-            make_message("pmessage", "foo", "test message", pattern="f*"),
+            make_message("message", FOO, "test message"),
+            make_message("pmessage", FOO, "test message", pattern=FOO_PATTERN),
         ]
 
         assert message1 in expected
@@ -522,35 +529,35 @@ class TestPubSubMessages:
 
     def test_channel_message_handler(self, r):
         p = r.pubsub(ignore_subscribe_messages=True)
-        p.subscribe(foo=self.message_handler)
+        p.subscribe(**{FOO: self.message_handler})
         assert wait_for_message(p) is None
-        assert r.publish("foo", "test message") == 1
+        assert r.publish(FOO, "test message") == 1
         assert wait_for_message(p) is None
-        assert self.message == make_message("message", "foo", "test message")
+        assert self.message == make_message("message", FOO, "test message")
 
     @skip_if_server_version_lt("7.0.0")
     def test_shard_channel_message_handler(self, r):
         p = r.pubsub(ignore_subscribe_messages=True)
-        p.ssubscribe(foo=self.message_handler)
+        p.ssubscribe(**{FOO: self.message_handler})
         assert wait_for_message(p, func=p.get_sharded_message) is None
-        assert r.spublish("foo", "test message") == 1
+        assert r.spublish(FOO, "test message") == 1
         assert wait_for_message(p, func=p.get_sharded_message) is None
-        assert self.message == make_message("smessage", "foo", "test message")
+        assert self.message == make_message("smessage", FOO, "test message")
 
     @pytest.mark.onlynoncluster
     def test_pattern_message_handler(self, r):
         p = r.pubsub(ignore_subscribe_messages=True)
-        p.psubscribe(**{"f*": self.message_handler})
+        p.psubscribe(**{FOO_PATTERN: self.message_handler})
         assert wait_for_message(p) is None
-        assert r.publish("foo", "test message") == 1
+        assert r.publish(FOO, "test message") == 1
         assert wait_for_message(p) is None
         assert self.message == make_message(
-            "pmessage", "foo", "test message", pattern="f*"
+            "pmessage", FOO, "test message", pattern=FOO_PATTERN
         )
 
     def test_unicode_channel_message_handler(self, r):
         p = r.pubsub(ignore_subscribe_messages=True)
-        channel = "uni" + chr(4456) + "code"
+        channel = UNICODE_CHANNEL
         channels = {channel: self.message_handler}
         p.subscribe(**channels)
         assert wait_for_message(p) is None
@@ -561,7 +568,7 @@ class TestPubSubMessages:
     @skip_if_server_version_lt("7.0.0")
     def test_unicode_shard_channel_message_handler(self, r):
         p = r.pubsub(ignore_subscribe_messages=True)
-        channel = "uni" + chr(4456) + "code"
+        channel = UNICODE_CHANNEL
         channels = {channel: self.message_handler}
         p.ssubscribe(**channels)
         assert wait_for_message(p, func=p.get_sharded_message) is None
@@ -573,8 +580,8 @@ class TestPubSubMessages:
     # see: https://valkey-py.readthedocs.io/en/latest/clustering.html#known-pubsub-limitations # noqa: E501
     def test_unicode_pattern_message_handler(self, r):
         p = r.pubsub(ignore_subscribe_messages=True)
-        pattern = "uni" + chr(4456) + "*"
-        channel = "uni" + chr(4456) + "code"
+        pattern = UNICODE_PATTERN
+        channel = UNICODE_CHANNEL
         p.psubscribe(**{pattern: self.message_handler})
         assert wait_for_message(p) is None
         assert r.publish(channel, "test message") == 1
@@ -593,12 +600,15 @@ class TestPubSubRESP3Handler:
         if is_resp2_connection(r):
             return
         p = r.pubsub(push_handler_func=self.my_handler)
-        p.subscribe("foo")
+        p.subscribe(FOO)
         assert wait_for_message(p) is None
-        assert self.message == ["my handler", [b"subscribe", b"foo", 1]]
-        assert r.publish("foo", "test message") == 1
+        assert self.message == ["my handler", [b"subscribe", FOO.encode(), 1]]
+        assert r.publish(FOO, "test message") == 1
         assert wait_for_message(p) is None
-        assert self.message == ["my handler", [b"message", b"foo", b"test message"]]
+        assert self.message == [
+            "my handler",
+            [b"message", FOO.encode(), b"test message"],
+        ]
 
     @pytest.mark.skipif(LIBVALKEY_AVAILABLE, reason="PythonParser only")
     @skip_if_server_version_lt("7.0.0")
@@ -606,19 +616,22 @@ class TestPubSubRESP3Handler:
         if is_resp2_connection(r):
             return
         p = r.pubsub(push_handler_func=self.my_handler)
-        p.ssubscribe("foo")
+        p.ssubscribe(FOO)
         assert wait_for_message(p, func=p.get_sharded_message) is None
-        assert self.message == ["my handler", [b"ssubscribe", b"foo", 1]]
-        assert r.spublish("foo", "test message") == 1
+        assert self.message == ["my handler", [b"ssubscribe", FOO.encode(), 1]]
+        assert r.spublish(FOO, "test message") == 1
         assert wait_for_message(p, func=p.get_sharded_message) is None
-        assert self.message == ["my handler", [b"smessage", b"foo", b"test message"]]
+        assert self.message == [
+            "my handler",
+            [b"smessage", FOO.encode(), b"test message"],
+        ]
 
 
 class TestPubSubAutoDecoding:
     "These tests only validate that we get unicode values back"
 
-    channel = "uni" + chr(4456) + "code"
-    pattern = "uni" + chr(4456) + "*"
+    channel = UNICODE_CHANNEL
+    pattern = UNICODE_PATTERN
     data = "abc" + chr(4458) + "123"
 
     def make_message(self, type, channel, data, pattern=None):
@@ -758,7 +771,7 @@ class TestPubSubAutoDecoding:
 
     def test_context_manager(self, r):
         with r.pubsub() as pubsub:
-            pubsub.subscribe("foo")
+            pubsub.subscribe(FOO)
             assert pubsub.connection is not None
 
         assert pubsub.connection is None
@@ -771,7 +784,7 @@ class TestPubSubValkeyDown:
         r = valkey.Valkey(host="localhost", port=6390)
         p = r.pubsub()
         with pytest.raises(ConnectionError):
-            p.subscribe("foo")
+            p.subscribe(FOO)
 
 
 class TestPubSubSubcommands:
@@ -779,33 +792,33 @@ class TestPubSubSubcommands:
     @skip_if_server_version_lt("2.8.0")
     def test_pubsub_channels(self, r):
         p = r.pubsub()
-        p.subscribe("foo", "bar", "baz", "quux")
+        p.subscribe(FOO, BAR, BAZ, QUUX)
         for i in range(4):
             assert wait_for_message(p)["type"] == "subscribe"
-        expected = [b"bar", b"baz", b"foo", b"quux"]
+        expected = [BAR.encode(), BAZ.encode(), FOO.encode(), QUUX.encode()]
         assert all([channel in r.pubsub_channels() for channel in expected])
 
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("7.0.0")
     def test_pubsub_shardchannels(self, r):
         p = r.pubsub()
-        p.ssubscribe("foo", "bar", "baz", "quux")
+        p.ssubscribe(FOO, BAR, BAZ, QUUX)
         for i in range(4):
             assert wait_for_message(p)["type"] == "ssubscribe"
-        expected = [b"bar", b"baz", b"foo", b"quux"]
+        expected = [BAR.encode(), BAZ.encode(), FOO.encode(), QUUX.encode()]
         assert all([channel in r.pubsub_shardchannels() for channel in expected])
 
     @pytest.mark.onlycluster
     @skip_if_server_version_lt("7.0.0")
     def test_pubsub_shardchannels_cluster(self, r):
         channels = {
-            b"foo": r.get_node_from_key("foo"),
-            b"bar": r.get_node_from_key("bar"),
-            b"baz": r.get_node_from_key("baz"),
-            b"quux": r.get_node_from_key("quux"),
+            FOO.encode(): r.get_node_from_key(FOO),
+            BAR.encode(): r.get_node_from_key(BAR),
+            BAZ.encode(): r.get_node_from_key(BAZ),
+            QUUX.encode(): r.get_node_from_key(QUUX),
         }
         p = r.pubsub()
-        p.ssubscribe("foo", "bar", "baz", "quux")
+        p.ssubscribe(FOO, BAR, BAZ, QUUX)
         for node in channels.values():
             assert wait_for_message(p, node=node)["type"] == "ssubscribe"
         for channel, node in channels.items():
@@ -821,21 +834,22 @@ class TestPubSubSubcommands:
     @skip_if_server_version_lt("2.8.0")
     def test_pubsub_numsub(self, r):
         p1 = r.pubsub()
-        p1.subscribe("foo", "bar", "baz")
+        p1.subscribe(FOO, BAR, BAZ)
         for i in range(3):
             assert wait_for_message(p1)["type"] == "subscribe"
         p2 = r.pubsub()
-        p2.subscribe("bar", "baz")
+        p2.subscribe(BAR, BAZ)
         for i in range(2):
             assert wait_for_message(p2)["type"] == "subscribe"
         p3 = r.pubsub()
-        p3.subscribe("baz")
+        p3.subscribe(BAZ)
         assert wait_for_message(p3)["type"] == "subscribe"
 
-        channels = [(b"foo", 1), (b"bar", 2), (b"baz", 3)]
-        assert r.pubsub_numsub("foo", "bar", "baz") == channels
+        channels = [(FOO.encode(), 1), (BAR.encode(), 2), (BAZ.encode(), 3)]
+        assert r.pubsub_numsub(FOO, BAR, BAZ) == channels
 
     @skip_if_server_version_lt("2.8.0")
+    @pytest.mark.standalone_exclusive  # Server-wide pattern count.
     def test_pubsub_numpat(self, r):
         p = r.pubsub()
         p.psubscribe("*oo", "*ar", "b*z")
@@ -847,34 +861,34 @@ class TestPubSubSubcommands:
     @skip_if_server_version_lt("7.0.0")
     def test_pubsub_shardnumsub(self, r):
         channels = {
-            b"foo": r.get_node_from_key("foo"),
-            b"bar": r.get_node_from_key("bar"),
-            b"baz": r.get_node_from_key("baz"),
+            FOO.encode(): r.get_node_from_key(FOO),
+            BAR.encode(): r.get_node_from_key(BAR),
+            BAZ.encode(): r.get_node_from_key(BAZ),
         }
         p1 = r.pubsub()
         p1.ssubscribe(*channels.keys())
         for node in channels.values():
             assert wait_for_message(p1, node=node)["type"] == "ssubscribe"
         p2 = r.pubsub()
-        p2.ssubscribe("bar", "baz")
+        p2.ssubscribe(BAR, BAZ)
         for i in range(2):
             assert (
                 wait_for_message(p2, func=p2.get_sharded_message)["type"]
                 == "ssubscribe"
             )
         p3 = r.pubsub()
-        p3.ssubscribe("baz")
-        assert wait_for_message(p3, node=channels[b"baz"])["type"] == "ssubscribe"
+        p3.ssubscribe(BAZ)
+        assert wait_for_message(p3, node=channels[BAZ.encode()])["type"] == "ssubscribe"
 
-        channels = [(b"foo", 1), (b"bar", 2), (b"baz", 3)]
-        assert r.pubsub_shardnumsub("foo", "bar", "baz", target_nodes="all") == channels
+        channels = [(FOO.encode(), 1), (BAR.encode(), 2), (BAZ.encode(), 3)]
+        assert r.pubsub_shardnumsub(FOO, BAR, BAZ, target_nodes="all") == channels
 
 
 class TestPubSubPings:
     @skip_if_server_version_lt("3.0.0")
     def test_send_pubsub_ping(self, r):
         p = r.pubsub(ignore_subscribe_messages=True)
-        p.subscribe("foo")
+        p.subscribe(FOO)
         p.ping()
         assert wait_for_message(p) == make_message(
             type="pong", channel=None, data="", pattern=None
@@ -883,7 +897,7 @@ class TestPubSubPings:
     @skip_if_server_version_lt("3.0.0")
     def test_send_pubsub_ping_message(self, r):
         p = r.pubsub(ignore_subscribe_messages=True)
-        p.subscribe("foo")
+        p.subscribe(FOO)
         p.ping(message="hello world")
         assert wait_for_message(p) == make_message(
             type="pong", channel=None, data="hello world", pattern=None
@@ -893,10 +907,11 @@ class TestPubSubPings:
 @pytest.mark.onlynoncluster
 class TestPubSubConnectionKilled:
     @skip_if_server_version_lt("3.0.0")
+    @pytest.mark.standalone_exclusive  # Kills all subscribed clients.
     def test_connection_error_raised_when_connection_dies(self, r):
         p = r.pubsub()
-        p.subscribe("foo")
-        assert wait_for_message(p) == make_message("subscribe", "foo", 1)
+        p.subscribe(FOO)
+        assert wait_for_message(p) == make_message("subscribe", FOO, 1)
         for client in r.client_list():
             if client["cmd"] == "subscribe":
                 r.client_kill_filter(_id=client["id"])
@@ -907,8 +922,8 @@ class TestPubSubConnectionKilled:
 class TestPubSubTimeouts:
     def test_get_message_with_timeout_returns_none(self, r):
         p = r.pubsub()
-        p.subscribe("foo")
-        assert wait_for_message(p) == make_message("subscribe", "foo", 1)
+        p.subscribe(FOO)
+        assert wait_for_message(p) == make_message("subscribe", FOO, 1)
         assert p.get_message(timeout=0.01) is None
 
     def test_get_message_not_subscribed_return_none(self, r):
@@ -929,19 +944,19 @@ class TestPubSubTimeouts:
             message = ps.get_message(timeout=1)
             assert message == expected_res
 
-        subscribe_response = make_message("subscribe", "foo", 1)
+        subscribe_response = make_message("subscribe", FOO, 1)
         poller = threading.Thread(target=poll, args=(p, subscribe_response))
         poller.start()
         time.sleep(0.2)
-        p.subscribe("foo")
+        p.subscribe(FOO)
         poller.join()
 
     def test_get_message_wait_for_subscription_not_being_called(self, r):
         p = r.pubsub()
-        p.subscribe("foo")
+        p.subscribe(FOO)
         with patch.object(threading.Event, "wait") as mock:
             assert p.subscribed is True
-            assert wait_for_message(p) == make_message("subscribe", "foo", 1)
+            assert wait_for_message(p) == make_message("subscribe", FOO, 1)
             assert mock.called is False
 
 
@@ -957,15 +972,15 @@ class TestPubSubWorkerThread:
             event.set()
 
         p = r.pubsub()
-        p.subscribe(**{"foo": lambda m: m})
+        p.subscribe(**{FOO: lambda m: m})
         with mock.patch.object(p, "get_message", side_effect=Exception("error")):
             pubsub_thread = p.run_in_thread(
                 daemon=True, exception_handler=exception_handler
             )
 
-        assert event.wait(timeout=1.0)
-        pubsub_thread.join(timeout=1.0)
-        assert not pubsub_thread.is_alive()
+            assert event.wait(timeout=1.0)
+            pubsub_thread.join(timeout=1.0)
+            assert not pubsub_thread.is_alive()
 
 
 class TestPubSubDeadlock:
@@ -1000,7 +1015,7 @@ class TestPubSubAutoReconnect:
         # get the initial connect message
         message = self.messages.get(timeout=1)
         assert message == {
-            "channel": b"foo",
+            "channel": FOO.encode(),
             "data": 1,
             "pattern": None,
             "type": "subscribe",
@@ -1013,7 +1028,7 @@ class TestPubSubAutoReconnect:
 
         message = self.messages.get(timeout=1)
         assert message == {
-            "channel": b"foo",
+            "channel": FOO.encode(),
             "data": 1,
             "pattern": None,
             "type": "subscribe",
@@ -1067,7 +1082,7 @@ class TestPubSubAutoReconnect:
     def loop(self):
         # reader loop, performing state transitions as it
         # discovers disconnects and reconnects
-        self.pubsub.subscribe("foo")
+        self.pubsub.subscribe(FOO)
         while True:
             time.sleep(0.01)  # give main thread chance to get lock
             with self.cond:
@@ -1113,7 +1128,7 @@ class TestBaseException:
         and verify that it isn't caught
         """
         pubsub = r.pubsub()
-        pubsub.subscribe("foo")
+        pubsub.subscribe(FOO)
 
         def is_connected():
             return pubsub.connection._sock is not None

@@ -137,6 +137,7 @@ class TestValkeyCommands:
         assert "get" in commands or b"get" in commands
 
     @skip_if_server_version_lt(VALKEY_6_VERSION)
+    @pytest.mark.standalone_exclusive
     async def test_acl_deluser(self, r_teardown):
         username = "valkey-py-user"
         r = r_teardown(username)
@@ -151,6 +152,7 @@ class TestValkeyCommands:
         assert isinstance(password, (str, bytes))
 
     @skip_if_server_version_lt("7.0.0")
+    @pytest.mark.standalone_exclusive
     async def test_acl_getuser_setuser(self, r_teardown):
         username = "valkey-py-user"
         r = r_teardown(username)
@@ -251,6 +253,7 @@ class TestValkeyCommands:
         assert len((await r.acl_getuser(username))["passwords"]) == 1
 
     @skip_if_server_version_lt(VALKEY_6_VERSION)
+    @pytest.mark.standalone_exclusive
     async def test_acl_list(self, r_teardown):
         username = "valkey-py-user"
         r = r_teardown(username)
@@ -261,6 +264,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt(VALKEY_6_VERSION)
     @pytest.mark.onlynoncluster
+    @pytest.mark.standalone_exclusive
     async def test_acl_log(self, r_teardown, create_valkey):
         username = "valkey-py-user"
         r = r_teardown(username)
@@ -297,6 +301,7 @@ class TestValkeyCommands:
         assert await r.acl_log_reset()
 
     @skip_if_server_version_lt(VALKEY_6_VERSION)
+    @pytest.mark.standalone_exclusive
     async def test_acl_setuser_categories_without_prefix_fails(self, r_teardown):
         username = "valkey-py-user"
         r = r_teardown(username)
@@ -305,6 +310,7 @@ class TestValkeyCommands:
             await r.acl_setuser(username, categories=["list"])
 
     @skip_if_server_version_lt(VALKEY_6_VERSION)
+    @pytest.mark.standalone_exclusive
     async def test_acl_setuser_commands_without_prefix_fails(self, r_teardown):
         username = "valkey-py-user"
         r = r_teardown(username)
@@ -313,6 +319,7 @@ class TestValkeyCommands:
             await r.acl_setuser(username, commands=["get"])
 
     @skip_if_server_version_lt(VALKEY_6_VERSION)
+    @pytest.mark.standalone_exclusive
     async def test_acl_setuser_add_passwords_and_nopass_fails(self, r_teardown):
         username = "valkey-py-user"
         r = r_teardown(username)
@@ -402,6 +409,7 @@ class TestValkeyCommands:
             client
             for client in await r.client_list()
             if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
+            and client["db"] == str(r.connection_pool.connection_kwargs.get("db", 0))
         ]
         assert len(clients) == 2
 
@@ -415,6 +423,7 @@ class TestValkeyCommands:
             client
             for client in await r.client_list()
             if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
+            and client["db"] == str(r.connection_pool.connection_kwargs.get("db", 0))
         ]
         assert len(clients) == 1
         assert clients[0].get("name") == "valkey-py-c1"
@@ -442,6 +451,7 @@ class TestValkeyCommands:
             client
             for client in await r.client_list()
             if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
+            and client["db"] == str(r.connection_pool.connection_kwargs.get("db", 0))
         ]
         assert len(clients) == 2
 
@@ -455,6 +465,7 @@ class TestValkeyCommands:
             client
             for client in await r.client_list()
             if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
+            and client["db"] == str(r.connection_pool.connection_kwargs.get("db", 0))
         ]
         assert len(clients) == 1
         assert clients[0].get("name") == "valkey-py-c1"
@@ -468,6 +479,7 @@ class TestValkeyCommands:
             client
             for client in await r.client_list()
             if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
+            and client["db"] == str(r.connection_pool.connection_kwargs.get("db", 0))
         ]
         assert len(clients) == 2
 
@@ -481,6 +493,7 @@ class TestValkeyCommands:
             client
             for client in await r.client_list()
             if client.get("name") in ["valkey-py-c1", "valkey-py-c2"]
+            and client["db"] == str(r.connection_pool.connection_kwargs.get("db", 0))
         ]
         assert len(clients) == 1
         assert clients[0].get("name") == "valkey-py-c1"
@@ -508,6 +521,7 @@ class TestValkeyCommands:
 
         replica = valkey.Valkey(
             port=6380,
+            db=r.connection_pool.connection_kwargs.get("db", 0),
             decode_responses=True,
             client_capa_redirect=True,
         )
@@ -549,6 +563,7 @@ class TestValkeyCommands:
 
     @skip_if_server_version_lt("2.9.50")
     @pytest.mark.onlynoncluster
+    @pytest.mark.standalone_exclusive
     async def test_client_pause(self, r: valkey.Valkey):
         assert await r.client_pause(1)
         assert await r.client_pause(timeout=1)
@@ -569,6 +584,7 @@ class TestValkeyCommands:
         assert data["maxmemory"].isdigit()
 
     @pytest.mark.onlynoncluster
+    @pytest.mark.standalone_exclusive
     async def test_config_resetstat(self, r: valkey.Valkey):
         await r.ping()
         # TODO: fix
@@ -583,6 +599,7 @@ class TestValkeyCommands:
         )
         assert reset_commands_processed < prior_commands_processed
 
+    @pytest.mark.standalone_exclusive
     async def test_config_set(self, r: valkey.Valkey):
         await r.config_set("timeout", 70)
         assert (await r.config_get())["timeout"] == "70"
@@ -623,6 +640,7 @@ class TestValkeyCommands:
         assert await r.ping()
 
     @pytest.mark.onlynoncluster
+    @pytest.mark.standalone_exclusive
     async def test_slowlog_get(self, r: valkey.Valkey, slowlog):
         assert await r.slowlog_reset()
         unicode_string = chr(3456) + "abcd" + chr(3421)
@@ -645,6 +663,7 @@ class TestValkeyCommands:
         assert isinstance(slowlog[0]["duration"], int)
 
     @pytest.mark.onlynoncluster
+    @pytest.mark.standalone_exclusive
     async def test_slowlog_get_limit(self, r: valkey.Valkey, slowlog):
         assert await r.slowlog_reset()
         await r.get("foo")
@@ -654,7 +673,8 @@ class TestValkeyCommands:
         assert len(slowlog) == 1
 
     @pytest.mark.onlynoncluster
-    async def test_slowlog_length(self, r: valkey.Valkey, slowlog):
+    @pytest.mark.standalone_exclusive
+    async def test_slowlog_length(self, r: valkey.Valkey):
         await r.get("foo")
         assert isinstance(await r.slowlog_len(), int)
 
@@ -3594,6 +3614,7 @@ class TestValkeyCommands:
         assert await r.xtrim(stream, 3, approximate=False) == 1
 
     @pytest.mark.onlynoncluster
+    @pytest.mark.standalone_exclusive
     async def test_bitfield_operations(self, r: valkey.Valkey):
         # comments show affected bits
         await r.execute_command("SELECT", 10)

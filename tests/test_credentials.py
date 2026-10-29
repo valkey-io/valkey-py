@@ -98,6 +98,7 @@ def init_required_pass(r, request, password):
     request.addfinalizer(teardown)
 
 
+@pytest.mark.standalone_exclusive  # Changes server authentication/ACLs.
 class TestCredentialsProvider:
     def test_only_pass_without_creds_provider(self, r, request):
         # test for default user (`username` is supposed to be optional)
@@ -235,6 +236,7 @@ class TestCredentialsProvider:
         assert str_if_bytes(conn.read_response()) == "PONG"
 
 
+@pytest.mark.standalone_exclusive
 class TestUsernamePasswordCredentialProvider:
     def test_user_pass_credential_provider_acl_user_and_pass(self, r, request):
         username = "username"

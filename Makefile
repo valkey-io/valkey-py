@@ -2,6 +2,7 @@ USE_UVLOOP             ?= 0
 PROTOCOL               ?= 2
 CLUSTER_URL            ?= valkey://localhost:16379/0
 ADDITIONAL_PYTEST_ARGS ?=
+WORKERS                ?= 8
 
 ifeq ($(USE_UVLOOP), 1)
 	UVLOOP_ARG          := --uvloop
@@ -62,14 +63,8 @@ linters: .check-virtualenv
 	flynt --fail-on-change --dry-run tests valkey
 
 standalone-tests: .check-virtualenv
-	pytest \
-		--protocol=$(PROTOCOL) \
-		--cov=./ \
-		--cov-report=xml:coverage_valkey.xml \
-		-W always \
-		-m 'not onlycluster' \
-		--junit-xml=standalone$(UVLOOP_REPORT_INFIX)-results.xml \
-		$(UVLOOP_ARG) $(ADDITIONAL_PYTEST_ARGS)
+	python -m tests.run_standalone $(WORKERS) \
+		--protocol=$(PROTOCOL) -W always $(UVLOOP_ARG) $(ADDITIONAL_PYTEST_ARGS)
 
 cluster-tests: .check-virtualenv
 	pytest \

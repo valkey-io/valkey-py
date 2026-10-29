@@ -6,6 +6,9 @@ import pytest_asyncio
 from valkey._cache import EvictionPolicy, _LocalCache
 from valkey.utils import LIBVALKEY_AVAILABLE
 
+# Tracking invalidations (including FLUSHDB notifications) are not database-local.
+pytestmark = pytest.mark.standalone_exclusive
+
 
 @pytest_asyncio.fixture
 async def r(request, create_valkey):

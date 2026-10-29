@@ -38,7 +38,7 @@ cd ${TESTDIR}
 # install, run tests
 uv pip install ${PKG}
 # Valkey tests
-pytest -m 'not onlycluster'
+python -m tests.run_standalone "${WORKERS:-8}"
 # ValkeyCluster tests
 CLUSTER_URL="valkey://localhost:16379/0"
 pytest -m 'not onlynoncluster and not valkeymod and not ssl' --valkey-url=${CLUSTER_URL}

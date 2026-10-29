@@ -119,6 +119,7 @@ async def init_required_pass(r, password):
 
 
 @pytest.mark.asyncio
+@pytest.mark.standalone_exclusive  # Changes server authentication/ACLs.
 class TestCredentialsProvider:
     async def test_only_pass_without_creds_provider(
         self, r_required_pass_teardown, create_valkey
@@ -266,6 +267,7 @@ class TestCredentialsProvider:
 
 
 @pytest.mark.asyncio
+@pytest.mark.standalone_exclusive
 class TestUsernamePasswordCredentialProvider:
     async def test_user_pass_credential_provider_acl_user_and_pass(
         self, r_acl_teardown, create_valkey

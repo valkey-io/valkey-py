@@ -12,6 +12,9 @@ from valkey._cache import AbstractCache, EvictionPolicy, _LocalCache
 from valkey.typing import KeyT, ResponseT
 from valkey.utils import LIBVALKEY_AVAILABLE
 
+# Tracking invalidations (including FLUSHDB notifications) are not database-local.
+pytestmark = pytest.mark.standalone_exclusive
+
 
 @pytest.fixture()
 def r(request):

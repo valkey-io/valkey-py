@@ -106,14 +106,17 @@ class DelayProxy:
 
 @pytest.mark.onlynoncluster
 @pytest.mark.parametrize("delay", argvalues=[0.05, 0.5, 1, 2])
-async def test_standalone(delay, master_host):
+async def test_standalone(delay, master_host, standalone_db):
     # create a tcp socket proxy that relays data to Valkey and back,
     # inserting 0.1 seconds of delay
-    async with DelayProxy(addr=("127.0.0.1", 5380), valkey_addr=master_host) as dp:
+    async with DelayProxy(addr=("127.0.0.1", 0), valkey_addr=master_host) as dp:
         for b in [True, False]:
             # note that we connect to proxy, rather than to Valkey directly
             async with Valkey(
-                host="127.0.0.1", port=5380, single_connection_client=b
+                host="127.0.0.1",
+                port=dp.server.sockets[0].getsockname()[1],
+                db=standalone_db,
+                single_connection_client=b,
             ) as r:
                 await r.set("foo", "foo")
                 await r.set("bar", "bar")
@@ -143,11 +146,14 @@ async def test_standalone(delay, master_host):
 
 @pytest.mark.onlynoncluster
 @pytest.mark.parametrize("delay", argvalues=[0.05, 0.5, 1, 2])
-async def test_standalone_pipeline(delay, master_host):
-    async with DelayProxy(addr=("127.0.0.1", 5380), valkey_addr=master_host) as dp:
+async def test_standalone_pipeline(delay, master_host, standalone_db):
+    async with DelayProxy(addr=("127.0.0.1", 0), valkey_addr=master_host) as dp:
         for b in [True, False]:
             async with Valkey(
-                host="127.0.0.1", port=5380, single_connection_client=b
+                host="127.0.0.1",
+                port=dp.server.sockets[0].getsockname()[1],
+                db=standalone_db,
+                single_connection_client=b,
             ) as r:
                 await r.set("foo", "foo")
                 await r.set("bar", "bar")

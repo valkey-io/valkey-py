@@ -10,9 +10,7 @@ from valkey.exceptions import LockError, LockNotOwnedError
 class TestLock:
     @pytest_asyncio.fixture()
     async def r_decoded(self, create_valkey):
-        valkey = await create_valkey(decode_responses=True)
-        yield valkey
-        await valkey.flushall()
+        return await create_valkey(decode_responses=True)
 
     def get_lock(self, valkey, *args, **kwargs):
         kwargs["lock_class"] = Lock
