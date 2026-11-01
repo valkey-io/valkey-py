@@ -30,7 +30,7 @@ jobs:
      timeout-minutes: 5
      steps:
        - uses: actions/checkout@v7
-       - uses: astral-sh/setup-uv@v10.3.0
+       - uses: astral-sh/setup-uv@v10.3.3
          with:
            version: '0.13.0'
            # Set the python version to 3.12 to keep imghdr for sphinx.
