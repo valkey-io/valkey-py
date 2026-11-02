@@ -1,6 +1,7 @@
 import pytest
 
 import valkey
+import valkey.asyncio
 from tests.conftest import skip_if_server_version_lt
 
 from .compat import aclosing, mock
@@ -121,8 +122,9 @@ class TestPipeline:
             pipe.set("a", 1).set("b", 2).lpush("c", 3).set("d", 4)
             with pytest.raises(valkey.ResponseError) as ex:
                 await pipe.execute()
-            assert str(ex.value).startswith(
+            assert str(ex.value) == (
                 "Command # 3 (LPUSH c 3) of pipeline caused error: "
+                "WRONGTYPE Operation against a key holding the wrong kind of value"
             )
 
             # make sure the pipe was restored to a working state
@@ -459,3 +461,16 @@ class TestPipeline:
             response = await pipe.execute()
         assert response[0]
         assert await r.get("foo") == b"bar"
+
+
+def test_annotate_exception_uses_error_text():
+    pipe = valkey.asyncio.Valkey().pipeline()
+    error = valkey.ResponseError("WRONGTYPE Operation against a key", "extra")
+
+    pipe.annotate_exception(error, 3, ("LPUSH", "c", 3))
+
+    assert error.args == (
+        "Command # 3 (LPUSH c 3) of pipeline caused error: "
+        "WRONGTYPE Operation against a key",
+        "extra",
+    )

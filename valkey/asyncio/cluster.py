@@ -1683,9 +1683,10 @@ class ClusterPipeline(
                     result = cmd.result
                     if isinstance(result, Exception):
                         command = " ".join(map(safe_str, cmd.args))
+                        error = result.args[0] if result.args else type(result).__name__
                         msg = (
                             f"Command # {cmd.position + 1} ({command}) of pipeline "
-                            f"caused error: {result.args}"
+                            f"caused error: {error}"
                         )
                         result.args = (msg,) + result.args[1:]
                         raise result
