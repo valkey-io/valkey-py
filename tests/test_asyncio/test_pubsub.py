@@ -128,6 +128,36 @@ class TestPubSubSubscribeUnsubscribe:
         kwargs = make_subscribe_test_data(pubsub, "pattern")
         await self._test_subscribe_unsubscribe(**kwargs)
 
+    @pytest.mark.parametrize("type", ["channel", "pattern"])
+    async def test_subscribe_unsubscribe_with_a_list(self, pubsub, type):
+        # Like in the sync client, the first argument can be a list
+        kwargs = make_subscribe_test_data(pubsub, type)
+        p, keys = kwargs["p"], kwargs["keys"]
+        assert await kwargs["sub_func"](keys) is None
+        for i, key in enumerate(keys):
+            assert await wait_for_message(p) == make_message(
+                kwargs["sub_type"], key, i + 1
+            )
+
+        assert await kwargs["unsub_func"](keys) is None
+        for i, key in enumerate(keys):
+            assert await wait_for_message(p) == make_message(
+                kwargs["unsub_type"], key, len(keys) - 1 - i
+            )
+        assert p.subscribed is False
+
+    @pytest.mark.parametrize("type", ["channel", "pattern"])
+    async def test_subscribe_unsubscribe_with_a_memoryview(self, pubsub, type):
+        # A memoryview is one channel or pattern, like bytes
+        kwargs = make_subscribe_test_data(pubsub, type)
+        p, key = kwargs["p"], kwargs["keys"][0]
+        assert await kwargs["sub_func"](memoryview(key.encode())) is None
+        assert await wait_for_message(p) == make_message(kwargs["sub_type"], key, 1)
+
+        assert await kwargs["unsub_func"](memoryview(key.encode())) is None
+        assert await wait_for_message(p) == make_message(kwargs["unsub_type"], key, 0)
+        assert p.subscribed is False
+
     @pytest.mark.onlynoncluster
     async def _test_resubscribe_on_reconnection(
         self, p, sub_type, unsub_type, sub_func, unsub_func, keys
