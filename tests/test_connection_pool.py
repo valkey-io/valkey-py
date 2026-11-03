@@ -8,6 +8,7 @@ from unittest import mock
 import pytest
 
 import valkey
+from valkey._cache import _LocalCache
 from valkey._parsers.url_parser import to_bool
 from valkey.utils import SSL_AVAILABLE
 
@@ -27,6 +28,54 @@ class DummyConnection:
 
     def can_read(self):
         return False
+
+
+class CacheInvalidationDummyConnection(DummyConnection):
+    """Dummy connection that has a pending cache invalidation message.
+
+    A connection in this state has already been sent a push (invalidation)
+    message by the server that has not been read yet, so there is data
+    waiting on the socket.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.connected = False
+        self.pending_invalidation = True
+        self.client_cache = kwargs.get("client_cache")
+        self.disconnect_count = 0
+
+    def connect(self):
+        self.connected = True
+
+    def disconnect(self, *args):
+        self.connected = False
+        # disconnecting drops the parser buffer, and with it the pending
+        # invalidation message that the server already sent
+        self.pending_invalidation = False
+        self.disconnect_count += 1
+
+    def can_read(self):
+        return self.connected and self.pending_invalidation
+
+
+@pytest.mark.parametrize(
+    "pool_class", [valkey.ConnectionPool, valkey.BlockingConnectionPool]
+)
+def test_pool_keeps_connection_with_pending_cache_invalidations(pool_class):
+    """A pooled connection holding invalidation messages must not be dropped.
+
+    Client-side caching relies on connection pushes: a connection with data
+    pending is expected, and the messages are consumed by the client, so the
+    pool must not tear the connection down.
+    """
+    pool = pool_class(
+        connection_class=CacheInvalidationDummyConnection,
+        client_cache=_LocalCache(),
+        max_connections=1,
+    )
+    connection = pool.get_connection("GET")
+    assert connection.disconnect_count == 0
 
 
 class TestConnectionPool:
