@@ -2442,6 +2442,45 @@ class TestValkeyCommands:
         await r.execute_command("SADD", "issue#924", 1)
         await r.execute_command("SORT", "issue#924")
 
+    @skip_if_server_version_lt("7.0.0")
+    @pytest.mark.onlynoncluster
+    async def test_sort_ro(self, r: valkey.Valkey):
+        await r.set("score:1", 8)
+        await r.set("score:2", 3)
+        await r.set("score:3", 5)
+        await r.rpush("a", "3", "2", "1")
+        assert await r.sort_ro("a", by="score:*") == [b"2", b"3", b"1"]
+        await r.rpush("b", "2", "3", "1")
+        assert await r.sort_ro("b", desc=True) == [b"3", b"2", b"1"]
+
+    async def test_sort_ro_sends_sort_ro_command(self, r: valkey.Valkey):
+        mock_exec = mock.AsyncMock(return_value=[])
+        with mock.patch.object(r, "execute_command", mock_exec):
+            await r.sort_ro(
+                "a",
+                start=0,
+                num=2,
+                by="score:*",
+                get=("user:*", "#"),
+                desc=True,
+                alpha=True,
+            )
+            mock_exec.assert_awaited_once_with(
+                "SORT_RO",
+                "a",
+                b"BY",
+                "score:*",
+                b"LIMIT",
+                0,
+                2,
+                b"GET",
+                "user:*",
+                b"GET",
+                "#",
+                b"DESC",
+                b"ALPHA",
+            )
+
     @pytest.mark.onlynoncluster
     async def test_cluster_addslots(self, mock_cluster_resp_ok):
         assert await mock_cluster_resp_ok.cluster("ADDSLOTS", 1) is True

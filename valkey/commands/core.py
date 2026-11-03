@@ -5064,6 +5064,41 @@ class ListCommands(CommandsProtocol):
 
         return self.execute_command("LPOS", *pieces, keys=[name])
 
+    def _sort_pieces(
+        self,
+        name: KeyT,
+        start: int | None,
+        num: int | None,
+        by: KeyT | None,
+        get: KeyT | Sequence[KeyT] | None,
+        desc: bool,
+        alpha: bool,
+    ) -> list[EncodableT]:
+        """Build the arguments shared by the SORT and SORT_RO commands."""
+        if (start is not None and num is None) or (num is not None and start is None):
+            raise DataError("``start`` and ``num`` must both be specified")
+
+        pieces: list[EncodableT] = [name]
+        if by is not None:
+            pieces.extend([b"BY", by])
+        if start is not None and num is not None:
+            pieces.extend([b"LIMIT", start, num])
+        if get is not None:
+            # If get is a string assume we want to get a single value.
+            # Otherwise assume it's an iterable and we want to get multiple
+            # values. We can't just iterate blindly because strings are
+            # iterable.
+            if isinstance(get, (bytes, str)):
+                pieces.extend([b"GET", get])
+            else:
+                for g in get:
+                    pieces.extend([b"GET", g])
+        if desc:
+            pieces.append(b"DESC")
+        if alpha:
+            pieces.append(b"ALPHA")
+        return pieces
+
     @overload
     def sort(
         self: SyncClientProtocol,
@@ -5223,28 +5258,7 @@ class ListCommands(CommandsProtocol):
 
         For more information see https://valkey.io/commands/sort
         """
-        if (start is not None and num is None) or (num is not None and start is None):
-            raise DataError("``start`` and ``num`` must both be specified")
-
-        pieces: list[EncodableT] = [name]
-        if by is not None:
-            pieces.extend([b"BY", by])
-        if start is not None and num is not None:
-            pieces.extend([b"LIMIT", start, num])
-        if get is not None:
-            # If get is a string assume we want to get a single value.
-            # Otherwise assume it's an iterable and we want to get multiple
-            # values. We can't just iterate blindly because strings are
-            # iterable.
-            if isinstance(get, (bytes, str)):
-                pieces.extend([b"GET", get])
-            else:
-                for g in get:
-                    pieces.extend([b"GET", g])
-        if desc:
-            pieces.append(b"DESC")
-        if alpha:
-            pieces.append(b"ALPHA")
+        pieces = self._sort_pieces(name, start, num, by, get, desc, alpha)
         if store is not None:
             pieces.extend([b"STORE", store])
         if groups:
@@ -5312,9 +5326,10 @@ class ListCommands(CommandsProtocol):
 
         For more information see https://valkey.io/commands/sort_ro
         """
-        return self.sort(
-            key, start=start, num=num, by=by, get=get, desc=desc, alpha=alpha
-        )
+        pieces = self._sort_pieces(key, start, num, by, get, desc, alpha)
+        # Don't pass ``keys``: the client side cache can't track the external
+        # keys read by ``by`` and ``get``, so it could return stale results.
+        return self.execute_command("SORT_RO", *pieces)
 
 
 AsyncListCommands = ListCommands
