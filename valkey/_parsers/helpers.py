@@ -121,19 +121,30 @@ SENTINEL_STATE_TYPES = {
 }
 
 
+_SENTINEL_DERIVED_BOOLEANS = (
+    ("is_master", "master"),
+    ("is_slave", "slave"),
+    ("is_sdown", "s_down"),
+    ("is_odown", "o_down"),
+    ("is_sentinel", "sentinel"),
+    ("is_disconnected", "disconnected"),
+    ("is_master_down", "master_down"),
+)
+
+
+def _add_derived_sentinel_booleans(result, flags):
+    """Set ``is_master`` / ``is_slave`` / ``is_sdown`` / ``is_odown`` /
+    ``is_sentinel`` / ``is_disconnected`` / ``is_master_down`` on
+    ``result`` based on membership in the ``flags`` set.
+    """
+    for name, flag in _SENTINEL_DERIVED_BOOLEANS:
+        result[name] = flag in flags
+
+
 def parse_sentinel_state(item):
     result = pairs_to_dict_typed(item, SENTINEL_STATE_TYPES)
     flags = set(result["flags"].split(","))
-    for name, flag in (
-        ("is_master", "master"),
-        ("is_slave", "slave"),
-        ("is_sdown", "s_down"),
-        ("is_odown", "o_down"),
-        ("is_sentinel", "sentinel"),
-        ("is_disconnected", "disconnected"),
-        ("is_master_down", "master_down"),
-    ):
-        result[name] = flag in flags
+    _add_derived_sentinel_booleans(result, flags)
     return result
 
 
@@ -144,13 +155,15 @@ def parse_sentinel_master(response):
 def parse_sentinel_state_resp3(response):
     result = {}
     for key in response:
+        str_key = str_if_bytes(key)
         try:
-            value = SENTINEL_STATE_TYPES[key](str_if_bytes(response[key]))
-            result[str_if_bytes(key)] = value
+            value = SENTINEL_STATE_TYPES[str_key](str_if_bytes(response[key]))
+            result[str_key] = value
         except Exception:
-            result[str_if_bytes(key)] = response[str_if_bytes(key)]
+            result[str_key] = str_if_bytes(response[key])
     flags = set(result["flags"].split(","))
     result["flags"] = flags
+    _add_derived_sentinel_booleans(result, flags)
     return result
 
 
@@ -163,7 +176,11 @@ def parse_sentinel_masters(response):
 
 
 def parse_sentinel_masters_resp3(response):
-    return [parse_sentinel_state(master) for master in response]
+    result = {}
+    for master in response:
+        state = parse_sentinel_state_resp3(master)
+        result[state["name"]] = state
+    return result
 
 
 def parse_sentinel_slaves_and_sentinels(response):
