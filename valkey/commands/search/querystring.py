@@ -263,12 +263,13 @@ class DisjunctNode(IntersectNode):
     """
 
     def to_string(self, with_parens=None):
-        with_parens = self._should_use_paren(with_parens)
-        ret = super().to_string(with_parens=False)
-        if with_parens:
-            return "(-" + ret + ")"
-        else:
-            return "-" + ret
+        # The prefix has to bind to the WHOLE joined expression -- `-(foo bar)`
+        # -- not to the first child, which is what asking the parent for no
+        # parens produced (`(-foo bar)`). RediSearch read that as "require bar,
+        # exclude foo" instead of "exclude both", so the query answered a
+        # different question. The parent adds the parens itself when this node
+        # has more than one child (or when the caller asked for them).
+        return "-" + super().to_string(with_parens)
 
 
 class DisjunctUnion(DisjunctNode):
@@ -289,12 +290,9 @@ class OptionalNode(IntersectNode):
     """
 
     def to_string(self, with_parens=None):
-        with_parens = self._should_use_paren(with_parens)
-        ret = super().to_string(with_parens=False)
-        if with_parens:
-            return "(~" + ret + ")"
-        else:
-            return "~" + ret
+        # See DisjunctNode.to_string: the prefix must bind to the whole joined
+        # expression, or RediSearch boosts only the first child.
+        return "~" + super().to_string(with_parens)
 
 
 def intersect(*args, **kwargs):
