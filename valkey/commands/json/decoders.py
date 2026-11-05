@@ -34,15 +34,15 @@ def unstring(obj):
     One can't simply call int/float in a try/catch because there is a
     semantic difference between (for example) 15.0 and 15.
     """
-    floatreg = "^\\d+.\\d+$"
-    match = re.findall(floatreg, obj)
-    if match != []:
-        return float(match[0])
-
-    intreg = "^\\d+$"
-    match = re.findall(intreg, obj)
-    if match != []:
-        return int(match[0])
+    # The dot has to be escaped and the pattern anchored at both ends, or the
+    # float pattern matches any character and a prefix is enough to convert:
+    # "100" came back as the float 100.0, and "10x20" matched and then died in
+    # float() with a ValueError that escaped to the caller. The integer pattern
+    # is checked first so an integer stays an integer.
+    if re.match(r"^\d+$", obj):
+        return int(obj)
+    if re.match(r"^\d+\.\d+$", obj):
+        return float(obj)
     return obj
 
 
