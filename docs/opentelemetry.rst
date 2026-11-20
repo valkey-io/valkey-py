@@ -32,31 +32,34 @@ OpenTelemetry instrumentation
 
 Instrumentations are plugins for popular frameworks and libraries that use OpenTelemetry API to record important operations, for example, HTTP requests, DB queries, logs, errors, and more.
 
-To install OpenTelemetry `instrumentation <https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/redis/redis.html>`_ for valkey-py:
+.. note::
 
-.. code-block:: shell
+   valkey-py is a fork of redis-py, but the `Redis instrumentation <https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/redis/redis.html>`_
+   (``opentelemetry-instrumentation-redis``) only patches the ``redis`` package.
+   Calling ``RedisInstrumentor().instrument()`` does not record spans for
+   ``valkey.Valkey`` or ``valkey.asyncio.Valkey`` clients.
 
-   pip install opentelemetry-instrumentation-redis
+There is currently no official OpenTelemetry instrumentation for valkey-py.
+You can create spans yourself with the OpenTelemetry API, as shown in the next
+section. A community-maintained package,
+`opentelemetry-python-contrib-external-valkey <https://github.com/pmeier/opentelemetry-python-contrib-external-valkey>`_,
+also provides tracing for valkey-py. It is not maintained by the valkey-py
+project.
 
-You can then use it to instrument code like this:
+For example, you can wrap valkey-py calls in your own spans:
 
 .. code-block:: python
 
-   from opentelemetry.instrumentation.redis import RedisInstrumentor
+   import valkey
+   from opentelemetry import trace
 
-   RedisInstrumentor().instrument()
-
-Once the code is patched, you can use valkey-py as usually:
-
-.. code-block:: python
-
-   # Sync client
+   tracer = trace.get_tracer("app_or_package_name", "1.0.0")
    client = valkey.Valkey()
-   client.get("my-key")
 
-   # Async client
-   client = valkey.asyncio.Valkey()
-   await client.get("my-key")
+   with tracer.start_as_current_span("valkey GET", kind=trace.SpanKind.CLIENT) as span:
+       span.set_attribute("db.system", "valkey")
+       span.set_attribute("db.operation", "GET")
+       client.get("my-key")
 
 OpenTelemetry API
 -----------------
