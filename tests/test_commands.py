@@ -4364,17 +4364,19 @@ class TestValkeyCommands:
         assert r.xinfo_groups(stream) == []
 
         assert r.xgroup_create(stream, group, 0, entries_read=7)
-        expected = [
-            {
-                "name": group.encode(),
-                "consumers": 0,
-                "pending": 0,
-                "last-delivered-id": b"0-0",
-                "entries-read": 7,
-                "lag": -6,
-            }
-        ]
-        assert r.xinfo_groups(stream) == expected
+        [info] = r.xinfo_groups(stream)
+        # The lag for a group positioned before the first entry changed in
+        # valkey-io/valkey#4983 (backported to 8.0.13, 8.1.12, 9.0.8 and
+        # 9.1.4): it is now the stream length instead of
+        # entries_added - entries_read.
+        assert info.pop("lag") in (-6, 1)
+        assert info == {
+            "name": group.encode(),
+            "consumers": 0,
+            "pending": 0,
+            "last-delivered-id": b"0-0",
+            "entries-read": 7,
+        }
 
     @skip_if_server_version_lt("5.0.0")
     def test_xgroup_delconsumer(self, r):
