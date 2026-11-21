@@ -3426,6 +3426,33 @@ class TestValkeyCommands:
         r.rpush("b", "2", "3", "1")
         assert r.sort_ro("b", desc=True) == [b"3", b"2", b"1"]
 
+    def test_sort_ro_sends_sort_ro_command(self, r):
+        r.execute_command = mock.MagicMock(return_value=[])
+        r.sort_ro(
+            "a",
+            start=0,
+            num=2,
+            by="score:*",
+            get=("user:*", "#"),
+            desc=True,
+            alpha=True,
+        )
+        r.execute_command.assert_called_once_with(
+            "SORT_RO",
+            "a",
+            b"BY",
+            "score:*",
+            b"LIMIT",
+            0,
+            2,
+            b"GET",
+            "user:*",
+            b"GET",
+            "#",
+            b"DESC",
+            b"ALPHA",
+        )
+
     def test_sort_issue_924(self, r):
         # Tests for issue https://github.com/andymccurdy/redis-py/issues/924
         r.execute_command("SADD", "issue#924", 1)
