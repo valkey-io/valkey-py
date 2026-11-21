@@ -1,10 +1,29 @@
+from __future__ import annotations
+
 import copy
 import re
+import sys
 import threading
 import time
 import warnings
 from itertools import chain
-from typing import Any, Callable, Dict, List, Literal, Optional, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Literal,
+    Optional,
+    Type,
+    TypedDict,
+    Union,
+)
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 from valkey._cache import (
     DEFAULT_ALLOW_LIST,
@@ -58,31 +77,34 @@ EMPTY_RESPONSE = "EMPTY_RESPONSE"
 NEVER_DECODE = "NEVER_DECODE"
 
 
-class CaseInsensitiveDict(dict):
+class CaseInsensitiveDict:
     "Case insensitive dict implementation. Assumes string keys only."
 
-    def __init__(self, data: Dict[str, str]) -> None:
-        for k, v in data.items():
-            self[k.upper()] = v
+    def __init__(self, data: dict[str, Callable[[Any], Any]]) -> None:
+        self.__data: dict[str, Callable[[Any], Any]] = {
+            k.upper(): v for k, v in data.items()
+        }
 
-    def __contains__(self, k):
-        return super().__contains__(k.upper())
+    def __contains__(self, k: str) -> bool:
+        return k.upper() in self.__data
 
-    def __delitem__(self, k):
-        super().__delitem__(k.upper())
+    def __delitem__(self, k: str) -> None:
+        del self.__data[k.upper()]
 
-    def __getitem__(self, k):
-        return super().__getitem__(k.upper())
+    def __getitem__(self, k: str) -> Callable[[Any], Any]:
+        return self.__data[k.upper()]
 
-    def get(self, k, default=None):
-        return super().get(k.upper(), default)
+    def get(self, k: str, default: Any = None) -> Any:
+        return self.__data.get(k.upper(), default)
 
-    def __setitem__(self, k, v):
-        super().__setitem__(k.upper(), v)
+    def __setitem__(self, k: str, v: Callable[[Any], Any]) -> None:
+        self.__data[k.upper()] = v
 
-    def update(self, data):
-        data = CaseInsensitiveDict(data)
-        super().update(data)
+    def update(self, data: dict[str, Callable[[Any], Any]]) -> None:
+        self.__data.update({k.upper(): v for k, v in data.items()})
+
+    def __eq__(self, other: Any) -> bool:
+        return self.__data.__eq__(other)
 
 
 class AbstractValkey:
@@ -401,9 +423,7 @@ class Valkey(ValkeyModuleCommands, CoreCommands, SentinelCommands):
             self.connection_pool, self.response_callbacks, transaction, shard_hint
         )
 
-    def transaction(
-        self, func: Callable[["Pipeline"], None], *watches, **kwargs
-    ) -> None:
+    def transaction(self, func: Callable[["Pipeline"], Any], *watches, **kwargs) -> Any:
         """
         Convenience method for executing the callable `func` as a transaction
         while watching all keys specified in `watches`. The 'func' callable
@@ -641,6 +661,15 @@ class Valkey(ValkeyModuleCommands, CoreCommands, SentinelCommands):
 StrictValkey = Valkey
 
 
+class _MonitorNextCommandReturnValue(TypedDict):
+    time: float
+    db: int
+    client_port: str
+    client_address: str
+    command: str
+    client_type: str
+
+
 class Monitor:
     """
     Monitor is useful for handling the MONITOR command to the valkey server.
@@ -651,11 +680,11 @@ class Monitor:
     monitor_re = re.compile(r"\[(\d+) (.*?)\] (.*)")
     command_re = re.compile(r'"(.*?)(?<!\\)"')
 
-    def __init__(self, connection_pool):
+    def __init__(self, connection_pool: ConnectionPool) -> None:
         self.connection_pool = connection_pool
         self.connection = self.connection_pool.get_connection("MONITOR")
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         self.connection.send_command("MONITOR")
         # check that monitor returns 'OK', but don't return it to user
         response = self.connection.read_response()
@@ -663,18 +692,18 @@ class Monitor:
             raise ValkeyError(f"MONITOR failed: {response}")
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *_: Any) -> None:
         self.connection.disconnect()
         self.connection_pool.release(self.connection)
 
-    def next_command(self):
+    def next_command(self) -> _MonitorNextCommandReturnValue:
         """Parse the response from a monitor command"""
         response = self.connection.read_response()
         if isinstance(response, bytes):
             response = self.connection.encoder.decode(response, force=True)
         command_time, command_data = response.split(" ", 1)
         m = self.monitor_re.match(command_data)
-        db_id, client_info, command = m.groups()
+        db_id, client_info, command = m.groups()  # type: ignore[union-attr]
         command = " ".join(self.command_re.findall(command))
         # Valkey escapes double quotes because each piece of the command
         # string is surrounded by double quotes. We don't have that
@@ -702,7 +731,7 @@ class Monitor:
             "command": command,
         }
 
-    def listen(self):
+    def listen(self) -> Generator[_MonitorNextCommandReturnValue, None, None]:
         """Listen for commands coming to the server."""
         while True:
             yield self.next_command()
@@ -736,11 +765,10 @@ class PubSub:
         self.subscribed_event = threading.Event()
         # we need to know the encoding options for this connection in order
         # to lookup channel and pattern names for callback handlers.
-        self.encoder = encoder
+        self.encoder = encoder or self.connection_pool.get_encoder()
         self.push_handler_func = push_handler_func
-        if self.encoder is None:
-            self.encoder = self.connection_pool.get_encoder()
         self.health_check_response_b = self.encoder.encode(self.HEALTH_CHECK_MESSAGE)
+        self.health_check_response: list[str] | list[bytes]
         if self.encoder.decode_responses:
             self.health_check_response = ["pong", self.HEALTH_CHECK_MESSAGE]
         else:
@@ -771,12 +799,12 @@ class PubSub:
             self.connection_pool.release(self.connection)
             self.connection = None
         self.health_check_response_counter = 0
-        self.channels = {}
-        self.pending_unsubscribe_channels = set()
-        self.shard_channels = {}
-        self.pending_unsubscribe_shard_channels = set()
-        self.patterns = {}
-        self.pending_unsubscribe_patterns = set()
+        self.channels = {}  # type: ignore[var-annotated]
+        self.pending_unsubscribe_channels = set()  # type: ignore[var-annotated]
+        self.shard_channels = {}  # type: ignore[var-annotated]
+        self.pending_unsubscribe_shard_channels = set()  # type: ignore[var-annotated]
+        self.patterns = {}  # type: ignore[var-annotated]
+        self.pending_unsubscribe_patterns = set()  # type: ignore[var-annotated]
         self.subscribed_event.clear()
 
     def close(self) -> None:
@@ -841,8 +869,8 @@ class PubSub:
         ttl = 10
         conn = self.connection
         while self.health_check_response_counter > 0 and ttl > 0:
-            if self._execute(conn, conn.can_read, timeout=conn.socket_timeout):
-                response = self._execute(conn, conn.read_response)
+            if self._execute(conn, conn.can_read, timeout=conn.socket_timeout):  # type: ignore[attr-defined]  # noqa: E501
+                response = self._execute(conn, conn.read_response)  # type: ignore[attr-defined]  # noqa: E501
                 if self.is_health_check_response(response):
                     self.health_check_response_counter -= 1
                 else:
@@ -1204,13 +1232,13 @@ class PubSub:
 class PubSubWorkerThread(threading.Thread):
     def __init__(
         self,
-        pubsub,
+        pubsub: PubSub,
         sleep_time: float,
         daemon: bool = False,
         exception_handler: Union[
-            Callable[[Exception, "PubSub", "PubSubWorkerThread"], None], None
+            Callable[[BaseException, PubSub, PubSubWorkerThread], None], None
         ] = None,
-    ):
+    ) -> None:
         super().__init__()
         self.daemon = daemon
         self.pubsub = pubsub
@@ -1290,9 +1318,9 @@ class Pipeline(Valkey):
         """Pipeline instances should always evaluate to True"""
         return True
 
-    def reset(self) -> None:
-        self.command_stack = []
-        self.scripts = set()
+    def reset(self) -> None:  # type: ignore[override]
+        self.command_stack = []  # type: ignore[var-annotated]
+        self.scripts = set()  # type: ignore[var-annotated]
         # make sure to reset the connection state in the event that we were
         # watching something
         if self.watching and self.connection:
@@ -1440,11 +1468,11 @@ class Pipeline(Valkey):
             raise WatchError("Watched variable changed.")
 
         # put any parse errors into the response
-        for i, e in errors:
-            response.insert(i, e)
+        for i, error in errors:
+            response.insert(i, error)
 
         if len(response) != len(commands):
-            self.connection.disconnect()
+            self.connection.disconnect()  # type: ignore[union-attr]
             raise ResponseError(
                 "Wrong number of response items from pipeline execution"
             )
@@ -1581,6 +1609,6 @@ class Pipeline(Valkey):
             raise ValkeyError("Cannot issue a WATCH after a MULTI")
         return self.execute_command("WATCH", *names)
 
-    def unwatch(self) -> bool:
+    def unwatch(self) -> bool:  # type: ignore[override]
         """Unwatches all previously specified keys"""
         return self.watching and self.execute_command("UNWATCH") or True
