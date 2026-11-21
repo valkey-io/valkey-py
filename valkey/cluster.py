@@ -1168,9 +1168,11 @@ class ValkeyCluster(AbstractValkeyCluster, ValkeyClusterCommands):
                 if connection is not None:
                     connection.disconnect()
 
-                # Remove the failed node from the startup nodes before we try
-                # to reinitialize the cluster
-                self.nodes_manager.startup_nodes.pop(target_node.name, None)
+                # Move the failed node to the end of the cached nodes so
+                # it is tried last when we reinitialize the cluster. It is
+                # never removed, so startup_nodes cannot drain to empty
+                # when every node is briefly unreachable.
+                self.nodes_manager.move_node_to_end_of_cached_nodes(target_node.name)
                 # Reset the cluster node's connection
                 target_node.valkey_connection = None
                 self.nodes_manager.initialize()
@@ -1469,6 +1471,22 @@ class NodesManager:
         """
         for n in nodes:
             self.startup_nodes[n.name] = n
+
+    def move_node_to_end_of_cached_nodes(self, node_name: str) -> None:
+        """
+        Move a failing node to the end of startup_nodes and nodes_cache so
+        it is tried last during reinitialization and when selecting the
+        default node. If the node is not in the respective cache, nothing
+        is done. The last node in each cache is never removed, so the
+        client always keeps a seed to rediscover the cluster with.
+        """
+        if node_name in self.startup_nodes and len(self.startup_nodes) > 1:
+            node = self.startup_nodes.pop(node_name)
+            self.startup_nodes[node_name] = node
+
+        if node_name in self.nodes_cache and len(self.nodes_cache) > 1:
+            node = self.nodes_cache.pop(node_name)
+            self.nodes_cache[node_name] = node
 
     def check_slots_coverage(self, slots_cache):
         # Validate if all slots are covered or if we should try next
