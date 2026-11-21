@@ -114,6 +114,34 @@ class TestPubSubSubscribeUnsubscribe:
         kwargs = make_subscribe_test_data(r.pubsub(), "pattern")
         self._test_subscribe_unsubscribe(**kwargs)
 
+    @pytest.mark.parametrize("type", ["channel", "pattern"])
+    def test_subscribe_unsubscribe_with_a_list(self, r, type):
+        # The first argument can be a list
+        kwargs = make_subscribe_test_data(r.pubsub(), type)
+        p, keys = kwargs["p"], kwargs["keys"]
+        assert kwargs["sub_func"](keys) is None
+        for i, key in enumerate(keys):
+            assert wait_for_message(p) == make_message(kwargs["sub_type"], key, i + 1)
+
+        assert kwargs["unsub_func"](keys) is None
+        for i, key in enumerate(keys):
+            assert wait_for_message(p) == make_message(
+                kwargs["unsub_type"], key, len(keys) - 1 - i
+            )
+        assert p.subscribed is False
+
+    @pytest.mark.parametrize("type", ["channel", "pattern"])
+    def test_subscribe_unsubscribe_with_a_memoryview(self, r, type):
+        # A memoryview is one channel or pattern, like bytes
+        kwargs = make_subscribe_test_data(r.pubsub(), type)
+        p, key = kwargs["p"], kwargs["keys"][0]
+        assert kwargs["sub_func"](memoryview(key.encode())) is None
+        assert wait_for_message(p) == make_message(kwargs["sub_type"], key, 1)
+
+        assert kwargs["unsub_func"](memoryview(key.encode())) is None
+        assert wait_for_message(p) == make_message(kwargs["unsub_type"], key, 0)
+        assert p.subscribed is False
+
     @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("7.0.0")
     def test_shard_channel_subscribe_unsubscribe(self, r):

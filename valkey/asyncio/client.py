@@ -1024,7 +1024,7 @@ class PubSub:
         received on that pattern rather than producing a message via
         ``listen()``.
         """
-        parsed_args = list_or_args((args[0],), args[1:]) if args else args
+        parsed_args = list_or_args(args[0], args[1:]) if args else args
         new_patterns: Dict[ChannelT, PubSubHandler] = dict.fromkeys(parsed_args)
         # Mypy bug: https://github.com/python/mypy/issues/10970
         new_patterns.update(kwargs)  # type: ignore[arg-type]
@@ -1044,7 +1044,7 @@ class PubSub:
         """
         patterns: Iterable[ChannelT]
         if args:
-            parsed_args = list_or_args((args[0],), args[1:])
+            parsed_args = list_or_args(args[0], args[1:])
             patterns = self._normalize_keys(dict.fromkeys(parsed_args)).keys()
         else:
             parsed_args = []
@@ -1060,7 +1060,7 @@ class PubSub:
         that channel rather than producing a message via ``listen()`` or
         ``get_message()``.
         """
-        parsed_args = list_or_args((args[0],), args[1:]) if args else ()
+        parsed_args = list_or_args(args[0], args[1:]) if args else ()
         new_channels = dict.fromkeys(parsed_args)
         # Mypy bug: https://github.com/python/mypy/issues/10970
         new_channels.update(kwargs)  # type: ignore[arg-type]
