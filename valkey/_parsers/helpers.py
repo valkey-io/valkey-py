@@ -338,6 +338,11 @@ def bool_ok(response, **options):
     return str_if_bytes(response) == "OK"
 
 
+def parse_sentinel_ckquorum(response, **options):
+    # "OK <n> usable Sentinels. Quorum and failover authorization can be reached"
+    return str_if_bytes(response).startswith("OK")
+
+
 def parse_zadd(response, **options):
     if response is None:
         return None
@@ -756,7 +761,7 @@ _ValkeyCallbacks = {
     "SCRIPT FLUSH": bool_ok,
     "SCRIPT KILL": bool_ok,
     "SCRIPT LOAD": str_if_bytes,
-    "SENTINEL CKQUORUM": bool_ok,
+    "SENTINEL CKQUORUM": parse_sentinel_ckquorum,
     "SENTINEL FAILOVER": bool_ok,
     "SENTINEL FLUSHCONFIG": bool_ok,
     "SENTINEL GET-MASTER-ADDR-BY-NAME": parse_sentinel_get_master,

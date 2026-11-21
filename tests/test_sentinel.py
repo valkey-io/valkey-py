@@ -5,6 +5,9 @@ import pytest
 
 import valkey.sentinel
 from valkey import exceptions
+from valkey.backoff import NoBackoff
+from valkey.connection import Connection
+from valkey.retry import Retry
 from valkey.sentinel import (
     MasterNotFoundError,
     Sentinel,
@@ -228,9 +231,69 @@ def test_slave_round_robin(cluster, sentinel, master_ip):
         next(rotator)
 
 
+CKQUORUM_OK = "OK 3 usable Sentinels. Quorum and failover authorization can be reached"
+CKQUORUM_NOQUORUM = exceptions.ResponseError(
+    "NOQUORUM 1 usable Sentinels. Not enough available Sentinels to reach the "
+    "specified quorum for this master. Not enough available Sentinels to reach "
+    "the majority and authorize a failover"
+)
+
+
+def _mock_connection(response=None, error=None):
+    connection = mock.Mock(spec=Connection)
+    connection.retry = Retry(NoBackoff(), 0)
+    connection._get_from_local_cache.return_value = None
+    if error is not None:
+        connection.read_response.side_effect = error
+    else:
+        connection.read_response.return_value = response
+    return connection
+
+
 @pytest.mark.onlynoncluster
 def test_ckquorum(cluster, sentinel):
     assert sentinel.sentinel_ckquorum("mymaster")
+
+
+@pytest.mark.onlynoncluster
+@pytest.mark.parametrize("response", [CKQUORUM_OK.encode(), CKQUORUM_OK])
+def test_ckquorum_client_returns_true_when_quorum_is_reachable(response):
+    client = valkey.Valkey(host="foo", port=26379)
+    connection = _mock_connection(response=response)
+    with mock.patch.object(client, "connection", connection):
+        assert client.sentinel_ckquorum("mymaster") is True
+    connection.send_command.assert_called_once_with("SENTINEL CKQUORUM", "mymaster")
+
+
+@pytest.mark.onlynoncluster
+def test_ckquorum_client_returns_false_when_quorum_is_not_reachable():
+    client = valkey.Valkey(host="foo", port=26379)
+    connection = _mock_connection(error=CKQUORUM_NOQUORUM)
+    with mock.patch.object(client, "connection", connection):
+        assert client.sentinel_ckquorum("mymaster") is False
+
+
+@pytest.mark.onlynoncluster
+def test_ckquorum_client_raises_other_response_errors():
+    client = valkey.Valkey(host="foo", port=26379)
+    error = exceptions.ResponseError("ERR No such master with that name")
+    connection = _mock_connection(error=error)
+    with mock.patch.object(client, "connection", connection):
+        with pytest.raises(exceptions.ResponseError, match="No such master"):
+            client.sentinel_ckquorum("mymaster")
+
+
+@pytest.mark.onlynoncluster
+def test_ckquorum_sentinel_returns_false_when_quorum_is_not_reachable(
+    cluster, sentinel
+):
+    with mock.patch.object(
+        SentinelTestClient,
+        "execute_command",
+        autospec=True,
+        side_effect=CKQUORUM_NOQUORUM,
+    ):
+        assert sentinel.sentinel_ckquorum("mymaster") is False
 
 
 @pytest.mark.onlynoncluster
